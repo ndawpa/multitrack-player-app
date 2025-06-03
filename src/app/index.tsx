@@ -70,6 +70,7 @@ export default function HomePage() {
   const [trackDurations, setTrackDurations] = useState<{ [key: string]: number }>({});
   const [trackVolumes, setTrackVolumes] = useState<{ [key: string]: number }>({});
   const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPosition, setSeekPosition] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Initialize players when a song is selected
@@ -96,6 +97,7 @@ export default function HomePage() {
 
         setPlayers(loadedPlayers);
         setIsInitialized(true);
+        setSeekPosition(0);
 
         // Initialize volumes
         const initialVolumes = selectedSong.tracks.reduce((acc, track) => ({
@@ -139,10 +141,12 @@ export default function HomePage() {
         for (let i = 0; i < players.length; i++) {
           const status = await players[i].getStatusAsync();
           if (status.isLoaded) {
+            const position = status.positionMillis / 1000;
             setTrackProgress(prev => ({
               ...prev,
-              [selectedSong.tracks[i].id]: status.positionMillis / 1000
+              [selectedSong.tracks[i].id]: position
             }));
+            setSeekPosition(position);
           }
         }
       }
@@ -251,6 +255,7 @@ export default function HomePage() {
   const handleSeek = async (trackId: string, value: number) => {
     if (!isInitialized || !selectedSong) return;
 
+    setSeekPosition(value);
     await Promise.all(
       players.map(async (player) => {
         await player.setPositionAsync(value * 1000);
@@ -350,11 +355,14 @@ export default function HomePage() {
                   style={styles.seekbar}
                   minimumValue={0}
                   maximumValue={trackDurations[selectedSong.tracks[0]?.id] || 0}
-                  value={trackProgress[selectedSong.tracks[0]?.id] || 0}
+                  value={isSeeking ? seekPosition : (trackProgress[selectedSong.tracks[0]?.id] || 0)}
                   onSlidingStart={() => setIsSeeking(true)}
                   onSlidingComplete={(value) => {
                     setIsSeeking(false);
                     handleSeek(selectedSong.tracks[0].id, value);
+                  }}
+                  onValueChange={(value) => {
+                    setSeekPosition(value);
                   }}
                   minimumTrackTintColor="#BB86FC"
                   maximumTrackTintColor="#2C2C2C"
@@ -398,7 +406,16 @@ export default function HomePage() {
                     </View>
                   </View>
                   <View style={styles.volumeContainer}>
-                    <Ionicons name="volume-low" size={20} color="#BBBBBB" />
+                    <Ionicons 
+                      name={
+                        trackVolumes[track.id] === 0 ? 'volume-mute' :
+                        trackVolumes[track.id] < 0.3 ? 'volume-low' :
+                        trackVolumes[track.id] < 0.7 ? 'volume-medium' :
+                        'volume-high'
+                      } 
+                      size={20} 
+                      color="#BBBBBB" 
+                    />
                     <Slider
                       style={styles.volumeSlider}
                       minimumValue={0}
@@ -408,7 +425,6 @@ export default function HomePage() {
                       minimumTrackTintColor="#BB86FC"
                       maximumTrackTintColor="#2C2C2C"
                     />
-                    <Ionicons name="volume-high" size={20} color="#BBBBBB" />
                   </View>
                 </View>
               ))}
