@@ -1,7 +1,8 @@
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
-import { useAudioPlayer, AudioModule } from 'expo-audio';
-import { useEffect, useState } from 'react';
+import { Audio } from 'expo-av';
+import { useEffect, useState, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Track {
@@ -13,68 +14,174 @@ interface Track {
 const tracks: Track[] = [
   {
     id: '1',
-    name: 'Demo Track 1',
-    audioFile: require('../../assets/audio/demo-track-1.mp3')
+    name: '1 Tenor',
+    audioFile: require('../../assets/audio/1tenor.mp3')
   },
   {
     id: '2',
-    name: 'Demo Track 2',
-    audioFile: require('../../assets/audio/demo-track-2.mp3')
+    name: '2 Tenor',
+    audioFile: require('../../assets/audio/2tenor.mp3')
+  },
+  {
+    id: '3',
+    name: 'Barítono',
+    audioFile: require('../../assets/audio/barítono.mp3')
+  },
+  {
+    id: '4',
+    name: 'Baixo',
+    audioFile: require('../../assets/audio/baixo.mp3')
+  },
+  {
+    id: '5',
+    name: 'Original',
+    audioFile: require('../../assets/audio/original.mp3')
+  },
+  {
+    id: '6',
+    name: 'Playback',
+    audioFile: require('../../assets/audio/playback.mp3')
   }
 ];
 
 export default function HomePage() {
-  const players = tracks.map(track => useAudioPlayer(track.audioFile));
+  const [players, setPlayers] = useState<Audio.Sound[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeTrackIds, setActiveTrackIds] = useState<string[]>([]);
+  const [activeTrackIds, setActiveTrackIds] = useState<string[]>(tracks.map(track => track.id));
+  const [trackProgress, setTrackProgress] = useState<{ [key: string]: number }>({});
+  const [trackDurations, setTrackDurations] = useState<{ [key: string]: number }>({});
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Initialize players
   useEffect(() => {
-    // Initialize all players with volume 0
-    players.forEach(player => {
-      player.volume = 0;
-    });
+    const initializePlayers = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+        });
+
+        const loadedPlayers = await Promise.all(
+          tracks.map(async (track) => {
+            const { sound } = await Audio.Sound.createAsync(track.audioFile);
+            return sound;
+          })
+        );
+
+        setPlayers(loadedPlayers);
+        setIsInitialized(true);
+
+        // Get durations
+        loadedPlayers.forEach(async (player, index) => {
+          const status = await player.getStatusAsync();
+          if (status.isLoaded && status.durationMillis) {
+            setTrackDurations(prev => ({
+              ...prev,
+              [tracks[index].id]: (status as { durationMillis: number }).durationMillis / 1000
+            }));
+          }
+        });
+      } catch (error) {
+        console.error('Error initializing players:', error);
+      }
+    };
+
+    initializePlayers();
+
     return () => {
       players.forEach(player => {
-        player.pause();
+        player.unloadAsync();
       });
     };
   }, []);
 
-  const toggleTrack = async (trackId: string) => {
-    const trackIndex = tracks.findIndex(t => t.id === trackId);
-    if (trackIndex === -1) return;
+  useEffect(() => {
+    if (!isInitialized || players.length === 0) return;
 
-    const player = players[trackIndex];
-    const isActive = activeTrackIds.includes(trackId);
-    
-    // Toggle volume between 0 and 1
-    player.volume = isActive ? 0 : 1;
-
-    if (isActive) {
-      setActiveTrackIds(prev => prev.filter(id => id !== trackId));
-      await player.pause();
-    } else {
-      setActiveTrackIds(prev => [...prev, trackId]);
-      if (isPlaying) {
-        await player.play();
+    const progressInterval = setInterval(async () => {
+      if (isPlaying && !isSeeking) {
+        for (let i = 0; i < players.length; i++) {
+          if (activeTrackIds.includes(tracks[i].id)) {
+            const status = await players[i].getStatusAsync();
+            if (status.isLoaded) {
+              setTrackProgress(prev => ({
+                ...prev,
+                [tracks[i].id]: status.positionMillis / 1000
+              }));
+            }
+          }
+        }
       }
-    }
-  };
+    }, 100);
+
+    return () => clearInterval(progressInterval);
+  }, [isPlaying, activeTrackIds, isSeeking, players, isInitialized]);
 
   const togglePlayback = async () => {
     try {
+      if (!isInitialized) return;
+
       if (isPlaying) {
-        await Promise.all(players.map(player => player.pause()));
+        await Promise.all(players.map(player => player.pauseAsync()));
       } else {
-        const activePlayers = players.filter((_, index) => 
-          activeTrackIds.includes(tracks[index].id)
+        await Promise.all(
+          players.map((player, index) => {
+            if (activeTrackIds.includes(tracks[index].id)) {
+              return player.playAsync();
+            }
+            return Promise.resolve();
+          })
         );
-        await Promise.all(activePlayers.map(player => player.play()));
       }
       setIsPlaying(!isPlaying);
     } catch (error) {
       console.error('Error toggling playback:', error);
     }
+  };
+
+  const toggleTrack = async (trackId: string) => {
+    if (!isInitialized) return;
+
+    const trackIndex = tracks.findIndex(t => t.id === trackId);
+    if (trackIndex === -1) return;
+
+    const player = players[trackIndex];
+    if (!player) return;
+
+    const isActive = activeTrackIds.includes(trackId);
+    
+    if (isActive) {
+      setActiveTrackIds(prev => prev.filter(id => id !== trackId));
+      await player.setVolumeAsync(0);
+    } else {
+      setActiveTrackIds(prev => [...prev, trackId]);
+      await player.setVolumeAsync(1);
+    }
+  };
+
+  const handleSeek = async (trackId: string, value: number) => {
+    if (!isInitialized) return;
+
+    const trackIndex = tracks.findIndex(t => t.id === trackId);
+    if (trackIndex === -1) return;
+
+    const player = players[trackIndex];
+    if (!player) return;
+
+    await player.setPositionAsync(value * 1000);
+    setTrackProgress(prev => ({
+      ...prev,
+      [trackId]: value
+    }));
+  };
+
+  // Add this helper function before the HomePage component
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -86,34 +193,60 @@ export default function HomePage() {
           <Text style={styles.title}>Multitrack Player</Text>
         </View>
         
-        <View style={styles.mainContent}>
+        <ScrollView style={styles.mainContent}>
           {tracks.map(track => (
             <View key={track.id} style={styles.trackContainer}>
-              <Text style={styles.trackName}>{track.name}</Text>
-              <TouchableOpacity 
-                style={styles.trackToggleButton} 
-                onPress={() => toggleTrack(track.id)}
-              >
-                <Ionicons 
-                  name={activeTrackIds.includes(track.id) ? 'volume-high' : 'volume-mute'} 
-                  size={32} 
-                  color="#007AFF" 
+              <View style={styles.trackInfo}>
+                <Text style={styles.trackName}>{track.name}</Text>
+                <TouchableOpacity 
+                  style={styles.trackToggleButton} 
+                  onPress={() => toggleTrack(track.id)}
+                >
+                  <Ionicons 
+                    name={activeTrackIds.includes(track.id) ? 'volume-high' : 'volume-mute'} 
+                    size={32} 
+                    color="#007AFF" 
+                  />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.seekbarContainer}>
+                <Text style={styles.timeText}>
+                  {formatTime(trackProgress[track.id] || 0)}
+                </Text>
+                <Slider
+                  style={styles.seekbar}
+                  minimumValue={0}
+                  maximumValue={trackDurations[track.id] || 0}
+                  value={trackProgress[track.id] || 0}
+                  onSlidingStart={() => setIsSeeking(true)}
+                  onSlidingComplete={(value) => {
+                    setIsSeeking(false);
+                    handleSeek(track.id, value);
+                  }}
+                  minimumTrackTintColor="#007AFF"
+                  maximumTrackTintColor="#ddd"
                 />
-              </TouchableOpacity>
+                <Text style={styles.timeText}>
+                  {formatTime(trackDurations[track.id] || 0)}
+                </Text>
+              </View>
             </View>
           ))}
           
-          <TouchableOpacity 
-            style={styles.playButton} 
-            onPress={togglePlayback}
-          >
-            <Ionicons 
-              name={isPlaying ? 'pause-circle' : 'play-circle'} 
-              size={64} 
-              color="#007AFF" 
-            />
-          </TouchableOpacity>
-        </View>
+          <View style={styles.controls}>
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={togglePlayback}
+            >
+              <Ionicons 
+                name={isPlaying ? 'pause-circle' : 'play-circle'} 
+                size={64} 
+                color="#007AFF" 
+              />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -142,28 +275,55 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'center',
+    backgroundColor: '#fff',
+    padding: 20
   },
   trackContainer: {
-    padding: 15,
     backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    marginBottom: 15,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10
+  },
+  trackInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    elevation: 2,
+    justifyContent: 'space-between'
   },
   trackName: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: 'bold'
   },
   trackToggleButton: {
-    padding: 8,
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: '#e0e0e0'
   },
-  playButton: {
+  timeText: {
+    fontSize: 12,
+    color: '#666',
+    marginHorizontal: 8
+  },
+  seekbar: {
+    flex: 1,
+    height: 40,
+    marginHorizontal: 8
+  },
+  seekbarContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    paddingHorizontal: 10,
+    marginTop: 5
+  },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10
+  },
+  controlButton: {
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: '#e0e0e0',
+    marginHorizontal: 5
   }
 });
