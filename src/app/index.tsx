@@ -1,4 +1,5 @@
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import React from 'react';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -11,43 +12,59 @@ interface Track {
   audioFile: any;
 }
 
-const tracks: Track[] = [
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  tracks: Track[];
+}
+
+const songs: Song[] = [
   {
     id: '1',
-    name: '1 Tenor',
-    audioFile: require('../../assets/audio/1tenor.mp3')
+    title: 'Chegou a Hora',
+    artist: 'Arautos do Rei',
+    tracks: [
+      {
+        id: '1-1',
+        name: '1 Tenor',
+        audioFile: require('../../assets/audio/1tenor.mp3')
+      },
+      {
+        id: '1-2',
+        name: '2 Tenor',
+        audioFile: require('../../assets/audio/2tenor.mp3')
+      },
+      {
+        id: '1-3',
+        name: 'Barítono',
+        audioFile: require('../../assets/audio/barítono.mp3')
+      },
+      {
+        id: '1-4',
+        name: 'Baixo',
+        audioFile: require('../../assets/audio/baixo.mp3')
+      },
+      {
+        id: '1-5',
+        name: 'Original',
+        audioFile: require('../../assets/audio/original.mp3')
+      },
+      {
+        id: '1-6',
+        name: 'Playback',
+        audioFile: require('../../assets/audio/playback.mp3')
+      }
+    ]
   },
-  {
-    id: '2',
-    name: '2 Tenor',
-    audioFile: require('../../assets/audio/2tenor.mp3')
-  },
-  {
-    id: '3',
-    name: 'Barítono',
-    audioFile: require('../../assets/audio/barítono.mp3')
-  },
-  {
-    id: '4',
-    name: 'Baixo',
-    audioFile: require('../../assets/audio/baixo.mp3')
-  },
-  {
-    id: '5',
-    name: 'Original',
-    audioFile: require('../../assets/audio/original.mp3')
-  },
-  {
-    id: '6',
-    name: 'Playback',
-    audioFile: require('../../assets/audio/playback.mp3')
-  }
+  // Add more songs here with their tracks
 ];
 
 export default function HomePage() {
+  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [players, setPlayers] = useState<Audio.Sound[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeTrackIds, setActiveTrackIds] = useState<string[]>(tracks.map(track => track.id));
+  const [activeTrackIds, setActiveTrackIds] = useState<string[]>([]);
   const [soloedTrackIds, setSoloedTrackIds] = useState<string[]>([]);
   const [trackProgress, setTrackProgress] = useState<{ [key: string]: number }>({});
   const [trackDurations, setTrackDurations] = useState<{ [key: string]: number }>({});
@@ -55,9 +72,11 @@ export default function HomePage() {
   const [isSeeking, setIsSeeking] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize players
+  // Initialize players when a song is selected
   useEffect(() => {
     const initializePlayers = async () => {
+      if (!selectedSong) return;
+
       try {
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
@@ -65,8 +84,11 @@ export default function HomePage() {
           shouldDuckAndroid: true,
         });
 
+        // Unload previous players
+        await Promise.all(players.map(player => player.unloadAsync()));
+
         const loadedPlayers = await Promise.all(
-          tracks.map(async (track) => {
+          selectedSong.tracks.map(async (track) => {
             const { sound } = await Audio.Sound.createAsync(track.audioFile);
             return sound;
           })
@@ -76,7 +98,7 @@ export default function HomePage() {
         setIsInitialized(true);
 
         // Initialize volumes
-        const initialVolumes = tracks.reduce((acc, track) => ({
+        const initialVolumes = selectedSong.tracks.reduce((acc, track) => ({
           ...acc,
           [track.id]: 1
         }), {});
@@ -88,10 +110,15 @@ export default function HomePage() {
           if (status.isLoaded && status.durationMillis) {
             setTrackDurations(prev => ({
               ...prev,
-              [tracks[index].id]: status.durationMillis! / 1000
+              [selectedSong.tracks[index].id]: status.durationMillis! / 1000
             }));
           }
         });
+
+        // Set all tracks as active initially
+        setActiveTrackIds(selectedSong.tracks.map(track => track.id));
+        setSoloedTrackIds([]);
+        setTrackProgress({});
       } catch (error) {
         console.error('Error initializing players:', error);
       }
@@ -104,19 +131,17 @@ export default function HomePage() {
         player.unloadAsync();
       });
     };
-  }, []);
+  }, [selectedSong]);
 
   useEffect(() => {
-    if (!isInitialized || players.length === 0) return;
-
     const progressInterval = setInterval(async () => {
-      if (isPlaying && !isSeeking) {
+      if (isPlaying && !isSeeking && selectedSong) {
         for (let i = 0; i < players.length; i++) {
           const status = await players[i].getStatusAsync();
           if (status.isLoaded) {
             setTrackProgress(prev => ({
               ...prev,
-              [tracks[i].id]: status.positionMillis / 1000
+              [selectedSong.tracks[i].id]: status.positionMillis / 1000
             }));
           }
         }
@@ -124,18 +149,18 @@ export default function HomePage() {
     }, 100);
 
     return () => clearInterval(progressInterval);
-  }, [isPlaying, isSeeking, players, isInitialized]);
+  }, [isPlaying, isSeeking, players, isInitialized, selectedSong]);
 
   const togglePlayback = async () => {
     try {
-      if (!isInitialized) return;
+      if (!isInitialized || !selectedSong) return;
 
       if (isPlaying) {
         await Promise.all(players.map(player => player.pauseAsync()));
       } else {
         await Promise.all(
           players.map((player, index) => {
-            if (activeTrackIds.includes(tracks[index].id)) {
+            if (activeTrackIds.includes(selectedSong.tracks[index].id)) {
               return player.playAsync();
             }
             return Promise.resolve();
@@ -149,9 +174,9 @@ export default function HomePage() {
   };
 
   const toggleSolo = async (trackId: string) => {
-    if (!isInitialized) return;
+    if (!isInitialized || !selectedSong) return;
 
-    const trackIndex = tracks.findIndex(t => t.id === trackId);
+    const trackIndex = selectedSong.tracks.findIndex(t => t.id === trackId);
     if (trackIndex === -1) return;
 
     const player = players[trackIndex];
@@ -161,22 +186,17 @@ export default function HomePage() {
     let newSoloedTrackIds: string[];
 
     if (isSoloed) {
-      // Remove from soloed tracks
       newSoloedTrackIds = soloedTrackIds.filter(id => id !== trackId);
     } else {
-      // Add to soloed tracks
       newSoloedTrackIds = [...soloedTrackIds, trackId];
     }
     setSoloedTrackIds(newSoloedTrackIds);
 
-    // Update volumes based on new solo state
-    tracks.forEach(async (track, index) => {
+    selectedSong.tracks.forEach(async (track, index) => {
       const isActive = activeTrackIds.includes(track.id);
       if (newSoloedTrackIds.length === 0) {
-        // If no tracks are soloed, restore to mute state
         await players[index].setVolumeAsync(isActive ? (trackVolumes[track.id] || 1) : 0);
       } else {
-        // If some tracks are soloed, only those tracks should be audible
         await players[index].setVolumeAsync(
           newSoloedTrackIds.includes(track.id) ? (trackVolumes[track.id] || 1) : 0
         );
@@ -185,46 +205,42 @@ export default function HomePage() {
   };
 
   const handleVolumeChange = async (trackId: string, value: number) => {
-    if (!isInitialized) return;
+    if (!isInitialized || !selectedSong) return;
 
-    const trackIndex = tracks.findIndex(t => t.id === trackId);
+    const trackIndex = selectedSong.tracks.findIndex(t => t.id === trackId);
     if (trackIndex === -1) return;
 
     const player = players[trackIndex];
     if (!player) return;
 
-    // Update volume state
     setTrackVolumes(prev => ({
       ...prev,
       [trackId]: value
     }));
 
-    // Update volume if track is soloed or if no tracks are soloed
     if (soloedTrackIds.includes(trackId) || soloedTrackIds.length === 0) {
       await player.setVolumeAsync(value);
     }
   };
 
   const toggleTrack = async (trackId: string) => {
-    if (!isInitialized) return;
+    if (!isInitialized || !selectedSong) return;
 
-    const trackIndex = tracks.findIndex(t => t.id === trackId);
+    const trackIndex = selectedSong.tracks.findIndex(t => t.id === trackId);
     if (trackIndex === -1) return;
 
     const player = players[trackIndex];
     if (!player) return;
 
     const isActive = activeTrackIds.includes(trackId);
-    
+
     if (isActive) {
       setActiveTrackIds(prev => prev.filter(id => id !== trackId));
-      // Only mute if not soloed
       if (!soloedTrackIds.includes(trackId)) {
         await player.setVolumeAsync(0);
       }
     } else {
       setActiveTrackIds(prev => [...prev, trackId]);
-      // Only unmute if not soloed
       if (soloedTrackIds.length === 0 || soloedTrackIds.includes(trackId)) {
         const volume = trackVolumes[trackId] || 1;
         await player.setVolumeAsync(volume);
@@ -233,19 +249,17 @@ export default function HomePage() {
   };
 
   const handleSeek = async (trackId: string, value: number) => {
-    if (!isInitialized) return;
+    if (!isInitialized || !selectedSong) return;
 
-    // Update all players to the same position regardless of their state
     await Promise.all(
       players.map(async (player) => {
         await player.setPositionAsync(value * 1000);
       })
     );
 
-    // Update progress for all tracks
     setTrackProgress(prev => {
       const newProgress = { ...prev };
-      tracks.forEach(track => {
+      selectedSong.tracks.forEach(track => {
         newProgress[track.id] = value;
       });
       return newProgress;
@@ -259,96 +273,148 @@ export default function HomePage() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const handleSongSelect = (song: Song) => {
+    setIsPlaying(false);
+    setSelectedSong(song);
+  };
+
+  const renderSongItem = ({ item }: { item: Song }) => (
+    <TouchableOpacity
+      style={[
+        styles.songItem,
+        selectedSong?.id === item.id && styles.selectedSongItem
+      ]}
+      onPress={() => handleSongSelect(item)}
+    >
+      <View style={styles.songInfo}>
+        <Text style={styles.songTitle}>{item.title}</Text>
+        <Text style={styles.songArtist}>{item.artist}</Text>
+      </View>
+      <Ionicons 
+        name="chevron-forward" 
+        size={24} 
+        color="#BBBBBB" 
+      />
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <SafeAreaView style={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Text style={styles.title}>Multitrack Player</Text>
-            <TouchableOpacity 
-              style={styles.controlButton} 
-              onPress={togglePlayback}
-            >
-              <Ionicons 
-                name={isPlaying ? 'pause-circle' : 'play-circle'} 
-                size={48} 
-                color="#BB86FC" 
-              />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.seekbarContainer}>
-            <Text style={styles.timeText}>
-              {formatTime(trackProgress[tracks[0]?.id] || 0)}
-            </Text>
-            <Slider
-              style={styles.seekbar}
-              minimumValue={0}
-              maximumValue={trackDurations[tracks[0]?.id] || 0}
-              value={trackProgress[tracks[0]?.id] || 0}
-              onSlidingStart={() => setIsSeeking(true)}
-              onSlidingComplete={(value) => {
-                setIsSeeking(false);
-                handleSeek(tracks[0].id, value);
-              }}
-              minimumTrackTintColor="#BB86FC"
-              maximumTrackTintColor="#2C2C2C"
+        {!selectedSong ? (
+          // Song Selection View
+          <View style={styles.songListContainer}>
+            <Text style={styles.title}>Select a Song</Text>
+            <FlatList
+              data={songs}
+              renderItem={renderSongItem}
+              keyExtractor={item => item.id}
+              style={styles.songList}
             />
-            <Text style={styles.timeText}>
-              {formatTime(trackDurations[tracks[0]?.id] || 0)}
-            </Text>
           </View>
-        </View>
-        
-        <ScrollView style={styles.mainContent}>
-          {tracks.map(track => (
-            <View key={track.id} style={styles.trackContainer}>
-              <View style={styles.trackInfo}>
-                <Text style={styles.trackName}>{track.name}</Text>
-                <View style={styles.trackControls}>
+        ) : (
+          // Track Player View
+          <>
+            <View style={styles.header}>
+              <View style={styles.headerTop}>
+                <View style={styles.songHeader}>
                   <TouchableOpacity 
-                    style={[
-                      styles.trackToggleButton,
-                      soloedTrackIds.includes(track.id) && styles.soloActiveButton
-                    ]} 
-                    onPress={() => toggleSolo(track.id)}
+                    style={styles.backButton}
+                    onPress={() => setSelectedSong(null)}
                   >
-                    <Text style={[
-                      styles.trackButtonText,
-                      soloedTrackIds.includes(track.id) && styles.soloActiveText
-                    ]}>S</Text>
+                    <Ionicons name="chevron-back" size={24} color="#BB86FC" />
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[
-                      styles.trackToggleButton,
-                      !activeTrackIds.includes(track.id) && styles.muteActiveButton
-                    ]} 
-                    onPress={() => toggleTrack(track.id)}
-                  >
-                    <Text style={[
-                      styles.trackButtonText,
-                      !activeTrackIds.includes(track.id) && styles.muteActiveText
-                    ]}>M</Text>
-                  </TouchableOpacity>
+                  <View>
+                    <Text style={styles.title}>{selectedSong.title}</Text>
+                    <Text style={styles.artist}>{selectedSong.artist}</Text>
+                  </View>
                 </View>
+                <TouchableOpacity 
+                  style={styles.controlButton} 
+                  onPress={togglePlayback}
+                >
+                  <Ionicons 
+                    name={isPlaying ? 'pause-circle' : 'play-circle'} 
+                    size={48} 
+                    color="#BB86FC" 
+                  />
+                </TouchableOpacity>
               </View>
-              <View style={styles.volumeContainer}>
-                <Ionicons name="volume-low" size={20} color="#BBBBBB" />
+              <View style={styles.seekbarContainer}>
+                <Text style={styles.timeText}>
+                  {formatTime(trackProgress[selectedSong.tracks[0]?.id] || 0)}
+                </Text>
                 <Slider
-                  style={styles.volumeSlider}
+                  style={styles.seekbar}
                   minimumValue={0}
-                  maximumValue={1}
-                  value={trackVolumes[track.id] || 1}
-                  onValueChange={(value) => handleVolumeChange(track.id, value)}
+                  maximumValue={trackDurations[selectedSong.tracks[0]?.id] || 0}
+                  value={trackProgress[selectedSong.tracks[0]?.id] || 0}
+                  onSlidingStart={() => setIsSeeking(true)}
+                  onSlidingComplete={(value) => {
+                    setIsSeeking(false);
+                    handleSeek(selectedSong.tracks[0].id, value);
+                  }}
                   minimumTrackTintColor="#BB86FC"
                   maximumTrackTintColor="#2C2C2C"
                 />
-                <Ionicons name="volume-high" size={20} color="#BBBBBB" />
+                <Text style={styles.timeText}>
+                  {formatTime(trackDurations[selectedSong.tracks[0]?.id] || 0)}
+                </Text>
               </View>
             </View>
-          ))}
-        </ScrollView>
+            
+            <ScrollView style={styles.mainContent}>
+              {selectedSong.tracks.map(track => (
+                <View key={track.id} style={styles.trackContainer}>
+                  <View style={styles.trackInfo}>
+                    <Text style={styles.trackName}>{track.name}</Text>
+                    <View style={styles.trackControls}>
+                      <TouchableOpacity 
+                        style={[
+                          styles.trackToggleButton,
+                          soloedTrackIds.includes(track.id) && styles.soloActiveButton
+                        ]} 
+                        onPress={() => toggleSolo(track.id)}
+                      >
+                        <Text style={[
+                          styles.trackButtonText,
+                          soloedTrackIds.includes(track.id) && styles.soloActiveText
+                        ]}>S</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[
+                          styles.trackToggleButton,
+                          !activeTrackIds.includes(track.id) && styles.muteActiveButton
+                        ]} 
+                        onPress={() => toggleTrack(track.id)}
+                      >
+                        <Text style={[
+                          styles.trackButtonText,
+                          !activeTrackIds.includes(track.id) && styles.muteActiveText
+                        ]}>M</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.volumeContainer}>
+                    <Ionicons name="volume-low" size={20} color="#BBBBBB" />
+                    <Slider
+                      style={styles.volumeSlider}
+                      minimumValue={0}
+                      maximumValue={1}
+                      value={trackVolumes[track.id] || 1}
+                      onValueChange={(value) => handleVolumeChange(track.id, value)}
+                      minimumTrackTintColor="#BB86FC"
+                      maximumTrackTintColor="#2C2C2C"
+                    />
+                    <Ionicons name="volume-high" size={20} color="#BBBBBB" />
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -490,5 +556,51 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 3,
-  }
+  },
+  songListContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  songList: {
+    flex: 1,
+    marginTop: 16,
+  },
+  songItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E1E1E',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  selectedSongItem: {
+    backgroundColor: '#2C2C2C',
+  },
+  songInfo: {
+    flex: 1,
+  },
+  songTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  songArtist: {
+    fontSize: 14,
+    color: '#BBBBBB',
+  },
+  songHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: {
+    padding: 4,
+  },
+  artist: {
+    fontSize: 14,
+    color: '#BBBBBB',
+    marginTop: 2,
+  },
 });
