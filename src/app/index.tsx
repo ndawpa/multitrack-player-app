@@ -51,6 +51,7 @@ export default function HomePage() {
   const [soloedTrackIds, setSoloedTrackIds] = useState<string[]>([]);
   const [trackProgress, setTrackProgress] = useState<{ [key: string]: number }>({});
   const [trackDurations, setTrackDurations] = useState<{ [key: string]: number }>({});
+  const [trackVolumes, setTrackVolumes] = useState<{ [key: string]: number }>({});
   const [isSeeking, setIsSeeking] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -74,13 +75,20 @@ export default function HomePage() {
         setPlayers(loadedPlayers);
         setIsInitialized(true);
 
+        // Initialize volumes
+        const initialVolumes = tracks.reduce((acc, track) => ({
+          ...acc,
+          [track.id]: 1
+        }), {});
+        setTrackVolumes(initialVolumes);
+
         // Get durations
         loadedPlayers.forEach(async (player, index) => {
           const status = await player.getStatusAsync();
           if (status.isLoaded && status.durationMillis) {
             setTrackDurations(prev => ({
               ...prev,
-              [tracks[index].id]: (status as { durationMillis: number }).durationMillis / 1000
+              [tracks[index].id]: status.durationMillis! / 1000
             }));
           }
         });
@@ -166,12 +174,35 @@ export default function HomePage() {
       const isActive = activeTrackIds.includes(track.id);
       if (newSoloedTrackIds.length === 0) {
         // If no tracks are soloed, restore to mute state
-        await players[index].setVolumeAsync(isActive ? 1 : 0);
+        await players[index].setVolumeAsync(isActive ? (trackVolumes[track.id] || 1) : 0);
       } else {
         // If some tracks are soloed, only those tracks should be audible
-        await players[index].setVolumeAsync(newSoloedTrackIds.includes(track.id) ? 1 : 0);
+        await players[index].setVolumeAsync(
+          newSoloedTrackIds.includes(track.id) ? (trackVolumes[track.id] || 1) : 0
+        );
       }
     });
+  };
+
+  const handleVolumeChange = async (trackId: string, value: number) => {
+    if (!isInitialized) return;
+
+    const trackIndex = tracks.findIndex(t => t.id === trackId);
+    if (trackIndex === -1) return;
+
+    const player = players[trackIndex];
+    if (!player) return;
+
+    // Update volume state
+    setTrackVolumes(prev => ({
+      ...prev,
+      [trackId]: value
+    }));
+
+    // Update volume if track is soloed or if no tracks are soloed
+    if (soloedTrackIds.includes(trackId) || soloedTrackIds.length === 0) {
+      await player.setVolumeAsync(value);
+    }
   };
 
   const toggleTrack = async (trackId: string) => {
@@ -195,7 +226,8 @@ export default function HomePage() {
       setActiveTrackIds(prev => [...prev, trackId]);
       // Only unmute if not soloed
       if (soloedTrackIds.length === 0 || soloedTrackIds.includes(trackId)) {
-        await player.setVolumeAsync(1);
+        const volume = trackVolumes[trackId] || 1;
+        await player.setVolumeAsync(volume);
       }
     }
   };
@@ -233,7 +265,40 @@ export default function HomePage() {
       <StatusBar style="dark" />
       <SafeAreaView style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Multitrack Player</Text>
+          <View style={styles.headerTop}>
+            <Text style={styles.title}>Multitrack Player</Text>
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={togglePlayback}
+            >
+              <Ionicons 
+                name={isPlaying ? 'pause-circle' : 'play-circle'} 
+                size={48} 
+                color="#BB86FC" 
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.seekbarContainer}>
+            <Text style={styles.timeText}>
+              {formatTime(trackProgress[tracks[0]?.id] || 0)}
+            </Text>
+            <Slider
+              style={styles.seekbar}
+              minimumValue={0}
+              maximumValue={trackDurations[tracks[0]?.id] || 0}
+              value={trackProgress[tracks[0]?.id] || 0}
+              onSlidingStart={() => setIsSeeking(true)}
+              onSlidingComplete={(value) => {
+                setIsSeeking(false);
+                handleSeek(tracks[0].id, value);
+              }}
+              minimumTrackTintColor="#BB86FC"
+              maximumTrackTintColor="#2C2C2C"
+            />
+            <Text style={styles.timeText}>
+              {formatTime(trackDurations[tracks[0]?.id] || 0)}
+            </Text>
+          </View>
         </View>
         
         <ScrollView style={styles.mainContent}>
@@ -243,64 +308,46 @@ export default function HomePage() {
                 <Text style={styles.trackName}>{track.name}</Text>
                 <View style={styles.trackControls}>
                   <TouchableOpacity 
-                    style={[styles.trackToggleButton, soloedTrackIds.includes(track.id) && styles.soloActiveButton]} 
+                    style={[
+                      styles.trackToggleButton,
+                      soloedTrackIds.includes(track.id) && styles.soloActiveButton
+                    ]} 
                     onPress={() => toggleSolo(track.id)}
                   >
-                    <Ionicons 
-                      name={soloedTrackIds.includes(track.id) ? 'star' : 'star-outline'} 
-                      size={24} 
-                      color={soloedTrackIds.includes(track.id) ? '#FFD700' : '#007AFF'} 
-                    />
+                    <Text style={[
+                      styles.trackButtonText,
+                      soloedTrackIds.includes(track.id) && styles.soloActiveText
+                    ]}>S</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={styles.trackToggleButton} 
+                    style={[
+                      styles.trackToggleButton,
+                      !activeTrackIds.includes(track.id) && styles.muteActiveButton
+                    ]} 
                     onPress={() => toggleTrack(track.id)}
                   >
-                    <Ionicons 
-                      name={activeTrackIds.includes(track.id) ? 'volume-high' : 'volume-mute'} 
-                      size={32} 
-                      color="#007AFF" 
-                    />
+                    <Text style={[
+                      styles.trackButtonText,
+                      !activeTrackIds.includes(track.id) && styles.muteActiveText
+                    ]}>M</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-              
-              <View style={styles.seekbarContainer}>
-                <Text style={styles.timeText}>
-                  {formatTime(trackProgress[track.id] || 0)}
-                </Text>
+              <View style={styles.volumeContainer}>
+                <Ionicons name="volume-low" size={20} color="#BBBBBB" />
                 <Slider
-                  style={styles.seekbar}
+                  style={styles.volumeSlider}
                   minimumValue={0}
-                  maximumValue={trackDurations[track.id] || 0}
-                  value={trackProgress[track.id] || 0}
-                  onSlidingStart={() => setIsSeeking(true)}
-                  onSlidingComplete={(value) => {
-                    setIsSeeking(false);
-                    handleSeek(track.id, value);
-                  }}
-                  minimumTrackTintColor="#007AFF"
-                  maximumTrackTintColor="#ddd"
+                  maximumValue={1}
+                  value={trackVolumes[track.id] || 1}
+                  onValueChange={(value) => handleVolumeChange(track.id, value)}
+                  minimumTrackTintColor="#BB86FC"
+                  maximumTrackTintColor="#2C2C2C"
                 />
-                <Text style={styles.timeText}>
-                  {formatTime(trackDurations[track.id] || 0)}
-                </Text>
+                <Ionicons name="volume-high" size={20} color="#BBBBBB" />
               </View>
             </View>
           ))}
-          
-          <View style={styles.controls}>
-            <TouchableOpacity 
-              style={styles.controlButton} 
-              onPress={togglePlayback}
-            >
-              <Ionicons 
-                name={isPlaying ? 'pause-circle' : 'play-circle'} 
-                size={64} 
-                color="#007AFF" 
-              />
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -310,83 +357,138 @@ export default function HomePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff'
+    backgroundColor: '#121212'
   },
   statusBarBackground: {
     height: 24,
-    backgroundColor: '#fff'
+    backgroundColor: '#121212'
   },
   content: {
     flex: 1
   },
   header: {
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#2C2C2C',
+    backgroundColor: '#1E1E1E',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
   },
   mainContent: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20
+    backgroundColor: '#121212',
+    padding: 12
   },
   trackContainer: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#1E1E1E',
     borderRadius: 8,
-    padding: 15,
-    marginBottom: 10
+    padding: 10,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
   },
   trackInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   trackName: {
-    fontSize: 16,
-    fontWeight: 'bold'
-  },
-  trackToggleButton: {
-    padding: 10,
-    borderRadius: 20,
-    backgroundColor: '#e0e0e0'
-  },
-  timeText: {
-    fontSize: 12,
-    color: '#666',
-    marginHorizontal: 8
-  },
-  seekbar: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
     flex: 1,
-    height: 40,
-    marginHorizontal: 8
-  },
-  seekbarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    marginTop: 5
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10
-  },
-  controlButton: {
-    padding: 10,
-    borderRadius: 20,
-    backgroundColor: '#e0e0e0',
-    marginHorizontal: 5
+    marginRight: 8,
   },
   trackControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+  },
+  trackToggleButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#2C2C2C',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 1,
+    elevation: 1,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trackButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#BB86FC',
   },
   soloActiveButton: {
-    backgroundColor: '#FFD70020',
+    backgroundColor: '#1B4332',
   },
+  soloActiveText: {
+    color: '#4CAF50',
+  },
+  muteActiveButton: {
+    backgroundColor: '#3D0C11',
+  },
+  muteActiveText: {
+    color: '#FF5252',
+  },
+  volumeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    marginTop: 4,
+  },
+  volumeSlider: {
+    flex: 1,
+    height: 32,
+    marginHorizontal: 6,
+  },
+  timeText: {
+    fontSize: 11,
+    color: '#BBBBBB',
+    marginHorizontal: 6,
+    fontVariant: ['tabular-nums'],
+  },
+  seekbar: {
+    flex: 1,
+    height: 32,
+    marginHorizontal: 6,
+  },
+  seekbarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  controlButton: {
+    padding: 8,
+    borderRadius: 25,
+    backgroundColor: '#2C2C2C',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  }
 });
