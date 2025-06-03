@@ -103,21 +103,19 @@ export default function HomePage() {
     const progressInterval = setInterval(async () => {
       if (isPlaying && !isSeeking) {
         for (let i = 0; i < players.length; i++) {
-          if (activeTrackIds.includes(tracks[i].id)) {
-            const status = await players[i].getStatusAsync();
-            if (status.isLoaded) {
-              setTrackProgress(prev => ({
-                ...prev,
-                [tracks[i].id]: status.positionMillis / 1000
-              }));
-            }
+          const status = await players[i].getStatusAsync();
+          if (status.isLoaded) {
+            setTrackProgress(prev => ({
+              ...prev,
+              [tracks[i].id]: status.positionMillis / 1000
+            }));
           }
         }
       }
     }, 100);
 
     return () => clearInterval(progressInterval);
-  }, [isPlaying, activeTrackIds, isSeeking, players, isInitialized]);
+  }, [isPlaying, isSeeking, players, isInitialized]);
 
   const togglePlayback = async () => {
     try {
@@ -164,17 +162,21 @@ export default function HomePage() {
   const handleSeek = async (trackId: string, value: number) => {
     if (!isInitialized) return;
 
-    const trackIndex = tracks.findIndex(t => t.id === trackId);
-    if (trackIndex === -1) return;
+    // Update all players to the same position regardless of their state
+    await Promise.all(
+      players.map(async (player) => {
+        await player.setPositionAsync(value * 1000);
+      })
+    );
 
-    const player = players[trackIndex];
-    if (!player) return;
-
-    await player.setPositionAsync(value * 1000);
-    setTrackProgress(prev => ({
-      ...prev,
-      [trackId]: value
-    }));
+    // Update progress for all tracks
+    setTrackProgress(prev => {
+      const newProgress = { ...prev };
+      tracks.forEach(track => {
+        newProgress[track.id] = value;
+      });
+      return newProgress;
+    });
   };
 
   // Add this helper function before the HomePage component
