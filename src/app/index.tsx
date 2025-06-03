@@ -28,32 +28,69 @@ const songs: Song[] = [
       {
         id: '1-1',
         name: '1 Tenor',
-        audioFile: require('../../assets/audio/1tenor.mp3')
+        audioFile: require('../../assets/audio/chegou_a_hora/1tenor.mp3')
       },
       {
         id: '1-2',
         name: '2 Tenor',
-        audioFile: require('../../assets/audio/2tenor.mp3')
+        audioFile: require('../../assets/audio/chegou_a_hora/2tenor.mp3')
       },
       {
         id: '1-3',
         name: 'Barítono',
-        audioFile: require('../../assets/audio/barítono.mp3')
+        audioFile: require('../../assets/audio/chegou_a_hora/barítono.mp3')
       },
       {
         id: '1-4',
         name: 'Baixo',
-        audioFile: require('../../assets/audio/baixo.mp3')
+        audioFile: require('../../assets/audio/chegou_a_hora/baixo.mp3')
       },
       {
         id: '1-5',
         name: 'Original',
-        audioFile: require('../../assets/audio/original.mp3')
+        audioFile: require('../../assets/audio/chegou_a_hora/original.mp3')
       },
       {
         id: '1-6',
         name: 'Playback',
-        audioFile: require('../../assets/audio/playback.mp3')
+        audioFile: require('../../assets/audio/chegou_a_hora/playback.mp3')
+      }
+    ]
+  },
+  {
+    id: '2',
+    title: 'Jesus de Nazaré',
+    artist: 'Arautos do Rei',
+    tracks: [
+      {
+        id: '1-1',
+        name: '1 Tenor',
+        audioFile: require('../../assets/audio/jesus_de_nazare/1tenor.mp3')
+      },
+      {
+        id: '1-2',
+        name: '2 Tenor',
+        audioFile: require('../../assets/audio/jesus_de_nazare/2tenor.mp3')
+      },
+      {
+        id: '1-3',
+        name: 'Barítono',
+        audioFile: require('../../assets/audio/jesus_de_nazare/barítono.mp3')
+      },
+      {
+        id: '1-4',
+        name: 'Baixo',
+        audioFile: require('../../assets/audio/jesus_de_nazare/baixo.mp3')
+      },
+      {
+        id: '1-5',
+        name: 'Original',
+        audioFile: require('../../assets/audio/jesus_de_nazare/original.mp3')
+      },
+      {
+        id: '1-6',
+        name: 'Playback',
+        audioFile: require('../../assets/audio/jesus_de_nazare/playback.mp3')
       }
     ]
   },
