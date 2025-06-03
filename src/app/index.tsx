@@ -48,6 +48,7 @@ export default function HomePage() {
   const [players, setPlayers] = useState<Audio.Sound[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeTrackIds, setActiveTrackIds] = useState<string[]>(tracks.map(track => track.id));
+  const [soloedTrackIds, setSoloedTrackIds] = useState<string[]>([]);
   const [trackProgress, setTrackProgress] = useState<{ [key: string]: number }>({});
   const [trackDurations, setTrackDurations] = useState<{ [key: string]: number }>({});
   const [isSeeking, setIsSeeking] = useState(false);
@@ -139,6 +140,40 @@ export default function HomePage() {
     }
   };
 
+  const toggleSolo = async (trackId: string) => {
+    if (!isInitialized) return;
+
+    const trackIndex = tracks.findIndex(t => t.id === trackId);
+    if (trackIndex === -1) return;
+
+    const player = players[trackIndex];
+    if (!player) return;
+
+    const isSoloed = soloedTrackIds.includes(trackId);
+    let newSoloedTrackIds: string[];
+
+    if (isSoloed) {
+      // Remove from soloed tracks
+      newSoloedTrackIds = soloedTrackIds.filter(id => id !== trackId);
+    } else {
+      // Add to soloed tracks
+      newSoloedTrackIds = [...soloedTrackIds, trackId];
+    }
+    setSoloedTrackIds(newSoloedTrackIds);
+
+    // Update volumes based on new solo state
+    tracks.forEach(async (track, index) => {
+      const isActive = activeTrackIds.includes(track.id);
+      if (newSoloedTrackIds.length === 0) {
+        // If no tracks are soloed, restore to mute state
+        await players[index].setVolumeAsync(isActive ? 1 : 0);
+      } else {
+        // If some tracks are soloed, only those tracks should be audible
+        await players[index].setVolumeAsync(newSoloedTrackIds.includes(track.id) ? 1 : 0);
+      }
+    });
+  };
+
   const toggleTrack = async (trackId: string) => {
     if (!isInitialized) return;
 
@@ -152,10 +187,16 @@ export default function HomePage() {
     
     if (isActive) {
       setActiveTrackIds(prev => prev.filter(id => id !== trackId));
-      await player.setVolumeAsync(0);
+      // Only mute if not soloed
+      if (!soloedTrackIds.includes(trackId)) {
+        await player.setVolumeAsync(0);
+      }
     } else {
       setActiveTrackIds(prev => [...prev, trackId]);
-      await player.setVolumeAsync(1);
+      // Only unmute if not soloed
+      if (soloedTrackIds.length === 0 || soloedTrackIds.includes(trackId)) {
+        await player.setVolumeAsync(1);
+      }
     }
   };
 
@@ -200,16 +241,28 @@ export default function HomePage() {
             <View key={track.id} style={styles.trackContainer}>
               <View style={styles.trackInfo}>
                 <Text style={styles.trackName}>{track.name}</Text>
-                <TouchableOpacity 
-                  style={styles.trackToggleButton} 
-                  onPress={() => toggleTrack(track.id)}
-                >
-                  <Ionicons 
-                    name={activeTrackIds.includes(track.id) ? 'volume-high' : 'volume-mute'} 
-                    size={32} 
-                    color="#007AFF" 
-                  />
-                </TouchableOpacity>
+                <View style={styles.trackControls}>
+                  <TouchableOpacity 
+                    style={[styles.trackToggleButton, soloedTrackIds.includes(track.id) && styles.soloActiveButton]} 
+                    onPress={() => toggleSolo(track.id)}
+                  >
+                    <Ionicons 
+                      name={soloedTrackIds.includes(track.id) ? 'star' : 'star-outline'} 
+                      size={24} 
+                      color={soloedTrackIds.includes(track.id) ? '#FFD700' : '#007AFF'} 
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.trackToggleButton} 
+                    onPress={() => toggleTrack(track.id)}
+                  >
+                    <Ionicons 
+                      name={activeTrackIds.includes(track.id) ? 'volume-high' : 'volume-mute'} 
+                      size={32} 
+                      color="#007AFF" 
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               
               <View style={styles.seekbarContainer}>
@@ -327,5 +380,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#e0e0e0',
     marginHorizontal: 5
-  }
+  },
+  trackControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  soloActiveButton: {
+    backgroundColor: '#FFD70020',
+  },
 });
