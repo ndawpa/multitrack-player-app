@@ -546,6 +546,8 @@ export default function HomePage() {
   const SYNC_THRESHOLD = 100;
   const [showSessionIdDialog, setShowSessionIdDialog] = useState(false);
   const [loadingTracks, setLoadingTracks] = useState<{ [key: string]: boolean }>({});
+  const [activeSessions, setActiveSessions] = useState<{ id: string; admin: string; createdAt: number }[]>([]);
+  const [showSessionsList, setShowSessionsList] = useState(false);
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -1060,6 +1062,80 @@ export default function HomePage() {
     }
   };
 
+  // Add function to fetch active sessions
+  useEffect(() => {
+    if (showSessionsList) {
+      const sessionsRef = ref(database, 'sessions');
+      const unsubscribe = onValue(sessionsRef, (snapshot) => {
+        const sessions = snapshot.val();
+        if (sessions) {
+          const sessionsList = Object.entries(sessions).map(([id, data]: [string, any]) => ({
+            id,
+            admin: data.admin,
+            createdAt: data.createdAt
+          }));
+          setActiveSessions(sessionsList);
+        } else {
+          setActiveSessions([]);
+        }
+      });
+
+      return () => unsubscribe();
+    }
+  }, [showSessionsList]);
+
+  const renderSessionsList = () => (
+    <View style={styles.dialogOverlay}>
+      <View style={styles.dialog}>
+        <Text style={styles.dialogTitle}>Active Sessions</Text>
+        {activeSessions.length === 0 ? (
+          <Text style={styles.noSessionsText}>No active sessions found</Text>
+        ) : (
+          <ScrollView style={styles.sessionsList}>
+            {activeSessions.map(session => (
+              <TouchableOpacity
+                key={session.id}
+                style={styles.sessionItem}
+                onPress={() => {
+                  joinSession(session.id);
+                  setShowSessionsList(false);
+                }}
+              >
+                <View style={styles.sessionItemInfo}>
+                  <Text style={styles.sessionItemId}>ID: {session.id.substring(0, 8)}...</Text>
+                  <Text style={styles.sessionItemAdmin}>Admin: {session.admin.substring(0, 8)}...</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#BBBBBB" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+        <View style={styles.dialogButtons}>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonCancel]}
+            onPress={() => setShowSessionsList(false)}
+          >
+            <Text style={styles.dialogButtonText}>Close</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonJoin]}
+            onPress={() => {
+              setShowSessionsList(false);
+              setShowJoinDialog(true);
+            }}
+          >
+            <Text style={styles.dialogButtonText}>Enter ID</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
+  // Modify the join button press handler
+  const handleJoinPress = () => {
+    setShowSessionsList(true);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1106,12 +1182,12 @@ export default function HomePage() {
                   >
                     <Ionicons name="chevron-back" size={24} color="#BB86FC" />
                   </TouchableOpacity>
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.songHeaderText}>
                     <MarqueeText 
                       text={selectedSong.title} 
                       style={styles.title}
                     />
-                    <Text style={[styles.artist, { flexWrap: 'wrap' }]} numberOfLines={1}>
+                    <Text style={styles.artist} numberOfLines={1}>
                       {selectedSong.artist}
                     </Text>
                   </View>
@@ -1126,13 +1202,13 @@ export default function HomePage() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.syncButton, { marginLeft: 8 }]}
-                      onPress={() => setShowJoinDialog(true)}
+                      onPress={handleJoinPress}
                     >
                       <Ionicons name="enter" size={24} color="#BB86FC" />
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <View style={[styles.sessionInfo, { maxWidth: '40%' }]}>
+                  <View style={styles.sessionInfo}>
                     <View style={styles.sessionIdContainer}>
                       <TouchableOpacity 
                         onPress={() => setShowSessionIdDialog(true)}
@@ -1263,6 +1339,7 @@ export default function HomePage() {
       </SafeAreaView>
       {showJoinDialog && renderJoinDialog()}
       {showSessionIdDialog && renderSessionIdDialog()}
+      {showSessionsList && renderSessionsList()}
     </View>
   );
 }
@@ -1300,8 +1377,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  songHeaderText: {
     flex: 1,
-    marginRight: 12,
+    marginLeft: 8,
   },
   title: {
     fontSize: 24,
@@ -1309,12 +1388,201 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -0.5,
     flexWrap: 'wrap',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   artist: {
     fontSize: 14,
     color: '#BBBBBB',
     flexWrap: 'wrap',
+  },
+  sessionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    flexShrink: 1,
+    backgroundColor: '#2C2C2C',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 8,
+    maxWidth: '40%',
+    flexWrap: 'wrap',
+  },
+  sessionIdContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+  },
+  sessionIdButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+  },
+  sessionId: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    marginRight: 8,
+    flexShrink: 1,
+    fontWeight: '500',
+  },
+  leaveButton: {
+    padding: 6,
+    backgroundColor: '#3D0C11',
+    borderRadius: 6,
+    flexShrink: 0,
+    marginLeft: 'auto',
+  },
+  controlButton: {
+    padding: 8,
+    borderRadius: 25,
+    backgroundColor: '#2C2C2C',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  syncButtons: {
+    flexDirection: 'row',
+    marginRight: 12,
+  },
+  syncButton: {
+    padding: 8,
+    borderRadius: 25,
+    backgroundColor: '#2C2C2C',
+  },
+  seekbarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  songListContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  songList: {
+    flex: 1,
+    marginTop: 16,
+  },
+  songItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E1E1E',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  selectedSongItem: {
+    backgroundColor: '#2C2C2C',
+  },
+  songInfo: {
+    flex: 1,
+  },
+  songTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  songArtist: {
+    fontSize: 14,
+    color: '#BBBBBB',
+  },
+  backButton: {
+    padding: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginTop: 16,
+    marginBottom: 8,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    height: '100%',
+  },
+  clearButton: {
+    padding: 4,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 6,
+    backgroundColor: '#2C2C2C',
+    borderRadius: 6,
+  },
+  loadingText: {
+    color: '#BB86FC',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  dialogOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  dialog: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  dialogTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  dialogInput: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  dialogButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dialogButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  dialogButtonCancel: {
+    backgroundColor: '#3D0C11',
+  },
+  dialogButtonJoin: {
+    backgroundColor: '#1B4332',
+  },
+  dialogButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   mainContent: {
     flex: 1,
@@ -1403,199 +1671,36 @@ const styles = StyleSheet.create({
     height: 32,
     marginHorizontal: 6,
   },
-  seekbarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
+  noSessionsText: {
+    color: '#BBBBBB',
+    textAlign: 'center',
+    marginVertical: 20,
   },
-  controlButton: {
-    padding: 8,
-    borderRadius: 25,
-    backgroundColor: '#2C2C2C',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
+  sessionsList: {
+    maxHeight: 300,
+    marginBottom: 16,
   },
-  songListContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  songList: {
-    flex: 1,
-    marginTop: 16,
-  },
-  songItem: {
+  sessionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1E1E1E',
-    padding: 16,
+    backgroundColor: '#2C2C2C',
+    padding: 12,
     borderRadius: 8,
     marginBottom: 8,
   },
-  selectedSongItem: {
-    backgroundColor: '#2C2C2C',
-  },
-  songInfo: {
+  sessionItemInfo: {
     flex: 1,
   },
-  songTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  sessionItemId: {
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
     marginBottom: 4,
   },
-  songArtist: {
-    fontSize: 14,
+  sessionItemAdmin: {
     color: '#BBBBBB',
-  },
-  backButton: {
-    padding: 4,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E1E1E',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginTop: 16,
-    marginBottom: 8,
-    height: 44,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 16,
-    height: '100%',
-  },
-  clearButton: {
-    padding: 4,
-  },
-  syncButtons: {
-    flexDirection: 'row',
-    marginRight: 12,
-  },
-  syncButton: {
-    padding: 8,
-    borderRadius: 25,
-    backgroundColor: '#2C2C2C',
-  },
-  sessionInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-    flexShrink: 1,
-    backgroundColor: '#2C2C2C',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    gap: 8,
-  },
-  sessionIdContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    minWidth: 0,
-  },
-  sessionIdButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 0,
-  },
-  sessionId: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    marginRight: 8,
-    flexShrink: 1,
-    fontWeight: '500',
-  },
-  adminBadge: {
-    fontSize: 10,
-    color: '#4CAF50',
-    backgroundColor: '#1B4332',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  dialogOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  dialog: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 12,
-    padding: 20,
-    width: '80%',
-    maxWidth: 400,
-  },
-  dialogTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  dialogInput: {
-    backgroundColor: '#2C2C2C',
-    borderRadius: 8,
-    padding: 12,
-    color: '#FFFFFF',
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  dialogButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dialogButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 4,
-  },
-  dialogButtonCancel: {
-    backgroundColor: '#3D0C11',
-  },
-  dialogButtonJoin: {
-    backgroundColor: '#1B4332',
-  },
-  dialogButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 6,
-    backgroundColor: '#2C2C2C',
-    borderRadius: 6,
-  },
-  loadingText: {
-    color: '#BB86FC',
     fontSize: 12,
-    fontWeight: '500',
-  },
-  leaveButton: {
-    padding: 6,
-    backgroundColor: '#3D0C11',
-    borderRadius: 6,
-    flexShrink: 0,
   },
   fullSessionId: {
     flex: 1,
@@ -1608,5 +1713,13 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  adminBadge: {
+    fontSize: 10,
+    color: '#4CAF50',
+    backgroundColor: '#1B4332',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
 });
