@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -544,6 +544,7 @@ export default function HomePage() {
   const [latency, setLatency] = useState(0);
   const [lastSyncTime, setLastSyncTime] = useState(0);
   const SYNC_THRESHOLD = 100;
+  const [showSessionIdDialog, setShowSessionIdDialog] = useState(false);
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -915,6 +916,38 @@ export default function HomePage() {
     </View>
   );
 
+  const renderSessionIdDialog = () => (
+    <View style={styles.dialogOverlay}>
+      <View style={styles.dialog}>
+        <Text style={styles.dialogTitle}>Session ID</Text>
+        <View style={styles.sessionIdContainer}>
+          <Text style={styles.fullSessionId}>{sessionId}</Text>
+          <TouchableOpacity 
+            style={styles.copyButton}
+            onPress={async () => {
+              try {
+                await Clipboard.setString(sessionId || '');
+                Alert.alert('Success', 'Session ID copied to clipboard');
+              } catch (error) {
+                Alert.alert('Error', 'Failed to copy session ID');
+              }
+            }}
+          >
+            <Ionicons name="copy-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.dialogButtons}>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonCancel]}
+            onPress={() => setShowSessionIdDialog(false)}
+          >
+            <Text style={styles.dialogButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
   // Add back the track control functions
   const toggleSolo = async (trackId: string) => {
     if (!isInitialized || !selectedSong) return;
@@ -1063,8 +1096,15 @@ export default function HomePage() {
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <View style={styles.sessionInfo}>
-                    <Text style={styles.sessionId}>Session: {sessionId}</Text>
+                  <View style={[styles.sessionInfo, { maxWidth: '40%' }]}>
+                    <TouchableOpacity 
+                      onPress={() => setShowSessionIdDialog(true)}
+                      style={styles.sessionIdButton}
+                    >
+                      <Text style={styles.sessionId} numberOfLines={1}>
+                        ID: {sessionId.substring(0, 8)}...
+                      </Text>
+                    </TouchableOpacity>
                     {isAdmin && (
                       <Text style={styles.adminBadge}>Admin</Text>
                     )}
@@ -1167,6 +1207,7 @@ export default function HomePage() {
         )}
       </SafeAreaView>
       {showJoinDialog && renderJoinDialog()}
+      {showSessionIdDialog && renderSessionIdDialog()}
     </View>
   );
 }
@@ -1393,11 +1434,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 12,
+    flexShrink: 1,
+    backgroundColor: '#2C2C2C',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   sessionId: {
-    fontSize: 12,
-    color: '#BBBBBB',
+    fontSize: 13,
+    color: '#FFFFFF',
     marginRight: 8,
+    flexShrink: 1,
+    fontWeight: '500',
   },
   adminBadge: {
     fontSize: 10,
@@ -1461,5 +1509,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  sessionIdButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sessionIdContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  fullSessionId: {
+    flex: 1,
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontFamily: 'monospace',
+  },
+  copyButton: {
+    backgroundColor: '#BB86FC',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  copyButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  copyButtonText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
