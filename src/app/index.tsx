@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -441,6 +441,7 @@ export default function HomePage() {
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPosition, setSeekPosition] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Initialize players when a song is selected
   useEffect(() => {
@@ -652,6 +653,16 @@ export default function HomePage() {
     setSelectedSong(song);
   };
 
+  const filteredSongs = useMemo(() => {
+    if (!searchQuery.trim()) return songs;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return songs.filter(song => 
+      song.title.toLowerCase().includes(query) || 
+      song.artist.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
+
   const renderSongItem = ({ item }: { item: Song }) => (
     <TouchableOpacity
       style={[
@@ -681,8 +692,26 @@ export default function HomePage() {
           // Song Selection View
           <View style={styles.songListContainer}>
             <Text style={styles.title}>Select a Song</Text>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search songs..."
+                placeholderTextColor="#666666"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery ? (
+                <TouchableOpacity 
+                  style={styles.clearButton}
+                  onPress={() => setSearchQuery('')}
+                >
+                  <Ionicons name="close-circle" size={20} color="#BBBBBB" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
             <FlatList
-              data={songs}
+              data={filteredSongs}
               renderItem={renderSongItem}
               keyExtractor={item => item.id}
               style={styles.songList}
@@ -987,5 +1016,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#BBBBBB',
     marginTop: 2,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginTop: 16,
+    marginBottom: 8,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    height: '100%',
+  },
+  clearButton: {
+    padding: 4,
   },
 });
