@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -545,6 +545,7 @@ export default function HomePage() {
   const [lastSyncTime, setLastSyncTime] = useState(0);
   const SYNC_THRESHOLD = 100;
   const [showSessionIdDialog, setShowSessionIdDialog] = useState(false);
+  const [loadingTracks, setLoadingTracks] = useState<{ [key: string]: boolean }>({});
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -786,6 +787,13 @@ export default function HomePage() {
           shouldDuckAndroid: true,
         });
 
+        // Set all tracks as loading initially
+        const initialLoadingState = selectedSong.tracks.reduce((acc, track) => ({
+          ...acc,
+          [track.id]: true
+        }), {});
+        setLoadingTracks(initialLoadingState);
+
         // Unload previous players
         await Promise.all(players.map(player => player.unloadAsync()));
 
@@ -797,6 +805,12 @@ export default function HomePage() {
               { shouldPlay: false },
               (status) => {
                 console.log(`Track ${track.name} status:`, status);
+                if (status.isLoaded) {
+                  setLoadingTracks(prev => ({
+                    ...prev,
+                    [track.id]: false
+                  }));
+                }
               }
             );
             return sound;
@@ -1153,35 +1167,45 @@ export default function HomePage() {
                   <View style={styles.trackInfo}>
                     <Text style={styles.trackName}>{track.name}</Text>
                     <View style={styles.trackControls}>
-                      <TouchableOpacity 
-                        style={[
-                          styles.trackToggleButton,
-                          soloedTrackIds.includes(track.id) && styles.soloActiveButton
-                        ]} 
-                        onPress={() => toggleSolo(track.id)}
-                      >
-                        <Text style={[
-                          styles.trackButtonText,
-                          soloedTrackIds.includes(track.id) && styles.soloActiveText
-                        ]}>S</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={[
-                          styles.trackToggleButton,
-                          !activeTrackIds.includes(track.id) && styles.muteActiveButton
-                        ]} 
-                        onPress={() => toggleTrack(track.id)}
-                      >
-                        <Text style={[
-                          styles.trackButtonText,
-                          !activeTrackIds.includes(track.id) && styles.muteActiveText
-                        ]}>M</Text>
-                      </TouchableOpacity>
+                      {loadingTracks[track.id] ? (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator size="small" color="#BB86FC" />
+                          <Text style={styles.loadingText}>Loading...</Text>
+                        </View>
+                      ) : (
+                        <>
+                          <TouchableOpacity 
+                            style={[
+                              styles.trackToggleButton,
+                              soloedTrackIds.includes(track.id) && styles.soloActiveButton
+                            ]} 
+                            onPress={() => toggleSolo(track.id)}
+                          >
+                            <Text style={[
+                              styles.trackButtonText,
+                              soloedTrackIds.includes(track.id) && styles.soloActiveText
+                            ]}>S</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[
+                              styles.trackToggleButton,
+                              !activeTrackIds.includes(track.id) && styles.muteActiveButton
+                            ]} 
+                            onPress={() => toggleTrack(track.id)}
+                          >
+                            <Text style={[
+                              styles.trackButtonText,
+                              !activeTrackIds.includes(track.id) && styles.muteActiveText
+                            ]}>M</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
                     </View>
                   </View>
                   <View style={styles.volumeContainer}>
                     <Ionicons 
                       name={
+                        loadingTracks[track.id] ? 'hourglass-outline' :
                         trackVolumes[track.id] === 0 ? 'volume-mute' :
                         trackVolumes[track.id] < 0.3 ? 'volume-low' :
                         trackVolumes[track.id] < 0.7 ? 'volume-medium' :
@@ -1198,6 +1222,7 @@ export default function HomePage() {
                       onValueChange={(value) => handleVolumeChange(track.id, value)}
                       minimumTrackTintColor="#BB86FC"
                       maximumTrackTintColor="#2C2C2C"
+                      disabled={loadingTracks[track.id]}
                     />
                   </View>
                 </View>
@@ -1545,5 +1570,18 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 14,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 6,
+    backgroundColor: '#2C2C2C',
+    borderRadius: 6,
+  },
+  loadingText: {
+    color: '#BB86FC',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
