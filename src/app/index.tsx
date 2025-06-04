@@ -5,6 +5,30 @@ import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
 import { useEffect, useState, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, onValue, set, serverTimestamp } from 'firebase/database';
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAZsxb2zg04yx3hQGmnIwhOLqEYWmb2aEI",
+  authDomain: "multitrack-player-app.firebaseapp.com",
+  databaseURL: "https://multitrack-player-app-default-rtdb.firebaseio.com",
+  projectId: "multitrack-player-app",
+  storageBucket: "multitrack-player-app.firebasestorage.app",
+  messagingSenderId: "1032913811889",
+  appId: "1:1032913811889:web:7751664dfb4a7670932590"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+// Custom ID generator
+const generateId = () => {
+  const timestamp = Date.now().toString(36);
+  const randomStr = Math.random().toString(36).substring(2, 8);
+  return `${timestamp}-${randomStr}`;
+};
 
 interface Track {
   id: string;
@@ -475,6 +499,21 @@ const MarqueeText = ({ text, style }: { text: string; style: any }) => {
   );
 };
 
+interface SyncState {
+  isPlaying: boolean;
+  seekPosition: number;
+  activeTracks: string[];
+  soloedTracks: string[];
+  trackVolumes: { [key: string]: number };
+}
+
+// Add helper functions before the HomePage component
+const formatTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
 export default function HomePage() {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [players, setPlayers] = useState<Audio.Sound[]>([]);
@@ -488,6 +527,250 @@ export default function HomePage() {
   const [seekPosition, setSeekPosition] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Sync state
+  const [deviceId] = useState(() => generateId());
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<SyncState>({
+    isPlaying: false,
+    seekPosition: 0,
+    activeTracks: [],
+    soloedTracks: [],
+    trackVolumes: {}
+  });
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [joinSessionInput, setJoinSessionInput] = useState('');
+  const [latency, setLatency] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState(0);
+  const SYNC_THRESHOLD = 100;
+
+  // Initialize sync session
+  const initializeSyncSession = async () => {
+    const newSessionId = generateId();
+    setSessionId(newSessionId);
+    setIsAdmin(true);
+    
+    // Create session in Firebase
+    const sessionRef = ref(database, `sessions/${newSessionId}`);
+    await set(sessionRef, {
+      admin: deviceId,
+      createdAt: serverTimestamp(),
+      state: {
+        isPlaying: false,
+        seekPosition: 0,
+        activeTracks: [],
+        soloedTracks: [],
+        trackVolumes: {}
+      }
+    });
+  };
+
+  // Join existing session
+  const joinSession = async (sessionId: string) => {
+    try {
+      setSessionId(sessionId);
+      setIsAdmin(false);
+      
+      // Initialize sync state with default values
+      setSyncState({
+        isPlaying: false,
+        seekPosition: 0,
+        activeTracks: [],
+        soloedTracks: [],
+        trackVolumes: {}
+      });
+    } catch (error) {
+      console.error('Error joining session:', error);
+    }
+  };
+
+  // Listen for sync state changes
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const sessionRef = ref(database, `sessions/${sessionId}/state`);
+    const unsubscribe = onValue(sessionRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setSyncState({
+          isPlaying: data.isPlaying || false,
+          seekPosition: data.seekPosition || 0,
+          activeTracks: data.activeTracks || [],
+          soloedTracks: data.soloedTracks || [],
+          trackVolumes: data.trackVolumes || {}
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [sessionId]);
+
+  // Modify the togglePlayback function
+  const togglePlayback = async () => {
+    if (!isInitialized || !selectedSong) {
+      console.log('Cannot toggle playback:', { isInitialized, selectedSong });
+      return;
+    }
+
+    try {
+      if (isPlaying) {
+        if (sessionId) {
+          if (isAdmin) {
+            // Update sync state
+            const sessionRef = ref(database, `sessions/${sessionId}/state`);
+            await set(sessionRef, {
+              isPlaying: false,
+              seekPosition,
+              activeTracks: [],
+              soloedTracks: [],
+              trackVolumes: {}
+            });
+          }
+        }
+        await stopLocalPlayback();
+      } else {
+        if (sessionId) {
+          if (isAdmin) {
+            // Update sync state
+            const sessionRef = ref(database, `sessions/${sessionId}/state`);
+            await set(sessionRef, {
+              isPlaying: true,
+              seekPosition,
+              activeTracks: [],
+              soloedTracks: [],
+              trackVolumes: {}
+            });
+          }
+        }
+        await startLocalPlayback();
+      }
+    } catch (error) {
+      console.error('Error in togglePlayback:', error);
+    }
+  };
+
+  // Apply sync state changes (non-admin devices)
+  useEffect(() => {
+    if (isAdmin || !syncState || !selectedSong) return;
+
+    const now = Date.now();
+    if (now - lastSyncTime < SYNC_THRESHOLD) return;
+    setLastSyncTime(now);
+
+    // Handle play/pause state
+    if (syncState.isPlaying !== isPlaying) {
+      if (syncState.isPlaying) {
+        startLocalPlayback();
+      } else {
+        stopLocalPlayback();
+      }
+    }
+
+    // Update seek position
+    if (Math.abs(syncState.seekPosition - seekPosition) > 0.1) {
+      handleSeek(selectedSong.tracks[0].id, syncState.seekPosition);
+    }
+  }, [syncState, isAdmin, selectedSong]);
+
+  // Function to start local playback
+  const startLocalPlayback = async () => {
+    if (!selectedSong || !isInitialized) {
+      console.log('Cannot start local playback:', { selectedSong, isInitialized });
+      return;
+    }
+
+    try {
+      console.log('Starting local playback');
+      const playPromises = players.map(async (player, index) => {
+        if (activeTrackIds.includes(selectedSong.tracks[index].id)) {
+          console.log(`Starting track ${selectedSong.tracks[index].name}`);
+          const status = await player.getStatusAsync();
+          if (status.isLoaded) {
+            await player.setPositionAsync(seekPosition * 1000);
+            await player.playAsync();
+            console.log(`Track ${selectedSong.tracks[index].name} started successfully`);
+          } else {
+            console.error(`Track ${selectedSong.tracks[index].name} not loaded`);
+          }
+        }
+      });
+      await Promise.all(playPromises);
+      setIsPlaying(true);
+      console.log('Local playback started successfully');
+    } catch (error) {
+      console.error('Error starting local playback:', error);
+    }
+  };
+
+  // Function to stop local playback
+  const stopLocalPlayback = async () => {
+    if (!selectedSong || !isInitialized) return;
+
+    try {
+      console.log('Stopping local playback');
+      await Promise.all(players.map(player => player.pauseAsync()));
+      setIsPlaying(false);
+      console.log('Local playback stopped successfully');
+    } catch (error) {
+      console.error('Error stopping local playback:', error);
+    }
+  };
+
+  // Optimize progress updates
+  useEffect(() => {
+    const progressInterval = setInterval(async () => {
+      if (isPlaying && !isSeeking && selectedSong) {
+        for (let i = 0; i < players.length; i++) {
+          const status = await players[i].getStatusAsync();
+          if (status.isLoaded) {
+            const position = status.positionMillis / 1000;
+            setTrackProgress(prev => ({
+              ...prev,
+              [selectedSong.tracks[i].id]: position
+            }));
+            setSeekPosition(position);
+          }
+        }
+      }
+    }, 50); // Increased update frequency for smoother progress
+
+    return () => clearInterval(progressInterval);
+  }, [isPlaying, isSeeking, players, isInitialized, selectedSong]);
+
+  // Optimize handleSeek function
+  const handleSeek = async (trackId: string, value: number) => {
+    if (!isInitialized || !selectedSong) return;
+
+    setIsSeeking(true);
+    setSeekPosition(value);
+    
+    try {
+      // Use Promise.all for parallel seeking
+      await Promise.all(
+        players.map(async (player) => {
+          const status = await player.getStatusAsync();
+          if (status.isLoaded) {
+            await player.setPositionAsync(value * 1000);
+          }
+        })
+      );
+
+      setTrackProgress(prev => {
+        const newProgress = { ...prev };
+        selectedSong.tracks.forEach(track => {
+          newProgress[track.id] = value;
+        });
+        return newProgress;
+      });
+    } catch (error) {
+      console.error('Error seeking:', error);
+    } finally {
+      setIsSeeking(false);
+    }
+  };
 
   // Initialize players when a song is selected
   useEffect(() => {
@@ -495,6 +778,7 @@ export default function HomePage() {
       if (!selectedSong) return;
 
       try {
+        console.log('Initializing audio players');
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
@@ -506,11 +790,19 @@ export default function HomePage() {
 
         const loadedPlayers = await Promise.all(
           selectedSong.tracks.map(async (track) => {
-            const { sound } = await Audio.Sound.createAsync(track.audioFile);
+            console.log(`Loading track: ${track.name}`);
+            const { sound } = await Audio.Sound.createAsync(
+              track.audioFile,
+              { shouldPlay: false },
+              (status) => {
+                console.log(`Track ${track.name} status:`, status);
+              }
+            );
             return sound;
           })
         );
 
+        console.log('All players loaded successfully');
         setPlayers(loadedPlayers);
         setIsInitialized(true);
         setSeekPosition(0);
@@ -551,48 +843,79 @@ export default function HomePage() {
     };
   }, [selectedSong]);
 
-  useEffect(() => {
-    const progressInterval = setInterval(async () => {
-      if (isPlaying && !isSeeking && selectedSong) {
-        for (let i = 0; i < players.length; i++) {
-          const status = await players[i].getStatusAsync();
-          if (status.isLoaded) {
-            const position = status.positionMillis / 1000;
-            setTrackProgress(prev => ({
-              ...prev,
-              [selectedSong.tracks[i].id]: position
-            }));
-            setSeekPosition(position);
-          }
-        }
-      }
-    }, 100);
-
-    return () => clearInterval(progressInterval);
-  }, [isPlaying, isSeeking, players, isInitialized, selectedSong]);
-
-  const togglePlayback = async () => {
-    try {
-      if (!isInitialized || !selectedSong) return;
-
-      if (isPlaying) {
-        await Promise.all(players.map(player => player.pauseAsync()));
-      } else {
-        await Promise.all(
-          players.map((player, index) => {
-            if (activeTrackIds.includes(selectedSong.tracks[index].id)) {
-              return player.playAsync();
-            }
-            return Promise.resolve();
-          })
-        );
-      }
-      setIsPlaying(!isPlaying);
-    } catch (error) {
-      console.error('Error toggling playback:', error);
-    }
+  const handleSongSelect = (song: Song) => {
+    setIsPlaying(false);
+    setSelectedSong(song);
   };
 
+  const filteredSongs = useMemo(() => {
+    if (!searchQuery.trim()) return songs;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return songs.filter(song => 
+      song.title.toLowerCase().includes(query) || 
+      song.artist.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
+
+  const renderSongItem = ({ item }: { item: Song }) => (
+    <TouchableOpacity
+      style={[
+        styles.songItem,
+        selectedSong?.id === item.id && styles.selectedSongItem
+      ]}
+      onPress={() => handleSongSelect(item)}
+    >
+      <View style={styles.songInfo}>
+        <Text style={styles.songTitle}>{item.title}</Text>
+        <Text style={styles.songArtist}>{item.artist}</Text>
+      </View>
+      <Ionicons 
+        name="chevron-forward" 
+        size={24} 
+        color="#BBBBBB" 
+      />
+    </TouchableOpacity>
+  );
+
+  const renderJoinDialog = () => (
+    <View style={styles.dialogOverlay}>
+      <View style={styles.dialog}>
+        <Text style={styles.dialogTitle}>Join Session</Text>
+        <TextInput
+          style={styles.dialogInput}
+          placeholder="Enter Session ID"
+          placeholderTextColor="#666666"
+          value={joinSessionInput}
+          onChangeText={setJoinSessionInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <View style={styles.dialogButtons}>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonCancel]}
+            onPress={() => setShowJoinDialog(false)}
+          >
+            <Text style={styles.dialogButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonJoin]}
+            onPress={() => {
+              if (joinSessionInput.trim()) {
+                joinSession(joinSessionInput.trim());
+                setShowJoinDialog(false);
+                setJoinSessionInput('');
+              }
+            }}
+          >
+            <Text style={styles.dialogButtonText}>Join</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
+  // Add back the track control functions
   const toggleSolo = async (trackId: string) => {
     if (!isInitialized || !selectedSong) return;
 
@@ -668,67 +991,6 @@ export default function HomePage() {
     }
   };
 
-  const handleSeek = async (trackId: string, value: number) => {
-    if (!isInitialized || !selectedSong) return;
-
-    setSeekPosition(value);
-    await Promise.all(
-      players.map(async (player) => {
-        await player.setPositionAsync(value * 1000);
-      })
-    );
-
-    setTrackProgress(prev => {
-      const newProgress = { ...prev };
-      selectedSong.tracks.forEach(track => {
-        newProgress[track.id] = value;
-      });
-      return newProgress;
-    });
-  };
-
-  // Add this helper function before the HomePage component
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const handleSongSelect = (song: Song) => {
-    setIsPlaying(false);
-    setSelectedSong(song);
-  };
-
-  const filteredSongs = useMemo(() => {
-    if (!searchQuery.trim()) return songs;
-    
-    const query = searchQuery.toLowerCase().trim();
-    return songs.filter(song => 
-      song.title.toLowerCase().includes(query) || 
-      song.artist.toLowerCase().includes(query)
-    );
-  }, [searchQuery]);
-
-  const renderSongItem = ({ item }: { item: Song }) => (
-    <TouchableOpacity
-      style={[
-        styles.songItem,
-        selectedSong?.id === item.id && styles.selectedSongItem
-      ]}
-      onPress={() => handleSongSelect(item)}
-    >
-      <View style={styles.songInfo}>
-        <Text style={styles.songTitle}>{item.title}</Text>
-        <Text style={styles.songArtist}>{item.artist}</Text>
-      </View>
-      <Ionicons 
-        name="chevron-forward" 
-        size={24} 
-        color="#BBBBBB" 
-      />
-    </TouchableOpacity>
-  );
-
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -785,6 +1047,29 @@ export default function HomePage() {
                     </Text>
                   </View>
                 </View>
+                {!sessionId ? (
+                  <View style={styles.syncButtons}>
+                    <TouchableOpacity 
+                      style={styles.syncButton}
+                      onPress={initializeSyncSession}
+                    >
+                      <Ionicons name="people" size={24} color="#BB86FC" />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.syncButton, { marginLeft: 8 }]}
+                      onPress={() => setShowJoinDialog(true)}
+                    >
+                      <Ionicons name="enter" size={24} color="#BB86FC" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.sessionInfo}>
+                    <Text style={styles.sessionId}>Session: {sessionId}</Text>
+                    {isAdmin && (
+                      <Text style={styles.adminBadge}>Admin</Text>
+                    )}
+                  </View>
+                )}
                 <TouchableOpacity 
                   style={styles.controlButton} 
                   onPress={togglePlayback}
@@ -881,6 +1166,7 @@ export default function HomePage() {
           </>
         )}
       </SafeAreaView>
+      {showJoinDialog && renderJoinDialog()}
     </View>
   );
 }
@@ -1093,5 +1379,87 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  syncButtons: {
+    flexDirection: 'row',
+    marginRight: 12,
+  },
+  syncButton: {
+    padding: 8,
+    borderRadius: 25,
+    backgroundColor: '#2C2C2C',
+  },
+  sessionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sessionId: {
+    fontSize: 12,
+    color: '#BBBBBB',
+    marginRight: 8,
+  },
+  adminBadge: {
+    fontSize: 10,
+    color: '#4CAF50',
+    backgroundColor: '#1B4332',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  dialogOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  dialog: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  dialogTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  dialogInput: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  dialogButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dialogButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  dialogButtonCancel: {
+    backgroundColor: '#3D0C11',
+  },
+  dialogButtonJoin: {
+    backgroundColor: '#1B4332',
+  },
+  dialogButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
