@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -429,6 +429,52 @@ const songs: Song[] = [
   }
 ];
 
+const MarqueeText = ({ text, style }: { text: string; style: any }) => {
+  const scrollX = React.useRef(new Animated.Value(0)).current;
+  const [textWidth, setTextWidth] = React.useState(0);
+  const [containerWidth, setContainerWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    if (textWidth > containerWidth) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scrollX, {
+            toValue: -(textWidth - containerWidth),
+            duration: 5000,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scrollX, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [textWidth, containerWidth]);
+
+  return (
+    <View 
+      style={[style, { overflow: 'hidden' }]} 
+      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+    >
+      <Animated.Text
+        style={[
+          style,
+          {
+            transform: [{ translateX: scrollX }],
+            width: 'auto',
+          },
+        ]}
+        onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
+      >
+        {text}
+      </Animated.Text>
+    </View>
+  );
+};
+
 export default function HomePage() {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [players, setPlayers] = useState<Audio.Sound[]>([]);
@@ -722,16 +768,21 @@ export default function HomePage() {
           <>
             <View style={styles.header}>
               <View style={styles.headerTop}>
-                <View style={styles.songHeader}>
+                <View style={[styles.songHeader, { flex: 1, marginRight: 12 }]}>
                   <TouchableOpacity 
                     style={styles.backButton}
                     onPress={() => setSelectedSong(null)}
                   >
                     <Ionicons name="chevron-back" size={24} color="#BB86FC" />
                   </TouchableOpacity>
-                  <View>
-                    <Text style={styles.title}>{selectedSong.title}</Text>
-                    <Text style={styles.artist}>{selectedSong.artist}</Text>
+                  <View style={{ flex: 1 }}>
+                    <MarqueeText 
+                      text={selectedSong.title} 
+                      style={styles.title}
+                    />
+                    <Text style={[styles.artist, { flexWrap: 'wrap' }]} numberOfLines={1}>
+                      {selectedSong.artist}
+                    </Text>
                   </View>
                 </View>
                 <TouchableOpacity 
@@ -863,11 +914,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  songHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 12,
+  },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: -0.5,
+    flexWrap: 'wrap',
+  },
+  artist: {
+    fontSize: 14,
+    color: '#BBBBBB',
+    marginTop: 2,
+    flexWrap: 'wrap',
   },
   mainContent: {
     flex: 1,
@@ -1004,18 +1069,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#BBBBBB',
   },
-  songHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   backButton: {
     padding: 4,
-  },
-  artist: {
-    fontSize: 14,
-    color: '#BBBBBB',
-    marginTop: 2,
   },
   searchContainer: {
     flexDirection: 'row',
