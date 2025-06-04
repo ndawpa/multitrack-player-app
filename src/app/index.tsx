@@ -1038,6 +1038,28 @@ export default function HomePage() {
     }
   };
 
+  const leaveSession = async () => {
+    try {
+      if (isAdmin) {
+        // If admin, delete the session from Firebase
+        const sessionRef = ref(database, `sessions/${sessionId}`);
+        await set(sessionRef, null);
+      }
+      // Reset session-related state
+      setSessionId(null);
+      setIsAdmin(false);
+      setSyncState({
+        isPlaying: false,
+        seekPosition: 0,
+        activeTracks: [],
+        soloedTracks: [],
+        trackVolumes: {}
+      });
+    } catch (error) {
+      console.error('Error leaving session:', error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1111,17 +1133,25 @@ export default function HomePage() {
                   </View>
                 ) : (
                   <View style={[styles.sessionInfo, { maxWidth: '40%' }]}>
+                    <View style={styles.sessionIdContainer}>
+                      <TouchableOpacity 
+                        onPress={() => setShowSessionIdDialog(true)}
+                        style={styles.sessionIdButton}
+                      >
+                        <Text style={styles.sessionId} numberOfLines={1}>
+                          ID: {sessionId.substring(0, 8)}...
+                        </Text>
+                      </TouchableOpacity>
+                      {isAdmin && (
+                        <Text style={styles.adminBadge}>Admin</Text>
+                      )}
+                    </View>
                     <TouchableOpacity 
-                      onPress={() => setShowSessionIdDialog(true)}
-                      style={styles.sessionIdButton}
+                      style={styles.leaveButton}
+                      onPress={leaveSession}
                     >
-                      <Text style={styles.sessionId} numberOfLines={1}>
-                        ID: {sessionId.substring(0, 8)}...
-                      </Text>
+                      <Ionicons name="exit-outline" size={20} color="#FF5252" />
                     </TouchableOpacity>
-                    {isAdmin && (
-                      <Text style={styles.adminBadge}>Admin</Text>
-                    )}
                   </View>
                 )}
                 <TouchableOpacity 
@@ -1279,11 +1309,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -0.5,
     flexWrap: 'wrap',
+    marginBottom: 4,
   },
   artist: {
     fontSize: 14,
     color: '#BBBBBB',
-    marginTop: 2,
     flexWrap: 'wrap',
   },
   mainContent: {
@@ -1464,6 +1494,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    gap: 8,
+  },
+  sessionIdContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+  },
+  sessionIdButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
   },
   sessionId: {
     fontSize: 13,
@@ -1535,42 +1578,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  sessionIdButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sessionIdContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2C2C2C',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  fullSessionId: {
-    flex: 1,
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: 'monospace',
-  },
-  copyButton: {
-    backgroundColor: '#BB86FC',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  copyButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  copyButtonText: {
-    color: '#000000',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1583,5 +1590,23 @@ const styles = StyleSheet.create({
     color: '#BB86FC',
     fontSize: 12,
     fontWeight: '500',
+  },
+  leaveButton: {
+    padding: 6,
+    backgroundColor: '#3D0C11',
+    borderRadius: 6,
+    flexShrink: 0,
+  },
+  fullSessionId: {
+    flex: 1,
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontFamily: 'monospace',
+  },
+  copyButton: {
+    backgroundColor: '#BB86FC',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
 });
