@@ -951,15 +951,15 @@ const HomePage = () => {
           autoCapitalize="none"
           autoCorrect={false}
         />
-        <View style={styles.dialogButtons}>
+        <View style={styles.dialogButtonContainer}>
           <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonCancel]}
+            style={[styles.dialogButton, styles.dialogButtonSecondary]}
             onPress={() => setShowJoinDialog(false)}
           >
             <Text style={styles.dialogButtonText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonJoin]}
+            style={[styles.dialogButton, styles.dialogButtonPrimary]}
             onPress={() => {
               if (joinSessionInput.trim()) {
                 joinSession(joinSessionInput.trim());
@@ -968,7 +968,7 @@ const HomePage = () => {
               }
             }}
           >
-            <Text style={styles.dialogButtonText}>Join</Text>
+            <Text style={[styles.dialogButtonText, { flexShrink: 1 }]}>Create Session</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -982,8 +982,16 @@ const HomePage = () => {
         <View style={styles.sessionIdDialogContent}>
           <Text style={styles.sessionIdLabel}>Share this ID with others:</Text>
           <Text style={styles.fullSessionId}>{sessionId}</Text>
+        </View>
+        <View style={styles.dialogButtonContainer}>
           <TouchableOpacity 
-            style={styles.copyButton}
+            style={[styles.dialogButton, styles.dialogButtonSecondary]}
+            onPress={() => setShowSessionIdDialog(false)}
+          >
+            <Text style={styles.dialogButtonText}>Close</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonPrimary]}
             onPress={async () => {
               try {
                 await Clipboard.setString(sessionId || '');
@@ -993,17 +1001,9 @@ const HomePage = () => {
               }
             }}
           >
-            <Ionicons name="copy-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.copyButtonText}>Copy ID</Text>
+            <Text style={styles.dialogButtonText}>Copy ID</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={[styles.copyButton, { backgroundColor: '#3D0C11' }]}
-          onPress={() => setShowSessionIdDialog(false)}
-        >
-          <Ionicons name="close-circle-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.copyButtonText}>Close</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -1154,15 +1154,15 @@ const HomePage = () => {
             ))}
           </ScrollView>
         )}
-        <View style={styles.dialogButtons}>
+        <View style={styles.dialogButtonContainer}>
           <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonCancel]}
+            style={[styles.dialogButton, styles.dialogButtonSecondary]}
             onPress={() => setShowSessionsList(false)}
           >
             <Text style={styles.dialogButtonText}>Close</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonJoin]}
+            style={[styles.dialogButton, styles.dialogButtonPrimary]}
             onPress={() => {
               setShowSessionsList(false);
               setShowJoinDialog(true);
@@ -1429,15 +1429,15 @@ const HomePage = () => {
             </View>
           ))}
         </ScrollView>
-        <View style={styles.dialogButtons}>
+        <View style={styles.dialogButtonContainer}>
           <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonCancel]}
+            style={[styles.dialogButton, styles.dialogButtonSecondary]}
             onPress={() => setShowAddSongDialog(false)}
           >
             <Text style={styles.dialogButtonText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonJoin]}
+            style={[styles.dialogButton, styles.dialogButtonPrimary]}
             onPress={handleAddSong}
           >
             <Text style={styles.dialogButtonText}>Add Song</Text>
@@ -1704,9 +1704,9 @@ const HomePage = () => {
               </View>
             ))}
           </ScrollView>
-          <View style={styles.dialogButtons}>
+          <View style={styles.dialogButtonContainer}>
             <TouchableOpacity 
-              style={[styles.dialogButton, styles.dialogButtonCancel]}
+              style={[styles.dialogButton, styles.dialogButtonSecondary]}
               onPress={() => {
                 setEditingSong(null);
                 setShowEditSongDialog(false);
@@ -1715,10 +1715,10 @@ const HomePage = () => {
               <Text style={styles.dialogButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.dialogButton, styles.dialogButtonJoin]}
+              style={[styles.dialogButton, styles.dialogButtonPrimary]}
               onPress={handleEditSong}
             >
-              <Text style={styles.dialogButtonText}>Save Changes</Text>
+              <Text style={[styles.dialogButtonText, { flexShrink: 1 }]}>Save</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -2526,5 +2526,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
+  },
+  dialogButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#2C2C2C',
+  },
+  dialogButtonPrimary: {
+    backgroundColor: '#1B4332',
+  },
+  dialogButtonSecondary: {
+    backgroundColor: '#2C2C2C',
   },
 });
