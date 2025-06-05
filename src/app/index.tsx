@@ -160,6 +160,10 @@ const HomePage = () => {
   const [editingSong, setEditingSong] = useState<EditSongForm | null>(null);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [songToDelete, setSongToDelete] = useState<Song | null>(null);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [password, setPassword] = useState('');
+  const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
 
   // Load songs from Firebase
   useEffect(() => {
@@ -530,21 +534,25 @@ const HomePage = () => {
         <Text style={styles.songArtist}>{item.artist}</Text>
       </View>
       <View style={styles.songActions}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => startEditingSong(item)}
-        >
-          <Ionicons name="create-outline" size={24} color="#BB86FC" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => {
-            setSongToDelete(item);
-            setShowDeleteConfirmDialog(true);
-          }}
-        >
-          <Ionicons name="trash-outline" size={24} color="#FF5252" />
-        </TouchableOpacity>
+        {isAdminMode && (
+          <>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => startEditingSong(item)}
+            >
+              <Ionicons name="create-outline" size={24} color="#BB86FC" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => {
+                setSongToDelete(item);
+                setShowDeleteConfirmDialog(true);
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color="#FF5252" />
+            </TouchableOpacity>
+          </>
+        )}
         <Ionicons 
           name="chevron-forward" 
           size={24} 
@@ -1068,10 +1076,28 @@ const HomePage = () => {
     </View>
   );
 
-  // Modify the song list view to include the add button
+  // Modify the song list view to include the pencil icon
   const renderSongList = () => (
     <View style={styles.songListContainer}>
-      <Text style={styles.title}>Select a Song</Text>
+      <View style={styles.titleContainer}>
+        <Text style={styles.title}>Select a Song</Text>
+        <TouchableOpacity
+          style={styles.pencilButton}
+          onPress={() => {
+            if (isAdminMode) {
+              setIsAdminMode(false);
+            } else {
+              setShowPasswordDialog(true);
+            }
+          }}
+        >
+          <Ionicons 
+            name="pencil" 
+            size={24} 
+            color={isAdminMode ? "#03DAC6" : "#BB86FC"} 
+          />
+        </TouchableOpacity>
+      </View>
       {renderSessionMenu()}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
@@ -1091,13 +1117,15 @@ const HomePage = () => {
           </TouchableOpacity>
         ) : null}
       </View>
-      <TouchableOpacity 
-        style={styles.addSongButton}
-        onPress={() => setShowAddSongDialog(true)}
-      >
-        <Ionicons name="add-circle" size={24} color="#BB86FC" />
-        <Text style={styles.addSongButtonText}>Add New Song</Text>
-      </TouchableOpacity>
+      {isAdminMode && (
+        <TouchableOpacity 
+          style={styles.addSongButton}
+          onPress={() => setShowAddSongDialog(true)}
+        >
+          <Ionicons name="add-circle" size={24} color="#BB86FC" />
+          <Text style={styles.addSongButtonText}>Add New Song</Text>
+        </TouchableOpacity>
+      )}
       <FlatList
         data={filteredSongs}
         renderItem={renderSongItem}
@@ -1411,6 +1439,52 @@ const HomePage = () => {
     );
   };
 
+  // Add function to handle password verification
+  const handlePasswordVerification = () => {
+    if (password === ADMIN_PASSWORD) {
+      setShowPasswordDialog(false);
+      setIsAdminMode(true);
+      setPassword('');
+    } else {
+      Alert.alert('Error', 'Incorrect password');
+      setPassword('');
+    }
+  };
+
+  // Add render function for password dialog
+  const renderPasswordDialog = () => (
+    <View style={styles.dialogOverlay}>
+      <View style={styles.dialog}>
+        <Text style={styles.dialogTitle}>Enter Password</Text>
+        <TextInput
+          style={styles.dialogInput}
+          placeholder="Password"
+          placeholderTextColor="#666666"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <View style={styles.dialogButtonContainer}>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonSecondary]}
+            onPress={() => {
+              setShowPasswordDialog(false);
+              setPassword('');
+            }}
+          >
+            <Text style={styles.dialogButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonPrimary]}
+            onPress={handlePasswordVerification}
+          >
+            <Text style={styles.dialogButtonText}>Verify</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1551,6 +1625,7 @@ const HomePage = () => {
       {showAddSongDialog && renderAddSongDialog()}
       {showEditSongDialog && renderEditSongDialog()}
       {showDeleteConfirmDialog && renderDeleteConfirmDialog()}
+      {showPasswordDialog && renderPasswordDialog()}
     </View>
   );
 };
@@ -2157,5 +2232,40 @@ const styles = StyleSheet.create({
   },
   dialogButtonSecondary: {
     backgroundColor: '#2C2C2C',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pencilButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#1E1E1E',
+  },
+  menuButtonContainer: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  menuButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    gap: 12,
+  },
+  menuButtonPrimary: {
+    backgroundColor: '#BB86FC',
+  },
+  menuButtonSecondary: {
+    backgroundColor: '#03DAC6',
+  },
+  menuButtonDelete: {
+    backgroundColor: '#CF6679',
+  },
+  menuButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
