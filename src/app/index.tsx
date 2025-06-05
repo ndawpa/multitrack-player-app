@@ -567,6 +567,8 @@ const HomePage = () => {
   });
   const [showEditSongDialog, setShowEditSongDialog] = useState(false);
   const [editingSong, setEditingSong] = useState<EditSongForm | null>(null);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [songToDelete, setSongToDelete] = useState<Song | null>(null);
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -917,6 +919,15 @@ const HomePage = () => {
           onPress={() => startEditingSong(item)}
         >
           <Ionicons name="create-outline" size={24} color="#BB86FC" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => {
+            setSongToDelete(item);
+            setShowDeleteConfirmDialog(true);
+          }}
+        >
+          <Ionicons name="trash-outline" size={24} color="#FF5252" />
         </TouchableOpacity>
         <Ionicons 
           name="chevron-forward" 
@@ -1715,6 +1726,75 @@ const HomePage = () => {
     );
   };
 
+  // Add function to handle song deletion
+  const handleDeleteSong = async () => {
+    if (!songToDelete) return;
+
+    try {
+      // Delete all audio files from Firebase Storage
+      await Promise.all(
+        songToDelete.tracks.map(async (track) => {
+          try {
+            await AudioStorageService.getInstance().deleteAudioFile(track.path);
+          } catch (error) {
+            console.warn(`Failed to delete file ${track.path}:`, error);
+          }
+        })
+      );
+
+      // Remove song from the songs array
+      const songIndex = songs.findIndex(s => s.id === songToDelete.id);
+      if (songIndex !== -1) {
+        songs.splice(songIndex, 1);
+      }
+
+      // Reset state and close dialog
+      setSongToDelete(null);
+      setShowDeleteConfirmDialog(false);
+
+      // If the deleted song was selected, clear the selection
+      if (selectedSong?.id === songToDelete.id) {
+        setSelectedSong(null);
+      }
+    } catch (error) {
+      console.error('Error deleting song:', error);
+      Alert.alert('Error', 'Failed to delete song. Please try again.');
+    }
+  };
+
+  // Add render function for delete confirmation dialog
+  const renderDeleteConfirmDialog = () => {
+    if (!songToDelete) return null;
+
+    return (
+      <View style={styles.dialogOverlay}>
+        <View style={styles.dialog}>
+          <Text style={styles.dialogTitle}>Delete Song</Text>
+          <Text style={styles.dialogText}>
+            Are you sure you want to delete "{songToDelete.title}"? This action cannot be undone.
+          </Text>
+          <View style={styles.dialogButtons}>
+            <TouchableOpacity 
+              style={[styles.dialogButton, styles.dialogButtonCancel]}
+              onPress={() => {
+                setSongToDelete(null);
+                setShowDeleteConfirmDialog(false);
+              }}
+            >
+              <Text style={styles.dialogButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.dialogButton, styles.dialogButtonDelete]}
+              onPress={handleDeleteSong}
+            >
+              <Text style={styles.dialogButtonText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1854,6 +1934,7 @@ const HomePage = () => {
       {showSessionsList && renderSessionsList()}
       {showAddSongDialog && renderAddSongDialog()}
       {showEditSongDialog && renderEditSongDialog()}
+      {showDeleteConfirmDialog && renderDeleteConfirmDialog()}
     </View>
   );
 };
@@ -2433,5 +2514,17 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 4,
+  },
+  deleteButton: {
+    padding: 4,
+  },
+  dialogButtonDelete: {
+    backgroundColor: '#3D0C11',
+  },
+  dialogText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
   },
 });
