@@ -53,415 +53,20 @@ interface EditSongForm {
   }[];
 }
 
-const songs: Song[] = [
-  {
-    id: '1',
-    title: 'Chegou a Hora',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '1-1',
-        name: '1 Tenor',
-        path: 'audio/chegou_a_hora/Chegou a Hora - 1 Tenor.mp3'
-      },
-      {
-        id: '1-2',
-        name: '2 Tenor',
-        path: 'audio/chegou_a_hora/Chegou a Hora - 2 Tenor.mp3'
-      },
-      {
-        id: '1-3',
-        name: 'Barítono',
-        path: 'audio/chegou_a_hora/Chegou a Hora - Barítono.mp3'
-      },
-      {
-        id: '1-4',
-        name: 'Baixo',
-        path: 'audio/chegou_a_hora/Chegou a Hora - Baixo.mp3'
-      },
-      {
-        id: '1-5',
-        name: 'Original',
-        path: 'audio/chegou_a_hora/Chegou a Hora - Original.mp3'
-      },
-      {
-        id: '1-6',
-        name: 'Playback',
-        path: 'audio/chegou_a_hora/Chegou a Hora - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '2',
-    title: 'Jesus de Nazaré',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '2-1',
-        name: '1 Tenor',
-        path: 'audio/jesus_de_nazare/Jesus de Nazaré - 1 Tenor.mp3'
-      },
-      {
-        id: '2-2',
-        name: '2 Tenor',
-        path: 'audio/jesus_de_nazare/Jesus de Nazaré - 2 Tenor.mp3'
-      },
-      {
-        id: '2-3',
-        name: 'Barítono',
-        path: 'audio/jesus_de_nazare/Jesus de Nazaré - Barítono.mp3'
-      },
-      {
-        id: '2-4',
-        name: 'Baixo',
-        path: 'audio/jesus_de_nazare/Jesus de Nazaré - Baixo.mp3'
-      },
-      {
-        id: '2-5',
-        name: 'Original',
-        path: 'audio/jesus_de_nazare/Jesus de Nazaré - Cantado.mp3'
-      },
-      {
-        id: '2-6',
-        name: 'Playback',
-        path: 'audio/jesus_de_nazare/Jesus de Nazaré - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '3',
-    title: 'Se Ele Não For o Primeiro',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '3-1',
-        name: '1 Tenor',
-        path: 'audio/se_ele_nao_for_o_primeiro/Se Ele Não For O Primeiro - 1 Tenor.mp3'
-      },
-      {
-        id: '3-2',
-        name: '2 Tenor',
-        path: 'audio/se_ele_nao_for_o_primeiro/Se Ele Não For O Primeiro - 2 Tenor.mp3'
-      },
-      {
-        id: '3-3',
-        name: 'Barítono',
-        path: 'audio/se_ele_nao_for_o_primeiro/Se Ele Não For O Primeiro - Barítono.mp3'
-      },
-      {
-        id: '3-4',
-        name: 'Baixo',
-        path: 'audio/se_ele_nao_for_o_primeiro/Se Ele Não For O Primeiro - Baixo.mp3'
-      },
-      {
-        id: '3-5',
-        name: 'Original',
-        path: 'audio/se_ele_nao_for_o_primeiro/Se Ele Não For O Primeiro - Cantado.mp3'
-      },
-      {
-        id: '3-6',
-        name: 'Playback',
-        path: 'audio/se_ele_nao_for_o_primeiro/Se Ele Não For O Primeiro - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '4',
-    title: 'Eu Quero Amá-Lo Mais',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '4-1',
-        name: '1 Tenor',
-        path: 'audio/eu_quero_ama_lo_mais/Eu Quero Amá-Lo Mais - 1 Tenor.mp3'
-      },
-      {
-        id: '4-2',
-        name: '2 Tenor',
-        path: 'audio/eu_quero_ama_lo_mais/Eu Quero Amá-Lo Mais - 2 Tenor.mp3'
-      },
-      {
-        id: '4-3',
-        name: 'Barítono',
-        path: 'audio/eu_quero_ama_lo_mais/Eu Quero Amá-Lo Mais - Barítono.mp3'
-      },
-      {
-        id: '4-4',
-        name: 'Baixo',
-        path: 'audio/eu_quero_ama_lo_mais/Eu Quero Amá-Lo Mais - Baixo.mp3'
-      },
-      {
-        id: '4-5',
-        name: 'Original',
-        path: 'audio/eu_quero_ama_lo_mais/Eu Quero Amá-lo Mais - Cantado.mp3'
-      },
-      {
-        id: '4-6',
-        name: 'Playback',
-        path: 'audio/eu_quero_ama_lo_mais/Eu Quero Amá-Lo Mais - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '5',
-    title: 'O Nome Cristo',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '5-1',
-        name: '1 Tenor',
-        path: 'audio/o_nome_cristo/O Nome Cristo - 1 Tenor.mp3'
-      },
-      {
-        id: '5-2',
-        name: '2 Tenor',
-        path: 'audio/o_nome_cristo/O Nome Cristo - 2 Tenor.mp3'
-      },
-      {
-        id: '5-3',
-        name: 'Barítono',
-        path: 'audio/o_nome_cristo/O Nome Cristo - Barítono.mp3'
-      },
-      {
-        id: '5-4',
-        name: 'Baixo',
-        path: 'audio/o_nome_cristo/O Nome Cristo - Baixo.mp3'
-      },
-      {
-        id: '5-5',
-        name: 'Original',
-        path: 'audio/o_nome_cristo/O Nome Cristo - Cantado.mp3'
-      },
-      {
-        id: '5-6',
-        name: 'Playback',
-        path: 'audio/o_nome_cristo/O Nome Cristo - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '6',
-    title: 'Começando Aqui',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '6-1',
-        name: '1 Tenor',
-        path: 'audio/comecando_aqui/Começando Aqui - 1 Tenor.mp3'
-      },
-      {
-        id: '6-2',
-        name: '2 Tenor',
-        path: 'audio/comecando_aqui/Começando Aqui - 2 Tenor.mp3'
-      },
-      {
-        id: '6-3',
-        name: 'Barítono',
-        path: 'audio/comecando_aqui/Começando Aqui - Barítono.mp3'
-      },
-      {
-        id: '6-4',
-        name: 'Baixo',
-        path: 'audio/comecando_aqui/Começando Aqui - Baixo.mp3'
-      },
-      {
-        id: '6-5',
-        name: 'Original',
-        path: 'audio/comecando_aqui/Começando Aqui - Cantado.mp3'
-      },
-      {
-        id: '6-6',
-        name: 'Playback',
-        path: 'audio/comecando_aqui/Começando Aqui - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '7',
-    title: 'Vaso de Alabastro',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '7-1',
-        name: '1 Tenor',
-        path: 'audio/vaso_de_alabastro/Vaso de Alabastro - 1 Tenor.mp3'
-      },
-      {
-        id: '7-2',
-        name: '2 Tenor',
-        path: 'audio/vaso_de_alabastro/Vaso de Alabastro - 2 Tenor.mp3'
-      },
-      {
-        id: '7-3',
-        name: 'Barítono',
-        path: 'audio/vaso_de_alabastro/Vaso de Alabastro - Barítono.mp3'
-      },
-      {
-        id: '7-4',
-        name: 'Baixo',
-        path: 'audio/vaso_de_alabastro/Vaso de Alabastro - Baixo.mp3'
-      },
-      {
-        id: '7-5',
-        name: 'Original',
-        path: 'audio/vaso_de_alabastro/Vaso de Alabastro - Cantado.mp3'
-      },
-      {
-        id: '7-6',
-        name: 'Playback',
-        path: 'audio/vaso_de_alabastro/Vaso de Alabastro - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '8',
-    title: 'Vem a Mim',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '8-1',
-        name: '1 Tenor',
-        path: 'audio/vem_a_mim/Vem a Mim - 1 Tenor.mp3'
-      },
-      {
-        id: '8-2',
-        name: '2 Tenor',
-        path: 'audio/vem_a_mim/Vem a Mim - 2 Tenor.mp3'
-      },
-      {
-        id: '8-3',
-        name: 'Barítono',
-        path: 'audio/vem_a_mim/Vem a Mim - Barítono.mp3'
-      },
-      {
-        id: '8-4',
-        name: 'Baixo',
-        path: 'audio/vem_a_mim/Vem a Mim - Baixo.mp3'
-      },
-      {
-        id: '8-5',
-        name: 'Original',
-        path: 'audio/vem_a_mim/Vem a Mim - Cantado.mp3'
-      },
-      {
-        id: '8-6',
-        name: 'Playback',
-        path: 'audio/vem_a_mim/Vem a Mim - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '9',
-    title: 'Eu Sei de Um Rio',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '9-1',
-        name: '1 Tenor',
-        path: 'audio/eu_sei_de_um_rio/Eu Sei de Um Rio - 1 Tenor.mp3'
-      },
-      {
-        id: '9-2',
-        name: '2 Tenor',
-        path: 'audio/eu_sei_de_um_rio/Eu Sei de Um Rio - 2 Tenor.mp3'
-      },
-      {
-        id: '9-3',
-        name: 'Barítono',
-        path: 'audio/eu_sei_de_um_rio/Eu Sei de Um Rio - Barítono.mp3'
-      },
-      {
-        id: '9-4',
-        name: 'Baixo',
-        path: 'audio/eu_sei_de_um_rio/Eu Sei de Um Rio - Baixo.mp3'
-      },
-      {
-        id: '9-5',
-        name: 'Original',
-        path: 'audio/eu_sei_de_um_rio/Eu Sei de um Rio - Cantado.mp3'
-      },
-      {
-        id: '9-6',
-        name: 'Playback',
-        path: 'audio/eu_sei_de_um_rio/Eu Sei de Um Rio - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '10',
-    title: 'Eu Não Sou Mais Eu',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '10-1',
-        name: '1 Tenor',
-        path: 'audio/eu_nao_sou_mais_eu/Eu Não Sou Mais Eu - 1 Tenor.mp3'
-      },
-      {
-        id: '10-2',
-        name: '2 Tenor',
-        path: 'audio/eu_nao_sou_mais_eu/Eu Não Sou Mais Eu - 2 Tenor.mp3'
-      },
-      {
-        id: '10-3',
-        name: 'Barítono',
-        path: 'audio/eu_nao_sou_mais_eu/Eu Não Sou Mais Eu - Barítono.mp3'
-      },
-      {
-        id: '10-4',
-        name: 'Baixo',
-        path: 'audio/eu_nao_sou_mais_eu/Eu Não Sou Mais Eu - Baixo.mp3'
-      },
-      {
-        id: '10-5',
-        name: 'Original',
-        path: 'audio/eu_nao_sou_mais_eu/Eu Não Sou Mais Eu - Cantado.mp3'
-      },
-      {
-        id: '10-6',
-        name: 'Playback',
-        path: 'audio/eu_nao_sou_mais_eu/Eu Não Sou Mais Eu - Playback.mp3'
-      }
-    ]
-  },
-  {
-    id: '11',
-    title: 'Por Quê ó Pai?',
-    artist: 'Arautos do Rei',
-    tracks: [
-      {
-        id: '11-1',
-        name: '1 Tenor',
-        path: 'audio/por_que_o_pai/Por Que, Ó Pai - 1 Tenor.mp3'
-      },
-      {
-        id: '11-2',
-        name: '2 Tenor',
-        path: 'audio/por_que_o_pai/Por Que, Ó Pai - 2 Tenor.mp3'
-      },
-      {
-        id: '11-3',
-        name: 'Barítono',
-        path: 'audio/por_que_o_pai/Por Que, Ó Pai - Barítono.mp3'
-      },
-      {
-        id: '11-4',
-        name: 'Baixo',
-        path: 'audio/por_que_o_pai/Por Que, Ó Pai - Baixo.mp3'
-      },
-      {
-        id: '11-5',
-        name: 'Original',
-        path: 'audio/por_que_o_pai/Por Que, Ó Pai - Cantado.mp3'
-      },
-      {
-        id: '11-6',
-        name: 'Playback',
-        path: 'audio/por_que_o_pai/Por Que, Ó Pai - Playback.mp3'
-      }
-    ]
-  }
-];
+interface SyncState {
+  isPlaying: boolean;
+  seekPosition: number;
+  activeTracks: string[];
+  soloedTracks: string[];
+  trackVolumes: { [key: string]: number };
+}
+
+// Add helper functions before the HomePage component
+const formatTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
 
 const MarqueeText = ({ text, style }: { text: string; style: any }) => {
   const scrollX = React.useRef(new Animated.Value(0)).current;
@@ -509,21 +114,6 @@ const MarqueeText = ({ text, style }: { text: string; style: any }) => {
   );
 };
 
-interface SyncState {
-  isPlaying: boolean;
-  seekPosition: number;
-  activeTracks: string[];
-  soloedTracks: string[];
-  trackVolumes: { [key: string]: number };
-}
-
-// Add helper functions before the HomePage component
-const formatTime = (seconds: number): string => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
-
 const HomePage = () => {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [players, setPlayers] = useState<Audio.Sound[]>([]);
@@ -538,6 +128,7 @@ const HomePage = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSessionMenuExpanded, setIsSessionMenuExpanded] = useState(false);
+  const [songs, setSongs] = useState<Song[]>([]);
   
   // Sync state
   const [deviceId] = useState(() => generateId());
@@ -569,6 +160,28 @@ const HomePage = () => {
   const [editingSong, setEditingSong] = useState<EditSongForm | null>(null);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [songToDelete, setSongToDelete] = useState<Song | null>(null);
+
+  // Load songs from Firebase
+  useEffect(() => {
+    const songsRef = ref(database, 'songs');
+    const unsubscribe = onValue(songsRef, (snapshot) => {
+      const data = snapshot.val();
+      console.log('Firebase songs data:', data);
+      if (data) {
+        const songsList = Object.entries(data).map(([id, songData]: [string, any]) => ({
+          id,
+          ...songData
+        }));
+        console.log('Processed songs list:', songsList);
+        setSongs(songsList);
+      } else {
+        console.log('No songs data in Firebase');
+        setSongs([]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -892,14 +505,17 @@ const HomePage = () => {
   };
 
   const filteredSongs = useMemo(() => {
+    console.log('Current songs state:', songs);
     if (!searchQuery.trim()) return songs;
     
     const query = searchQuery.toLowerCase().trim();
-    return songs.filter(song => 
+    const filtered = songs.filter(song => 
       song.title.toLowerCase().includes(query) || 
       song.artist.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+    console.log('Filtered songs:', filtered);
+    return filtered;
+  }, [searchQuery, songs]);
 
   const renderSongItem = ({ item }: { item: Song }) => (
     <TouchableOpacity
@@ -1296,7 +912,7 @@ const HomePage = () => {
       }
 
       // Generate a new ID
-      const newId = (songs.length + 1).toString();
+      const newId = generateId();
       
       // Create folder name from title
       const folderName = newSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -1332,8 +948,13 @@ const HomePage = () => {
         tracks
       };
 
-      // Add to songs array
-      songs.push(songToAdd);
+      // Add to Firebase
+      const songRef = ref(database, `songs/${newId}`);
+      await set(songRef, {
+        title: songToAdd.title,
+        artist: songToAdd.artist,
+        tracks: songToAdd.tracks
+      });
 
       // Reset form and close dialog
       setNewSong({
@@ -1595,16 +1216,13 @@ const HomePage = () => {
         })
       );
 
-      // Update song in the songs array
-      const songIndex = songs.findIndex(s => s.id === editingSong.id);
-      if (songIndex !== -1) {
-        songs[songIndex] = {
-          id: editingSong.id,
-          title: editingSong.title,
-          artist: editingSong.artist,
-          tracks: updatedTracks
-        };
-      }
+      // Update song in Firebase
+      const songRef = ref(database, `songs/${editingSong.id}`);
+      await set(songRef, {
+        title: editingSong.title,
+        artist: editingSong.artist,
+        tracks: updatedTracks
+      });
 
       // Reset and close dialog
       setEditingSong(null);
@@ -1742,11 +1360,9 @@ const HomePage = () => {
         })
       );
 
-      // Remove song from the songs array
-      const songIndex = songs.findIndex(s => s.id === songToDelete.id);
-      if (songIndex !== -1) {
-        songs.splice(songIndex, 1);
-      }
+      // Remove song from Firebase
+      const songRef = ref(database, `songs/${songToDelete.id}`);
+      await set(songRef, null);
 
       // Reset state and close dialog
       setSongToDelete(null);
