@@ -1,6 +1,7 @@
 import { ref, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
 import { storage } from '../config/firebase';
 
 interface AudioFile {
@@ -27,9 +28,26 @@ class AudioStorageService {
     return AudioStorageService.instance;
   }
 
-  async uploadAudioFile(fileUri: string, path: string): Promise<string> {
+  async pickAudioFile(): Promise<DocumentPicker.DocumentPickerAsset | null> {
     try {
-      const response = await fetch(fileUri);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: true
+      });
+      
+      if (result.assets && result.assets.length > 0) {
+        return result.assets[0];
+      }
+      return null;
+    } catch (error) {
+      console.error('Error picking audio file:', error);
+      throw error;
+    }
+  }
+
+  async uploadAudioFile(file: DocumentPicker.DocumentPickerAsset, path: string): Promise<string> {
+    try {
+      const response = await fetch(file.uri);
       const blob = await response.blob();
       const storageRef = ref(storage, path);
       await uploadBytes(storageRef, blob);

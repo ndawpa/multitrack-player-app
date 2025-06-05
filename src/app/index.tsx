@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ref, onValue, set, serverTimestamp } from 'firebase/database';
 import { database } from '../config/firebase';
 import AudioStorageService from '../services/audioStorage';
+import * as DocumentPicker from 'expo-document-picker';
 
 // Custom ID generator
 const generateId = () => {
@@ -27,6 +28,17 @@ interface Song {
   title: string;
   artist: string;
   tracks: Track[];
+}
+
+// Add new interface for song creation
+interface NewSongForm {
+  title: string;
+  artist: string;
+  tracks: {
+    id: string;
+    name: string;
+    file: DocumentPicker.DocumentPickerAsset | null;
+  }[];
 }
 
 const songs: Song[] = [
@@ -535,6 +547,12 @@ const HomePage = () => {
   const [loadingTracks, setLoadingTracks] = useState<{ [key: string]: boolean }>({});
   const [activeSessions, setActiveSessions] = useState<{ id: string; admin: string; createdAt: number }[]>([]);
   const [showSessionsList, setShowSessionsList] = useState(false);
+  const [showAddSongDialog, setShowAddSongDialog] = useState(false);
+  const [newSong, setNewSong] = useState<NewSongForm>({
+    title: '',
+    artist: '',
+    tracks: []
+  });
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -1200,42 +1218,247 @@ const HomePage = () => {
     </View>
   );
 
+  // Add function to add a new track
+  const addNewTrack = () => {
+    setNewSong(prev => ({
+      ...prev,
+      tracks: [
+        ...prev.tracks,
+        {
+          id: generateId(),
+          name: '',
+          file: null
+        }
+      ]
+    }));
+  };
+
+  // Add function to remove a track
+  const removeTrack = (trackId: string) => {
+    setNewSong(prev => ({
+      ...prev,
+      tracks: prev.tracks.filter(track => track.id !== trackId)
+    }));
+  };
+
+  // Add function to update track name
+  const updateTrackName = (trackId: string, name: string) => {
+    setNewSong(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(track => 
+        track.id === trackId ? { ...track, name } : track
+      )
+    }));
+  };
+
+  // Modify handleAddSong to use custom track names
+  const handleAddSong = async () => {
+    try {
+      if (!newSong.title.trim() || !newSong.artist.trim()) {
+        throw new Error('Please enter song title and artist');
+      }
+
+      if (newSong.tracks.length === 0) {
+        throw new Error('Please add at least one track');
+      }
+
+      // Generate a new ID
+      const newId = (songs.length + 1).toString();
+      
+      // Create folder name from title
+      const folderName = newSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      
+      // Upload files and create tracks
+      const tracks = await Promise.all(
+        newSong.tracks.map(async (track, index) => {
+          if (!track.file) {
+            throw new Error(`Please upload file for track "${track.name || `Track ${index + 1}`}"`);
+          }
+          
+          if (!track.name.trim()) {
+            throw new Error(`Please enter a name for track ${index + 1}`);
+          }
+          
+          // Upload file to Firebase Storage
+          const filePath = `audio/${folderName}/${newSong.title} - ${track.name}.mp3`;
+          await AudioStorageService.getInstance().uploadAudioFile(track.file, filePath);
+          
+          return {
+            id: `${newId}-${index + 1}`,
+            name: track.name,
+            path: filePath
+          };
+        })
+      );
+
+      // Create new song object
+      const songToAdd: Song = {
+        id: newId,
+        title: newSong.title,
+        artist: newSong.artist,
+        tracks
+      };
+
+      // Add to songs array
+      songs.push(songToAdd);
+
+      // Reset form and close dialog
+      setNewSong({
+        title: '',
+        artist: '',
+        tracks: []
+      });
+      setShowAddSongDialog(false);
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert('Error', error.message);
+      } else {
+        Alert.alert('Error', 'An unknown error occurred');
+      }
+    }
+  };
+
+  const renderAddSongDialog = () => (
+    <View style={styles.dialogOverlay}>
+      <View style={[styles.dialog, { maxHeight: '80%' }]}>
+        <Text style={styles.dialogTitle}>Add New Song</Text>
+        <ScrollView style={styles.addSongForm}>
+          <TextInput
+            style={styles.dialogInput}
+            placeholder="Song Title"
+            placeholderTextColor="#666666"
+            value={newSong.title}
+            onChangeText={(text) => setNewSong(prev => ({ ...prev, title: text }))}
+          />
+          <TextInput
+            style={styles.dialogInput}
+            placeholder="Artist"
+            placeholderTextColor="#666666"
+            value={newSong.artist}
+            onChangeText={(text) => setNewSong(prev => ({ ...prev, artist: text }))}
+          />
+          
+          <View style={styles.tracksHeader}>
+            <Text style={styles.tracksTitle}>Tracks</Text>
+            <TouchableOpacity
+              style={styles.addTrackButton}
+              onPress={addNewTrack}
+            >
+              <Ionicons name="add-circle" size={24} color="#BB86FC" />
+              <Text style={styles.addTrackButtonText}>Add Track</Text>
+            </TouchableOpacity>
+          </View>
+
+          {newSong.tracks.map((track, index) => (
+            <View key={track.id} style={styles.trackUploadContainer}>
+              <View style={styles.trackHeader}>
+                <TextInput
+                  style={[styles.trackNameInput, { flex: 1 }]}
+                  placeholder={`Track ${index + 1} Name`}
+                  placeholderTextColor="#666666"
+                  value={track.name}
+                  onChangeText={(text) => updateTrackName(track.id, text)}
+                />
+                <TouchableOpacity
+                  style={styles.removeTrackButton}
+                  onPress={() => removeTrack(track.id)}
+                >
+                  <Ionicons name="close-circle" size={24} color="#FF5252" />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={async () => {
+                  try {
+                    const result = await AudioStorageService.getInstance().pickAudioFile();
+                    if (result) {
+                      setNewSong(prev => ({
+                        ...prev,
+                        tracks: prev.tracks.map((t) => 
+                          t.id === track.id ? { ...t, file: result } : t
+                        )
+                      }));
+                    }
+                  } catch (error) {
+                    Alert.alert('Error', 'Failed to pick audio file');
+                  }
+                }}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {track.file ? 'Change File' : 'Upload File'}
+                </Text>
+              </TouchableOpacity>
+              {track.file && (
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {track.file.name}
+                </Text>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+        <View style={styles.dialogButtons}>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonCancel]}
+            onPress={() => setShowAddSongDialog(false)}
+          >
+            <Text style={styles.dialogButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonJoin]}
+            onPress={handleAddSong}
+          >
+            <Text style={styles.dialogButtonText}>Add Song</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
+  // Modify the song list view to include the add button
+  const renderSongList = () => (
+    <View style={styles.songListContainer}>
+      <Text style={styles.title}>Select a Song</Text>
+      {renderSessionMenu()}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search songs..."
+          placeholderTextColor="#666666"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery ? (
+          <TouchableOpacity 
+            style={styles.clearButton}
+            onPress={() => setSearchQuery('')}
+          >
+            <Ionicons name="close-circle" size={20} color="#BBBBBB" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      <TouchableOpacity 
+        style={styles.addSongButton}
+        onPress={() => setShowAddSongDialog(true)}
+      >
+        <Ionicons name="add-circle" size={24} color="#BB86FC" />
+        <Text style={styles.addSongButtonText}>Add New Song</Text>
+      </TouchableOpacity>
+      <FlatList
+        data={filteredSongs}
+        renderItem={renderSongItem}
+        keyExtractor={item => item.id}
+        style={styles.songList}
+      />
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
       <StatusBar style="light" />
       <SafeAreaView style={styles.content}>
-        {!selectedSong ? (
-          // Song Selection View
-          <View style={styles.songListContainer}>
-            <Text style={styles.title}>Select a Song</Text>
-            {renderSessionMenu()}
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search songs..."
-                placeholderTextColor="#666666"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery ? (
-                <TouchableOpacity 
-                  style={styles.clearButton}
-                  onPress={() => setSearchQuery('')}
-                >
-                  <Ionicons name="close-circle" size={20} color="#BBBBBB" />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-            <FlatList
-              data={filteredSongs}
-              renderItem={renderSongItem}
-              keyExtractor={item => item.id}
-              style={styles.songList}
-            />
-          </View>
-        ) : (
+        {!selectedSong ? renderSongList() : (
           // Track Player View
           <>
             <View style={styles.header}>
@@ -1367,6 +1590,7 @@ const HomePage = () => {
       {showJoinDialog && renderJoinDialog()}
       {showSessionIdDialog && renderSessionIdDialog()}
       {showSessionsList && renderSessionsList()}
+      {showAddSongDialog && renderAddSongDialog()}
     </View>
   );
 };
@@ -1853,5 +2077,90 @@ const styles = StyleSheet.create({
   sessionMenuButtonSubtext: {
     color: '#BBBBBB',
     fontSize: 12,
+  },
+  addSongButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 8,
+  },
+  addSongButtonText: {
+    color: '#BB86FC',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  addSongForm: {
+    maxHeight: 400,
+  },
+  tracksHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  tracksTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  addTrackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    padding: 8,
+    borderRadius: 6,
+  },
+  addTrackButtonText: {
+    color: '#BB86FC',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  trackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  trackNameInput: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 6,
+    padding: 8,
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginRight: 8,
+  },
+  removeTrackButton: {
+    padding: 4,
+  },
+  trackUploadContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  trackUploadLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  uploadButton: {
+    backgroundColor: '#2C2C2C',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  uploadButtonText: {
+    color: '#BB86FC',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  fileName: {
+    color: '#BBBBBB',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
