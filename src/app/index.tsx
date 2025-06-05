@@ -1389,9 +1389,9 @@ const HomePage = () => {
           <Text style={styles.dialogText}>
             Are you sure you want to delete "{songToDelete.title}"? This action cannot be undone.
           </Text>
-          <View style={styles.dialogButtons}>
+          <View style={styles.dialogButtonContainer}>
             <TouchableOpacity 
-              style={[styles.dialogButton, styles.dialogButtonCancel]}
+              style={[styles.dialogButton, styles.dialogButtonSecondary]}
               onPress={() => {
                 setSongToDelete(null);
                 setShowDeleteConfirmDialog(false);
