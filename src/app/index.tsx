@@ -527,6 +527,7 @@ export default function HomePage() {
   const [seekPosition, setSeekPosition] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSessionMenuExpanded, setIsSessionMenuExpanded] = useState(false);
   
   // Sync state
   const [deviceId] = useState(() => generateId());
@@ -936,7 +937,8 @@ export default function HomePage() {
     <View style={styles.dialogOverlay}>
       <View style={styles.dialog}>
         <Text style={styles.dialogTitle}>Session ID</Text>
-        <View style={styles.sessionIdContainer}>
+        <View style={styles.sessionIdDialogContent}>
+          <Text style={styles.sessionIdLabel}>Share this ID with others:</Text>
           <Text style={styles.fullSessionId}>{sessionId}</Text>
           <TouchableOpacity 
             style={styles.copyButton}
@@ -950,16 +952,16 @@ export default function HomePage() {
             }}
           >
             <Ionicons name="copy-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.copyButtonText}>Copy ID</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.dialogButtons}>
-          <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonCancel]}
-            onPress={() => setShowSessionIdDialog(false)}
-          >
-            <Text style={styles.dialogButtonText}>Close</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity 
+          style={[styles.copyButton, { backgroundColor: '#3D0C11' }]}
+          onPress={() => setShowSessionIdDialog(false)}
+        >
+          <Ionicons name="close-circle-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.copyButtonText}>Close</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -1136,6 +1138,77 @@ export default function HomePage() {
     setShowSessionsList(true);
   };
 
+  const renderSessionMenu = () => (
+    <View style={styles.sessionMenuContainer}>
+      <TouchableOpacity 
+        style={styles.sessionMenuHeader}
+        onPress={() => setIsSessionMenuExpanded(!isSessionMenuExpanded)}
+      >
+        <Text style={styles.sessionMenuTitle}>Session Management</Text>
+        <Ionicons 
+          name={isSessionMenuExpanded ? 'chevron-up' : 'chevron-down'} 
+          size={24} 
+          color="#BBBBBB" 
+        />
+      </TouchableOpacity>
+      
+      {isSessionMenuExpanded && (
+        <View style={styles.sessionMenuContent}>
+          {sessionId ? (
+            <View style={styles.activeSessionInfo}>
+              <View style={styles.sessionIdContainer}>
+                <Text style={styles.sessionIdLabel}>Session ID:</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowSessionIdDialog(true)}
+                  style={styles.sessionIdButtonMain}
+                >
+                  <Text style={styles.sessionIdText} numberOfLines={1}>
+                    {sessionId.substring(0, 8)}...
+                  </Text>
+                </TouchableOpacity>
+                {isAdmin && (
+                  <Text style={styles.adminBadge}>Admin</Text>
+                )}
+              </View>
+              <TouchableOpacity 
+                style={styles.leaveButton}
+                onPress={leaveSession}
+              >
+                <Ionicons name="exit-outline" size={20} color="#FF5252" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.sessionMenuButtons}>
+              <TouchableOpacity 
+                style={[styles.sessionMenuButton, styles.adminButton]}
+                onPress={async () => {
+                  try {
+                    await initializeSyncSession();
+                    setShowSessionIdDialog(true);
+                  } catch (error) {
+                    Alert.alert('Error', 'Failed to create session. Please try again.');
+                  }
+                }}
+              >
+                <Ionicons name="people" size={24} color="#FFFFFF" />
+                <Text style={styles.sessionMenuButtonText}>Create Session</Text>
+                <Text style={styles.sessionMenuButtonSubtext}>Become an admin</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.sessionMenuButton, styles.clientButton]}
+                onPress={handleJoinPress}
+              >
+                <Ionicons name="enter" size={24} color="#FFFFFF" />
+                <Text style={styles.sessionMenuButtonText}>Join Session</Text>
+                <Text style={styles.sessionMenuButtonSubtext}>Join as client</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1145,6 +1218,7 @@ export default function HomePage() {
           // Song Selection View
           <View style={styles.songListContainer}>
             <Text style={styles.title}>Select a Song</Text>
+            {renderSessionMenu()}
             <View style={styles.searchContainer}>
               <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
               <TextInput
@@ -1192,44 +1266,6 @@ export default function HomePage() {
                     </Text>
                   </View>
                 </View>
-                {!sessionId ? (
-                  <View style={styles.syncButtons}>
-                    <TouchableOpacity 
-                      style={styles.syncButton}
-                      onPress={initializeSyncSession}
-                    >
-                      <Ionicons name="people" size={24} color="#BB86FC" />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.syncButton, { marginLeft: 8 }]}
-                      onPress={handleJoinPress}
-                    >
-                      <Ionicons name="enter" size={24} color="#BB86FC" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={styles.sessionInfo}>
-                    <View style={styles.sessionIdContainer}>
-                      <TouchableOpacity 
-                        onPress={() => setShowSessionIdDialog(true)}
-                        style={styles.sessionIdButton}
-                      >
-                        <Text style={styles.sessionId} numberOfLines={1}>
-                          ID: {sessionId.substring(0, 8)}...
-                        </Text>
-                      </TouchableOpacity>
-                      {isAdmin && (
-                        <Text style={styles.adminBadge}>Admin</Text>
-                      )}
-                    </View>
-                    <TouchableOpacity 
-                      style={styles.leaveButton}
-                      onPress={leaveSession}
-                    >
-                      <Ionicons name="exit-outline" size={20} color="#FF5252" />
-                    </TouchableOpacity>
-                  </View>
-                )}
                 <TouchableOpacity 
                   style={styles.controlButton} 
                   onPress={togglePlayback}
@@ -1418,7 +1454,19 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 0,
+    backgroundColor: '#1E1E1E',
+    padding: 8,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  sessionIdButtonMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    padding: 8,
+    borderRadius: 6,
+    marginRight: 8,
   },
   sessionId: {
     fontSize: 13,
@@ -1564,13 +1612,13 @@ const styles = StyleSheet.create({
   },
   dialogButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    marginTop: 8,
   },
   dialogButton: {
-    flex: 1,
     padding: 12,
     borderRadius: 8,
-    marginHorizontal: 4,
+    minWidth: 120,
   },
   dialogButtonCancel: {
     backgroundColor: '#3D0C11',
@@ -1703,16 +1751,78 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   fullSessionId: {
-    flex: 1,
-    fontSize: 16,
+    fontSize: 18,
     color: '#FFFFFF',
     fontFamily: 'monospace',
+    backgroundColor: '#1E1E1E',
+    padding: 12,
+    borderRadius: 6,
+    textAlign: 'center',
+    marginBottom: 16,
   },
   copyButton: {
     backgroundColor: '#BB86FC',
     borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  copyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sessionMenuContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 16,
+  },
+  sessionMenuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+  },
+  sessionMenuTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  sessionMenuContent: {
+    marginTop: 8,
+  },
+  activeSessionInfo: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sessionIdLabel: {
+    color: '#BBBBBB',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  sessionIdText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  sessionIdDialogContent: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+  },
+  sessionIdDisplay: {
+    marginBottom: 12,
   },
   adminBadge: {
     fontSize: 10,
@@ -1721,5 +1831,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+  },
+  sessionMenuButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  sessionMenuButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 120,
+  },
+  adminButton: {
+    backgroundColor: '#1B4332',
+  },
+  clientButton: {
+    backgroundColor: '#2C2C2C',
+  },
+  sessionMenuButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  sessionMenuButtonSubtext: {
+    color: '#BBBBBB',
+    fontSize: 12,
   },
 });
