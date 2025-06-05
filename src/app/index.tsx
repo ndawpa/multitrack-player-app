@@ -5,23 +5,14 @@ import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
 import { useEffect, useState, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onValue, set, serverTimestamp } from 'firebase/database';
+import { createClient } from '@supabase/supabase-js';
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAZsxb2zg04yx3hQGmnIwhOLqEYWmb2aEI",
-  authDomain: "multitrack-player-app.firebaseapp.com",
-  databaseURL: "https://multitrack-player-app-default-rtdb.firebaseio.com",
-  projectId: "multitrack-player-app",
-  storageBucket: "multitrack-player-app.firebasestorage.app",
-  messagingSenderId: "1032913811889",
-  appId: "1:1032913811889:web:7751664dfb4a7670932590"
-};
+// Supabase configuration
+const supabaseUrl = 'https://kdjzyovpmalocvzxszvv.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtkanp5b3ZwbWFsb2N2enhzenZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNjU5NzQsImV4cCI6MjA2NDY0MTk3NH0.kze4gHhWDBAnEd1HQCyqnZg9XpQ84tV7rEMDTy_N7N0';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+// Initialize Supabase client
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Custom ID generator
 const generateId = () => {
@@ -555,19 +546,28 @@ export default function HomePage() {
     setSessionId(newSessionId);
     setIsAdmin(true);
     
-    // Create session in Firebase
-    const sessionRef = ref(database, `sessions/${newSessionId}`);
-    await set(sessionRef, {
-      admin: deviceId,
-      createdAt: serverTimestamp(),
-      state: {
-        isPlaying: false,
-        seekPosition: 0,
-        activeTracks: [],
-        soloedTracks: [],
-        trackVolumes: {}
-      }
-    });
+    // Create session in Supabase
+    const { error } = await supabase
+      .from('sessions')
+      .insert([
+        {
+          id: newSessionId,
+          admin: deviceId,
+          created_at: new Date().toISOString(),
+          state: {
+            isPlaying: false,
+            seekPosition: 0,
+            activeTracks: [],
+            soloedTracks: [],
+            trackVolumes: {}
+          }
+        }
+      ]);
+
+    if (error) {
+      console.error('Error creating session:', error);
+      Alert.alert('Error', 'Failed to create session');
+    }
   };
 
   // Join existing session
@@ -593,22 +593,31 @@ export default function HomePage() {
   useEffect(() => {
     if (!sessionId) return;
 
-    const sessionRef = ref(database, `sessions/${sessionId}/state`);
-    const unsubscribe = onValue(sessionRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setSyncState({
-          isPlaying: data.isPlaying || false,
-          seekPosition: data.seekPosition || 0,
-          activeTracks: data.activeTracks || [],
-          soloedTracks: data.soloedTracks || [],
-          trackVolumes: data.trackVolumes || {}
-        });
-      }
-    });
+    const subscription = supabase
+      .channel(`session-${sessionId}`)
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'sessions',
+          filter: `id=eq.${sessionId}`
+        }, 
+        (payload) => {
+          if (payload.new.state) {
+            setSyncState({
+              isPlaying: payload.new.state.isPlaying || false,
+              seekPosition: payload.new.state.seekPosition || 0,
+              activeTracks: payload.new.state.activeTracks || [],
+              soloedTracks: payload.new.state.soloedTracks || [],
+              trackVolumes: payload.new.state.trackVolumes || {}
+            });
+          }
+        }
+      )
+      .subscribe();
 
     return () => {
-      unsubscribe();
+      subscription.unsubscribe();
     };
   }, [sessionId]);
 
@@ -624,14 +633,22 @@ export default function HomePage() {
         if (sessionId) {
           if (isAdmin) {
             // Update sync state
-            const sessionRef = ref(database, `sessions/${sessionId}/state`);
-            await set(sessionRef, {
-              isPlaying: false,
-              seekPosition,
-              activeTracks: [],
-              soloedTracks: [],
-              trackVolumes: {}
-            });
+            const { error } = await supabase
+              .from('sessions')
+              .update({
+                state: {
+                  isPlaying: false,
+                  seekPosition,
+                  activeTracks: [],
+                  soloedTracks: [],
+                  trackVolumes: {}
+                }
+              })
+              .eq('id', sessionId);
+
+            if (error) {
+              console.error('Error updating session state:', error);
+            }
           }
         }
         await stopLocalPlayback();
@@ -639,14 +656,22 @@ export default function HomePage() {
         if (sessionId) {
           if (isAdmin) {
             // Update sync state
-            const sessionRef = ref(database, `sessions/${sessionId}/state`);
-            await set(sessionRef, {
-              isPlaying: true,
-              seekPosition,
-              activeTracks: [],
-              soloedTracks: [],
-              trackVolumes: {}
-            });
+            const { error } = await supabase
+              .from('sessions')
+              .update({
+                state: {
+                  isPlaying: true,
+                  seekPosition,
+                  activeTracks: [],
+                  soloedTracks: [],
+                  trackVolumes: {}
+                }
+              })
+              .eq('id', sessionId);
+
+            if (error) {
+              console.error('Error updating session state:', error);
+            }
           }
         }
         await startLocalPlayback();
@@ -1043,9 +1068,15 @@ export default function HomePage() {
   const leaveSession = async () => {
     try {
       if (isAdmin) {
-        // If admin, delete the session from Firebase
-        const sessionRef = ref(database, `sessions/${sessionId}`);
-        await set(sessionRef, null);
+        // If admin, delete the session from Supabase
+        const { error } = await supabase
+          .from('sessions')
+          .delete()
+          .eq('id', sessionId);
+
+        if (error) {
+          console.error('Error deleting session:', error);
+        }
       }
       // Reset session-related state
       setSessionId(null);
@@ -1065,22 +1096,28 @@ export default function HomePage() {
   // Add function to fetch active sessions
   useEffect(() => {
     if (showSessionsList) {
-      const sessionsRef = ref(database, 'sessions');
-      const unsubscribe = onValue(sessionsRef, (snapshot) => {
-        const sessions = snapshot.val();
-        if (sessions) {
-          const sessionsList = Object.entries(sessions).map(([id, data]: [string, any]) => ({
-            id,
-            admin: data.admin,
-            createdAt: data.createdAt
+      const fetchSessions = async () => {
+        const { data, error } = await supabase
+          .from('sessions')
+          .select('id, admin, created_at')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching sessions:', error);
+          return;
+        }
+
+        if (data) {
+          const sessionsList = data.map(session => ({
+            id: session.id,
+            admin: session.admin,
+            createdAt: new Date(session.created_at).getTime()
           }));
           setActiveSessions(sessionsList);
-        } else {
-          setActiveSessions([]);
         }
-      });
+      };
 
-      return () => unsubscribe();
+      fetchSessions();
     }
   }, [showSessionsList]);
 

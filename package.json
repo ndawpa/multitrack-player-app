@@ -16,6 +16,7 @@
     "@expo/vector-icons": "^14.1.0",
     "@react-native-community/slider": "^4.5.7",
     "@react-navigation/native": "^7.1.6",
+    "@supabase/supabase-js": "^2.49.10",
     "expo": "~53.0.9",
     "expo-audio": "~0.4.5",
     "expo-av": "~15.1.4",
