@@ -41,6 +41,18 @@ interface NewSongForm {
   }[];
 }
 
+interface EditSongForm {
+  id: string;
+  title: string;
+  artist: string;
+  tracks: {
+    id: string;
+    name: string;
+    path: string;
+    file: DocumentPicker.DocumentPickerAsset | null;
+  }[];
+}
+
 const songs: Song[] = [
   {
     id: '1',
@@ -553,6 +565,8 @@ const HomePage = () => {
     artist: '',
     tracks: []
   });
+  const [showEditSongDialog, setShowEditSongDialog] = useState(false);
+  const [editingSong, setEditingSong] = useState<EditSongForm | null>(null);
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -897,11 +911,19 @@ const HomePage = () => {
         <Text style={styles.songTitle}>{item.title}</Text>
         <Text style={styles.songArtist}>{item.artist}</Text>
       </View>
-      <Ionicons 
-        name="chevron-forward" 
-        size={24} 
-        color="#BBBBBB" 
-      />
+      <View style={styles.songActions}>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => startEditingSong(item)}
+        >
+          <Ionicons name="create-outline" size={24} color="#BB86FC" />
+        </TouchableOpacity>
+        <Ionicons 
+          name="chevron-forward" 
+          size={24} 
+          color="#BBBBBB" 
+        />
+      </View>
     </TouchableOpacity>
   );
 
@@ -1453,6 +1475,246 @@ const HomePage = () => {
     </View>
   );
 
+  // Add function to start editing a song
+  const startEditingSong = (song: Song) => {
+    setEditingSong({
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      tracks: song.tracks.map(track => ({
+        ...track,
+        file: null
+      }))
+    });
+    setShowEditSongDialog(true);
+  };
+
+  // Add function to add a new track to existing song
+  const addNewTrackToSong = () => {
+    if (!editingSong) return;
+    setEditingSong(prev => ({
+      ...prev!,
+      tracks: [
+        ...prev!.tracks,
+        {
+          id: generateId(),
+          name: '',
+          path: '',
+          file: null
+        }
+      ]
+    }));
+  };
+
+  // Add function to remove a track from existing song
+  const removeTrackFromSong = async (trackId: string) => {
+    if (!editingSong) return;
+
+    try {
+      // Find the track to be removed
+      const trackToRemove = editingSong.tracks.find(track => track.id === trackId);
+      if (trackToRemove && trackToRemove.path) {
+        try {
+          // Delete the file from Firebase Storage
+          await AudioStorageService.getInstance().deleteAudioFile(trackToRemove.path);
+        } catch (error) {
+          console.warn('Failed to delete file from storage:', error);
+          // Continue with track removal even if file deletion fails
+        }
+      }
+
+      // Update the editing song state
+      setEditingSong(prev => ({
+        ...prev!,
+        tracks: prev!.tracks.filter(track => track.id !== trackId)
+      }));
+    } catch (error) {
+      console.error('Error removing track:', error);
+      Alert.alert('Error', 'Failed to remove track. Please try again.');
+    }
+  };
+
+  // Add function to update track name in existing song
+  const updateTrackNameInSong = (trackId: string, name: string) => {
+    if (!editingSong) return;
+    setEditingSong(prev => ({
+      ...prev!,
+      tracks: prev!.tracks.map(track => 
+        track.id === trackId ? { ...track, name } : track
+      )
+    }));
+  };
+
+  // Add function to handle song editing
+  const handleEditSong = async () => {
+    try {
+      if (!editingSong) return;
+
+      if (!editingSong.title.trim() || !editingSong.artist.trim()) {
+        throw new Error('Please enter song title and artist');
+      }
+
+      if (editingSong.tracks.length === 0) {
+        throw new Error('Please add at least one track');
+      }
+
+      // Create folder name from title
+      const folderName = editingSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      
+      // Upload new files and update tracks
+      const updatedTracks = await Promise.all(
+        editingSong.tracks.map(async (track, index) => {
+          if (!track.name.trim()) {
+            throw new Error(`Please enter a name for track ${index + 1}`);
+          }
+
+          let path = track.path;
+          
+          // If there's a new file, upload it
+          if (track.file) {
+            path = `audio/${folderName}/${editingSong.title} - ${track.name}.mp3`;
+            await AudioStorageService.getInstance().uploadAudioFile(track.file, path);
+          }
+          
+          return {
+            id: track.id,
+            name: track.name,
+            path
+          };
+        })
+      );
+
+      // Update song in the songs array
+      const songIndex = songs.findIndex(s => s.id === editingSong.id);
+      if (songIndex !== -1) {
+        songs[songIndex] = {
+          id: editingSong.id,
+          title: editingSong.title,
+          artist: editingSong.artist,
+          tracks: updatedTracks
+        };
+      }
+
+      // Reset and close dialog
+      setEditingSong(null);
+      setShowEditSongDialog(false);
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert('Error', error.message);
+      } else {
+        Alert.alert('Error', 'An unknown error occurred');
+      }
+    }
+  };
+
+  // Add render function for the edit song dialog
+  const renderEditSongDialog = () => {
+    if (!editingSong) return null;
+
+    return (
+      <View style={styles.dialogOverlay}>
+        <View style={[styles.dialog, { maxHeight: '80%' }]}>
+          <Text style={styles.dialogTitle}>Edit Song</Text>
+          <ScrollView style={styles.addSongForm}>
+            <TextInput
+              style={styles.dialogInput}
+              placeholder="Song Title"
+              placeholderTextColor="#666666"
+              value={editingSong.title}
+              onChangeText={(text) => setEditingSong(prev => ({ ...prev!, title: text }))}
+            />
+            <TextInput
+              style={styles.dialogInput}
+              placeholder="Artist"
+              placeholderTextColor="#666666"
+              value={editingSong.artist}
+              onChangeText={(text) => setEditingSong(prev => ({ ...prev!, artist: text }))}
+            />
+            
+            <View style={styles.tracksHeader}>
+              <Text style={styles.tracksTitle}>Tracks</Text>
+              <TouchableOpacity
+                style={styles.addTrackButton}
+                onPress={addNewTrackToSong}
+              >
+                <Ionicons name="add-circle" size={24} color="#BB86FC" />
+                <Text style={styles.addTrackButtonText}>Add Track</Text>
+              </TouchableOpacity>
+            </View>
+
+            {editingSong.tracks.map((track, index) => (
+              <View key={track.id} style={styles.trackUploadContainer}>
+                <View style={styles.trackHeader}>
+                  <TextInput
+                    style={[styles.trackNameInput, { flex: 1 }]}
+                    placeholder={`Track ${index + 1} Name`}
+                    placeholderTextColor="#666666"
+                    value={track.name}
+                    onChangeText={(text) => updateTrackNameInSong(track.id, text)}
+                  />
+                  <TouchableOpacity
+                    style={styles.removeTrackButton}
+                    onPress={() => removeTrackFromSong(track.id)}
+                  >
+                    <Ionicons name="close-circle" size={24} color="#FF5252" />
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  style={styles.uploadButton}
+                  onPress={async () => {
+                    try {
+                      const result = await AudioStorageService.getInstance().pickAudioFile();
+                      if (result) {
+                        setEditingSong(prev => ({
+                          ...prev!,
+                          tracks: prev!.tracks.map((t) => 
+                            t.id === track.id ? { ...t, file: result } : t
+                          )
+                        }));
+                      }
+                    } catch (error) {
+                      Alert.alert('Error', 'Failed to pick audio file');
+                    }
+                  }}
+                >
+                  <Text style={styles.uploadButtonText}>
+                    {track.file ? 'Change File' : 'Upload New File'}
+                  </Text>
+                </TouchableOpacity>
+                {track.file ? (
+                  <Text style={styles.fileName} numberOfLines={1}>
+                    {track.file.name}
+                  </Text>
+                ) : (
+                  <Text style={styles.fileName} numberOfLines={1}>
+                    Current: {track.path.split('/').pop()}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+          <View style={styles.dialogButtons}>
+            <TouchableOpacity 
+              style={[styles.dialogButton, styles.dialogButtonCancel]}
+              onPress={() => {
+                setEditingSong(null);
+                setShowEditSongDialog(false);
+              }}
+            >
+              <Text style={styles.dialogButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.dialogButton, styles.dialogButtonJoin]}
+              onPress={handleEditSong}
+            >
+              <Text style={styles.dialogButtonText}>Save Changes</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1591,6 +1853,7 @@ const HomePage = () => {
       {showSessionIdDialog && renderSessionIdDialog()}
       {showSessionsList && renderSessionsList()}
       {showAddSongDialog && renderAddSongDialog()}
+      {showEditSongDialog && renderEditSongDialog()}
     </View>
   );
 };
@@ -2162,5 +2425,13 @@ const styles = StyleSheet.create({
     color: '#BBBBBB',
     fontSize: 12,
     marginTop: 4,
+  },
+  songActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editButton: {
+    padding: 4,
   },
 });

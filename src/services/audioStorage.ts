@@ -1,4 +1,4 @@
-import { ref, getDownloadURL, uploadBytes } from 'firebase/storage';
+import { ref, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
@@ -54,6 +54,16 @@ class AudioStorageService {
       return await getDownloadURL(storageRef);
     } catch (error) {
       console.error('Error uploading audio file:', error);
+      throw error;
+    }
+  }
+
+  async deleteAudioFile(path: string): Promise<void> {
+    try {
+      const storageRef = ref(storage, path);
+      await deleteObject(storageRef);
+    } catch (error) {
+      console.error('Error deleting audio file:', error);
       throw error;
     }
   }
