@@ -32,6 +32,7 @@ interface Song {
   tracks: Track[];
   lyrics?: string;  // Optional lyrics field
   score?: string;  // URL or path to the score file
+  scoreFileName?: string;  // Add this line
 }
 
 // Add new interface for song creation
@@ -59,6 +60,7 @@ interface EditSongForm {
   }[];
   lyrics?: string;
   score?: string;
+  scoreFileName?: string;  // Add this line
 }
 
 interface SyncState {
@@ -952,7 +954,8 @@ const HomePage = () => {
         file: null
       })),
       lyrics: song.lyrics,
-      score: song.score
+      score: song.score,
+      scoreFileName: song.scoreFileName || ''  // Add this line
     });
     setShowEditSongDialog(true);
   };
@@ -1052,15 +1055,19 @@ const HomePage = () => {
         })
       );
 
-      // Update song in Firebase
-      const songRef = ref(database, `songs/${editingSong.id}`);
-      await set(songRef, {
+      // Create song data object with explicit values
+      const songData = {
         title: editingSong.title,
         artist: editingSong.artist,
         tracks: updatedTracks,
-        lyrics: editingSong.lyrics,
-        score: editingSong.score
-      });
+        lyrics: editingSong.lyrics || '',  // Ensure empty string if undefined
+        score: editingSong.score || '',    // Ensure empty string if undefined
+        scoreFileName: editingSong.scoreFileName || ''  // Ensure empty string if undefined
+      };
+
+      // Update song in Firebase
+      const songRef = ref(database, `songs/${editingSong.id}`);
+      await set(songRef, songData);
 
       // Reset and close dialog
       setEditingSong(null);
@@ -1141,6 +1148,13 @@ const HomePage = () => {
             
             <View style={styles.lyricsSection}>
               <Text style={styles.sectionTitle}>Sheet Music</Text>
+              <TextInput
+                style={[styles.dialogInput, { marginBottom: 8 }]}
+                placeholder="Score File Name"
+                placeholderTextColor="#666666"
+                value={editingSong.scoreFileName || ''}
+                onChangeText={(text) => setEditingSong(prev => ({ ...prev!, scoreFileName: text }))}
+              />
               <TouchableOpacity
                 style={styles.uploadButton}
                 onPress={async () => {
@@ -1152,14 +1166,19 @@ const HomePage = () => {
                     
                     if (result.assets && result.assets[0]) {
                       const file = result.assets[0];
+                      if (!editingSong.scoreFileName?.trim()) {
+                        Alert.alert('Error', 'Please enter a name for the score file');
+                        return;
+                      }
+                      
                       // Show loading state
                       setEditingSong(prev => ({
                         ...prev!,
                         score: 'uploading'
                       }));
 
-                      // Upload to Firebase Storage
-                      const downloadURL = await uploadSheetMusic(file);
+                      // Upload to Firebase Storage with song title prefix
+                      const downloadURL = await uploadSheetMusic(file, editingSong.scoreFileName, editingSong.title);
                       
                       // Update the song with the download URL
                       setEditingSong(prev => ({
@@ -1184,7 +1203,7 @@ const HomePage = () => {
               </TouchableOpacity>
               {editingSong.score && editingSong.score !== 'uploading' && (
                 <Text style={styles.fileName} numberOfLines={1}>
-                  Score uploaded
+                  Score: {editingSong.title} - {editingSong.scoreFileName}
                 </Text>
               )}
             </View>
@@ -1385,12 +1404,14 @@ const HomePage = () => {
   );
 
   // Add this function after other utility functions
-  const uploadSheetMusic = async (file: DocumentPicker.DocumentPickerAsset): Promise<string> => {
+  const uploadSheetMusic = async (file: DocumentPicker.DocumentPickerAsset, fileName: string, songTitle: string): Promise<string> => {
     try {
       const storage = getStorage();
       const fileExtension = file.name.split('.').pop();
-      const fileName = `sheet_music/${generateId()}.${fileExtension}`;
-      const fileRef = storageRef(storage, fileName);
+      // Create a safe version of the song title for the file name
+      const safeSongTitle = songTitle.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const filePath = `sheet_music/${safeSongTitle}_${fileName}.${fileExtension}`;
+      const fileRef = storageRef(storage, filePath);
 
       // Fetch the file and convert to blob
       const response = await fetch(file.uri);
