@@ -1827,7 +1827,6 @@ const HomePage = () => {
               // Lyrics view content
               <View style={styles.lyricsContainer}>
                 <View style={styles.lyricsHeader}>
-                  <Text style={styles.lyricsTitle}>Lyrics</Text>
                   {isAdminMode && (
                     <View style={styles.lyricsEditButtons}>
                       {isLyricsEditing ? (
