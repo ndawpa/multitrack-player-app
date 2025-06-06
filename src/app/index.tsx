@@ -1211,34 +1211,32 @@ const HomePage = () => {
                     onChangeText={(text) => updateTrackNameInSong(track.id, text)}
                   />
                   <TouchableOpacity
-                    style={styles.removeTrackButton}
+                    style={styles.iconButton}
+                    onPress={async () => {
+                      try {
+                        const result = await AudioStorageService.getInstance().pickAudioFile();
+                        if (result) {
+                          setEditingSong(prev => ({
+                            ...prev!,
+                            tracks: prev!.tracks.map((t) => 
+                              t.id === track.id ? { ...t, file: result } : t
+                            )
+                          }));
+                        }
+                      } catch (error) {
+                        Alert.alert('Error', 'Failed to pick audio file');
+                      }
+                    }}
+                  >
+                    <Ionicons name="cloud-upload-outline" size={24} color="#BB86FC" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconButton}
                     onPress={() => removeTrackFromSong(track.id)}
                   >
                     <Ionicons name="close-circle" size={24} color="#FF5252" />
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.uploadButton}
-                  onPress={async () => {
-                    try {
-                      const result = await AudioStorageService.getInstance().pickAudioFile();
-                      if (result) {
-                        setEditingSong(prev => ({
-                          ...prev!,
-                          tracks: prev!.tracks.map((t) => 
-                            t.id === track.id ? { ...t, file: result } : t
-                          )
-                        }));
-                      }
-                    } catch (error) {
-                      Alert.alert('Error', 'Failed to pick audio file');
-                    }
-                  }}
-                >
-                  <Text style={styles.uploadButtonText}>
-                    {track.file ? 'Change File' : 'Upload New File'}
-                  </Text>
-                </TouchableOpacity>
                 {track.file ? (
                   <Text style={styles.fileName} numberOfLines={1}>
                     {track.file.name}
@@ -1566,39 +1564,31 @@ const HomePage = () => {
                   onChangeText={(text) => updateTrackName(track.id, text)}
                 />
                 <TouchableOpacity
-                  style={styles.removeTrackButton}
-                  onPress={() => removeTrack(track.id)}
-                >
-                  <Ionicons name="close-circle" size={24} color="#FF5252" />
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={async () => {
-                  try {
-                    const result = await AudioStorageService.getInstance().pickAudioFile();
-                    if (result) {
-                      setNewSong(prev => ({
-                        ...prev,
-                        tracks: prev.tracks.map((t) => 
-                          t.id === track.id ? { ...t, file: result } : t
-                        )
-                      }));
+                  style={styles.iconButton}
+                  onPress={async () => {
+                    try {
+                      const result = await AudioStorageService.getInstance().pickAudioFile();
+                      if (result) {
+                        setNewSong(prev => ({
+                          ...prev,
+                          tracks: prev.tracks.map((t) => 
+                            t.id === track.id ? { ...t, file: result } : t
+                          )
+                        }));
+                      }
+                    } catch (error) {
+                      Alert.alert('Error', 'Failed to pick audio file');
                     }
-                  } catch (error) {
-                    Alert.alert('Error', 'Failed to pick audio file');
-                  }
-                }}
-              >
-                <Text style={styles.uploadButtonText}>
-                  {track.file ? 'Change File' : 'Upload File'}
-                </Text>
-              </TouchableOpacity>
-              {track.file && (
-                <Text style={styles.fileName} numberOfLines={1}>
-                  {track.file.name}
-                </Text>
-              )}
+                  }}
+                >
+                  <Ionicons name="cloud-upload-outline" size={24} color="#BB86FC" />
+                </TouchableOpacity>
+                {track.file && (
+                  <Text style={styles.fileName} numberOfLines={1}>
+                    {track.file.name}
+                  </Text>
+                )}
+              </View>
             </View>
           ))}
         </ScrollView>
@@ -2461,6 +2451,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 8,
   },
   trackNameInput: {
     backgroundColor: '#2C2C2C',
@@ -2468,7 +2459,21 @@ const styles = StyleSheet.create({
     padding: 8,
     color: '#FFFFFF',
     fontSize: 14,
-    marginRight: 8,
+    flex: 1,
+  },
+  uploadButton: {
+    backgroundColor: '#2C2C2C',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginTop: 8,
+    minWidth: 120,
+  },
+  uploadButtonText: {
+    color: '#BB86FC',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   removeTrackButton: {
     padding: 4,
@@ -2483,17 +2488,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     marginBottom: 4,
-  },
-  uploadButton: {
-    backgroundColor: '#2C2C2C',
-    padding: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  uploadButtonText: {
-    color: '#BB86FC',
-    fontSize: 14,
-    fontWeight: '500',
   },
   fileName: {
     color: '#BBBBBB',
@@ -2546,9 +2540,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#1E1E1E',
+    padding: 4,
   },
   menuButtonContainer: {
     gap: 12,
