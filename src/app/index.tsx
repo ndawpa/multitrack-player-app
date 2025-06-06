@@ -28,6 +28,7 @@ interface Song {
   title: string;
   artist: string;
   tracks: Track[];
+  lyrics?: string;  // Optional lyrics field
 }
 
 // Add new interface for song creation
@@ -39,6 +40,7 @@ interface NewSongForm {
     name: string;
     file: DocumentPicker.DocumentPickerAsset | null;
   }[];
+  lyrics?: string;
 }
 
 interface EditSongForm {
@@ -51,6 +53,7 @@ interface EditSongForm {
     path: string;
     file: DocumentPicker.DocumentPickerAsset | null;
   }[];
+  lyrics?: string;
 }
 
 interface SyncState {
@@ -154,7 +157,8 @@ const HomePage = () => {
   const [newSong, setNewSong] = useState<NewSongForm>({
     title: '',
     artist: '',
-    tracks: []
+    tracks: [],
+    lyrics: ''
   });
   const [showEditSongDialog, setShowEditSongDialog] = useState(false);
   const [editingSong, setEditingSong] = useState<EditSongForm | null>(null);
@@ -164,6 +168,8 @@ const HomePage = () => {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [password, setPassword] = useState('');
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
+  const [isLyricsExpanded, setIsLyricsExpanded] = useState(false);
+  const [activeView, setActiveView] = useState<'tracks' | 'lyrics'>('tracks');
 
   // Load songs from Firebase
   useEffect(() => {
@@ -968,7 +974,8 @@ const HomePage = () => {
       setNewSong({
         title: '',
         artist: '',
-        tracks: []
+        tracks: [],
+        lyrics: ''
       });
       setShowAddSongDialog(false);
     } catch (error) {
@@ -1144,7 +1151,8 @@ const HomePage = () => {
       tracks: song.tracks.map(track => ({
         ...track,
         file: null
-      }))
+      })),
+      lyrics: song.lyrics
     });
     setShowEditSongDialog(true);
   };
@@ -1249,7 +1257,8 @@ const HomePage = () => {
       await set(songRef, {
         title: editingSong.title,
         artist: editingSong.artist,
-        tracks: updatedTracks
+        tracks: updatedTracks,
+        lyrics: editingSong.lyrics
       });
 
       // Reset and close dialog
@@ -1287,6 +1296,42 @@ const HomePage = () => {
               value={editingSong.artist}
               onChangeText={(text) => setEditingSong(prev => ({ ...prev!, artist: text }))}
             />
+            
+            <View style={styles.lyricsSection}>
+              <Text style={styles.sectionTitle}>Lyrics</Text>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={async () => {
+                  try {
+                    const result = await DocumentPicker.getDocumentAsync({
+                      type: 'text/plain',
+                      copyToCacheDirectory: true
+                    });
+                    
+                    if (result.assets && result.assets[0]) {
+                      const file = result.assets[0];
+                      const response = await fetch(file.uri);
+                      const text = await response.text();
+                      setEditingSong(prev => ({
+                        ...prev!,
+                        lyrics: text
+                      }));
+                    }
+                  } catch (error) {
+                    Alert.alert('Error', 'Failed to load lyrics file');
+                  }
+                }}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {editingSong.lyrics ? 'Change Lyrics File' : 'Upload Lyrics File'}
+                </Text>
+              </TouchableOpacity>
+              {editingSong.lyrics && (
+                <Text style={styles.fileName} numberOfLines={1}>
+                  Lyrics loaded ({editingSong.lyrics.length} characters)
+                </Text>
+              )}
+            </View>
             
             <View style={styles.tracksHeader}>
               <Text style={styles.tracksTitle}>Tracks</Text>
@@ -1549,73 +1594,120 @@ const HomePage = () => {
               </View>
             </View>
             
-            <ScrollView style={styles.mainContent}>
-              {selectedSong.tracks.map(track => (
-                <View key={track.id} style={styles.trackContainer}>
-                  <View style={styles.trackInfo}>
-                    <Text style={styles.trackName}>{track.name}</Text>
-                    <View style={styles.trackControls}>
-                      {loadingTracks[track.id] ? (
-                        <View style={styles.loadingContainer}>
-                          <ActivityIndicator size="small" color="#BB86FC" />
-                          <Text style={styles.loadingText}>Loading...</Text>
-                        </View>
-                      ) : (
-                        <>
-                          <TouchableOpacity 
-                            style={[
-                              styles.trackToggleButton,
-                              soloedTrackIds.includes(track.id) && styles.soloActiveButton
-                            ]} 
-                            onPress={() => toggleSolo(track.id)}
-                          >
-                            <Text style={[
-                              styles.trackButtonText,
-                              soloedTrackIds.includes(track.id) && styles.soloActiveText
-                            ]}>S</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity 
-                            style={[
-                              styles.trackToggleButton,
-                              !activeTrackIds.includes(track.id) && styles.muteActiveButton
-                            ]} 
-                            onPress={() => toggleTrack(track.id)}
-                          >
-                            <Text style={[
-                              styles.trackButtonText,
-                              !activeTrackIds.includes(track.id) && styles.muteActiveText
-                            ]}>M</Text>
-                          </TouchableOpacity>
-                        </>
-                      )}
-                    </View>
-                  </View>
-                  <View style={styles.volumeContainer}>
+            <View style={styles.mainContent}>
+              <View style={styles.viewToggleContainer}>
+                <TouchableOpacity 
+                  style={[
+                    styles.viewToggleButton,
+                    activeView === 'tracks' && styles.viewToggleButtonActive
+                  ]}
+                  onPress={() => setActiveView('tracks')}
+                >
+                  <Ionicons 
+                    name="musical-notes" 
+                    size={20} 
+                    color={activeView === 'tracks' ? '#BB86FC' : '#BBBBBB'} 
+                  />
+                  <Text style={[
+                    styles.viewToggleText,
+                    activeView === 'tracks' && styles.viewToggleTextActive
+                  ]}>Tracks</Text>
+                </TouchableOpacity>
+                {selectedSong.lyrics && (
+                  <TouchableOpacity 
+                    style={[
+                      styles.viewToggleButton,
+                      activeView === 'lyrics' && styles.viewToggleButtonActive
+                    ]}
+                    onPress={() => setActiveView('lyrics')}
+                  >
                     <Ionicons 
-                      name={
-                        loadingTracks[track.id] ? 'hourglass-outline' :
-                        trackVolumes[track.id] === 0 ? 'volume-mute' :
-                        trackVolumes[track.id] < 0.3 ? 'volume-low' :
-                        trackVolumes[track.id] < 0.7 ? 'volume-medium' :
-                        'volume-high'
-                      } 
+                      name="document-text" 
                       size={20} 
-                      color="#BBBBBB" 
+                      color={activeView === 'lyrics' ? '#BB86FC' : '#BBBBBB'} 
                     />
-                    <Slider
-                      style={styles.volumeSlider}
-                      minimumValue={0}
-                      maximumValue={1}
-                      value={trackVolumes[track.id] || 1}
-                      onValueChange={(value) => handleVolumeChange(track.id, value)}
-                      minimumTrackTintColor="#BB86FC"
-                      maximumTrackTintColor="#2C2C2C"
-                      disabled={loadingTracks[track.id]}
-                    />
+                    <Text style={[
+                      styles.viewToggleText,
+                      activeView === 'lyrics' && styles.viewToggleTextActive
+                    ]}>Lyrics</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <ScrollView style={styles.contentScrollView}>
+                {activeView === 'tracks' ? (
+                  selectedSong.tracks.map(track => (
+                    <View key={track.id} style={styles.trackContainer}>
+                      <View style={styles.trackInfo}>
+                        <Text style={styles.trackName}>{track.name}</Text>
+                        <View style={styles.trackControls}>
+                          {loadingTracks[track.id] ? (
+                            <View style={styles.loadingContainer}>
+                              <ActivityIndicator size="small" color="#BB86FC" />
+                              <Text style={styles.loadingText}>Loading...</Text>
+                            </View>
+                          ) : (
+                            <>
+                              <TouchableOpacity 
+                                style={[
+                                  styles.trackToggleButton,
+                                  soloedTrackIds.includes(track.id) && styles.soloActiveButton
+                                ]} 
+                                onPress={() => toggleSolo(track.id)}
+                              >
+                                <Text style={[
+                                  styles.trackButtonText,
+                                  soloedTrackIds.includes(track.id) && styles.soloActiveText
+                                ]}>S</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity 
+                                style={[
+                                  styles.trackToggleButton,
+                                  !activeTrackIds.includes(track.id) && styles.muteActiveButton
+                                ]} 
+                                onPress={() => toggleTrack(track.id)}
+                              >
+                                <Text style={[
+                                  styles.trackButtonText,
+                                  !activeTrackIds.includes(track.id) && styles.muteActiveText
+                                ]}>M</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.volumeContainer}>
+                        <Ionicons 
+                          name={
+                            loadingTracks[track.id] ? 'hourglass-outline' :
+                            trackVolumes[track.id] === 0 ? 'volume-mute' :
+                            trackVolumes[track.id] < 0.3 ? 'volume-low' :
+                            trackVolumes[track.id] < 0.7 ? 'volume-medium' :
+                            'volume-high'
+                          } 
+                          size={20} 
+                          color="#BBBBBB" 
+                        />
+                        <Slider
+                          style={styles.volumeSlider}
+                          minimumValue={0}
+                          maximumValue={1}
+                          value={trackVolumes[track.id] || 1}
+                          onValueChange={(value) => handleVolumeChange(track.id, value)}
+                          minimumTrackTintColor="#BB86FC"
+                          maximumTrackTintColor="#2C2C2C"
+                          disabled={loadingTracks[track.id]}
+                        />
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.lyricsContainer}>
+                    <Text style={styles.lyricsText}>{selectedSong.lyrics}</Text>
                   </View>
-                </View>
-              ))}
-            </ScrollView>
+                )}
+              </ScrollView>
+            </View>
           </>
         )}
       </SafeAreaView>
@@ -2267,5 +2359,67 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  lyricsSection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  lyricsContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    padding: 16,
+  },
+  lyricsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  lyricsTitle: {
+    color: '#BB86FC',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  lyricsText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  viewToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 12,
+  },
+  viewToggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    borderRadius: 6,
+    gap: 8,
+  },
+  viewToggleButtonActive: {
+    backgroundColor: '#2C2C2C',
+  },
+  viewToggleText: {
+    color: '#BBBBBB',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  viewToggleTextActive: {
+    color: '#BB86FC',
+  },
+  contentScrollView: {
+    flex: 1,
   },
 });
