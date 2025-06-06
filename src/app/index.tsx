@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image, Linking, Dimensions } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -11,6 +11,7 @@ import { database } from '../config/firebase';
 import AudioStorageService from '../services/audioStorage';
 import * as DocumentPicker from 'expo-document-picker';
 import { WebView } from 'react-native-webview';
+import * as FileSystem from 'expo-file-system';
 
 // Custom ID generator
 const generateId = () => {
@@ -1870,29 +1871,44 @@ const HomePage = () => {
                   <View key={score.id} style={styles.scoreView}>
                     <Text style={styles.scoreTitle}>{score.name}</Text>
                     {score.url.endsWith('.pdf') ? (
-                      <WebView
-                        source={{ 
-                          uri: `https://docs.google.com/viewer?url=${encodeURIComponent(score.url)}&embedded=true`
-                        }}
-                        style={styles.sheetMusicView}
-                        javaScriptEnabled={true}
-                        domStorageEnabled={true}
-                        startInLoadingState={true}
-                        onError={(syntheticEvent) => {
-                          const { nativeEvent } = syntheticEvent;
-                          console.error('WebView error:', nativeEvent);
-                        }}
-                        onHttpError={(syntheticEvent) => {
-                          const { nativeEvent } = syntheticEvent;
-                          console.error('WebView HTTP error:', nativeEvent);
-                        }}
-                        renderLoading={() => (
-                          <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color="#BB86FC" />
-                            <Text style={styles.loadingText}>Loading score...</Text>
-                          </View>
-                        )}
-                      />
+                      <View style={styles.sheetMusicView}>
+                        <WebView
+                          source={{ 
+                            uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(score.url)}`
+                          }}
+                          style={{
+                            flex: 1,
+                            width: Dimensions.get('window').width - 48,
+                            backgroundColor: '#FFFFFF',
+                          }}
+                          onError={(syntheticEvent) => {
+                            const { nativeEvent } = syntheticEvent;
+                            console.error('WebView error:', nativeEvent);
+                            Alert.alert(
+                              'PDF Viewing Error',
+                              'Unable to load PDF. You can try opening it in your browser.',
+                              [
+                                {
+                                  text: 'Open in Browser',
+                                  onPress: () => {
+                                    Linking.openURL(score.url);
+                                  }
+                                },
+                                {
+                                  text: 'Cancel',
+                                  style: 'cancel'
+                                }
+                              ]
+                            );
+                          }}
+                          renderLoading={() => (
+                            <View style={styles.loadingContainer}>
+                              <ActivityIndicator size="large" color="#BB86FC" />
+                              <Text style={styles.loadingText}>Loading PDF...</Text>
+                            </View>
+                          )}
+                        />
+                      </View>
                     ) : (
                       <Image
                         source={{ uri: score.url }}
@@ -2734,9 +2750,10 @@ const styles = StyleSheet.create({
   },
   sheetMusicView: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    width: '100%',
-    height: '100%',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 600,
   },
   sheetMusicImage: {
     width: '100%',
@@ -2817,5 +2834,10 @@ const styles = StyleSheet.create({
   },
   dialogScrollView: {
     maxHeight: '100%',
+  },
+  pdfView: {
+    flex: 1,
+    width: Dimensions.get('window').width - 48, // Account for padding
+    backgroundColor: '#FFFFFF',
   },
 });
