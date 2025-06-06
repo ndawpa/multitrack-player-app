@@ -176,6 +176,8 @@ const HomePage = () => {
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
   const [isLyricsExpanded, setIsLyricsExpanded] = useState(false);
   const [activeView, setActiveView] = useState<'tracks' | 'lyrics' | 'sheetMusic' | 'score'>('tracks');
+  const [isLyricsEditing, setIsLyricsEditing] = useState(false);
+  const [editedLyrics, setEditedLyrics] = useState('');
 
   // Load songs from Firebase
   useEffect(() => {
@@ -1618,6 +1620,33 @@ const HomePage = () => {
     </View>
   );
 
+  // Add this function after other utility functions
+  const handleLyricsSave = async () => {
+    if (!selectedSong) return;
+
+    try {
+      // Update song in Firebase
+      const songRef = ref(database, `songs/${selectedSong.id}`);
+      await set(songRef, {
+        ...selectedSong,
+        lyrics: editedLyrics
+      });
+
+      // Update local state
+      setSelectedSong(prev => prev ? { ...prev, lyrics: editedLyrics } : null);
+      setIsLyricsEditing(false);
+    } catch (error) {
+      console.error('Error saving lyrics:', error);
+      Alert.alert('Error', 'Failed to save lyrics. Please try again.');
+    }
+  };
+
+  // Add this function after other utility functions
+  const startLyricsEditing = () => {
+    setEditedLyrics(selectedSong?.lyrics || '');
+    setIsLyricsEditing(true);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1810,7 +1839,45 @@ const HomePage = () => {
                   ))
                 ) : activeView === 'lyrics' ? (
                   <View style={styles.lyricsContainer}>
-                    <Text style={styles.lyricsText}>{selectedSong.lyrics}</Text>
+                    <View style={styles.lyricsHeader}>
+                      <Text style={styles.lyricsTitle}>Lyrics</Text>
+                      {!isLyricsEditing ? (
+                        <TouchableOpacity
+                          style={styles.editButton}
+                          onPress={startLyricsEditing}
+                        >
+                          <Ionicons name="create-outline" size={24} color="#BB86FC" />
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={styles.lyricsEditButtons}>
+                          <TouchableOpacity
+                            style={[styles.lyricsEditButton, styles.cancelButton]}
+                            onPress={() => setIsLyricsEditing(false)}
+                          >
+                            <Text style={styles.lyricsEditButtonText}>Cancel</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.lyricsEditButton, styles.saveButton]}
+                            onPress={handleLyricsSave}
+                          >
+                            <Text style={styles.lyricsEditButtonText}>Save</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                    {isLyricsEditing ? (
+                      <TextInput
+                        style={styles.lyricsEditInput}
+                        value={editedLyrics}
+                        onChangeText={setEditedLyrics}
+                        multiline
+                        placeholder="Enter lyrics..."
+                        placeholderTextColor="#666666"
+                        textAlignVertical="top"
+                      />
+                    ) : (
+                      <Text style={styles.lyricsText}>{selectedSong.lyrics}</Text>
+                    )}
                   </View>
                 ) : (
                   <View style={styles.sheetMusicContainer}>
@@ -2524,14 +2591,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2C',
+    marginBottom: 16,
   },
   lyricsTitle: {
-    color: '#BB86FC',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
   lyricsText: {
     color: '#FFFFFF',
@@ -2589,5 +2654,34 @@ const styles = StyleSheet.create({
     minHeight: 120,
     textAlignVertical: 'top',
     marginBottom: 8,
+  },
+  lyricsEditButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  lyricsEditButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  cancelButton: {
+    backgroundColor: '#2C2C2C',
+  },
+  saveButton: {
+    backgroundColor: '#1B4332',
+  },
+  lyricsEditButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  lyricsEditInput: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 14,
+    minHeight: 400,
+    textAlignVertical: 'top',
   },
 });
