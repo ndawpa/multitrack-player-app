@@ -43,8 +43,8 @@ interface NewSongForm {
     name: string;
     file: DocumentPicker.DocumentPickerAsset | null;
   }[];
-  lyrics?: string;
-  score?: string;
+  lyrics: string;
+  score: string;
 }
 
 interface EditSongForm {
@@ -1098,6 +1098,16 @@ const HomePage = () => {
             
             <View style={styles.lyricsSection}>
               <Text style={styles.sectionTitle}>Lyrics</Text>
+              <TextInput
+                style={[styles.dialogInput, styles.lyricsInput]}
+                placeholder="Enter lyrics..."
+                placeholderTextColor="#666666"
+                value={editingSong.lyrics}
+                onChangeText={(text) => setEditingSong(prev => ({ ...prev!, lyrics: text }))}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+              />
               <TouchableOpacity
                 style={styles.uploadButton}
                 onPress={async () => {
@@ -1122,14 +1132,9 @@ const HomePage = () => {
                 }}
               >
                 <Text style={styles.uploadButtonText}>
-                  {editingSong.lyrics ? 'Change Lyrics File' : 'Upload Lyrics File'}
+                  Import from File
                 </Text>
               </TouchableOpacity>
-              {editingSong.lyrics && (
-                <Text style={styles.fileName} numberOfLines={1}>
-                  Lyrics loaded ({editingSong.lyrics.length} characters)
-                </Text>
-              )}
             </View>
             
             <View style={styles.lyricsSection}>
@@ -2579,5 +2584,10 @@ const styles = StyleSheet.create({
   sheetMusicImage: {
     width: '100%',
     height: 800,
+  },
+  lyricsInput: {
+    minHeight: 120,
+    textAlignVertical: 'top',
+    marginBottom: 8,
   },
 });
