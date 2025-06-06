@@ -25,14 +25,19 @@ interface Track {
   path: string;  // Path in Firebase Storage
 }
 
+interface Score {
+  id: string;
+  name: string;
+  url: string;
+}
+
 interface Song {
   id: string;
   title: string;
   artist: string;
   tracks: Track[];
   lyrics?: string;  // Optional lyrics field
-  score?: string;  // URL or path to the score file
-  scoreFileName?: string;  // Add this line
+  scores?: Score[];  // Array of scores instead of single score
 }
 
 // Add new interface for song creation
@@ -45,7 +50,7 @@ interface NewSongForm {
     file: DocumentPicker.DocumentPickerAsset | null;
   }[];
   lyrics: string;
-  score: string;
+  scores: Score[];
 }
 
 interface EditSongForm {
@@ -59,8 +64,7 @@ interface EditSongForm {
     file: DocumentPicker.DocumentPickerAsset | null;
   }[];
   lyrics?: string;
-  score?: string;
-  scoreFileName?: string;  // Add this line
+  scores: Score[];
 }
 
 interface SyncState {
@@ -166,7 +170,7 @@ const HomePage = () => {
     artist: '',
     tracks: [],
     lyrics: '',
-    score: ''
+    scores: []
   });
   const [showEditSongDialog, setShowEditSongDialog] = useState(false);
   const [editingSong, setEditingSong] = useState<EditSongForm | null>(null);
@@ -954,8 +958,7 @@ const HomePage = () => {
         file: null
       })),
       lyrics: song.lyrics,
-      score: song.score,
-      scoreFileName: song.scoreFileName || ''  // Add this line
+      scores: song.scores || []
     });
     setShowEditSongDialog(true);
   };
@@ -1060,9 +1063,8 @@ const HomePage = () => {
         title: editingSong.title,
         artist: editingSong.artist,
         tracks: updatedTracks,
-        lyrics: editingSong.lyrics || '',  // Ensure empty string if undefined
-        score: editingSong.score || '',    // Ensure empty string if undefined
-        scoreFileName: editingSong.scoreFileName || ''  // Ensure empty string if undefined
+        lyrics: editingSong.lyrics || '',
+        scores: editingSong.scores || []
       };
 
       // Update song in Firebase
@@ -1073,11 +1075,8 @@ const HomePage = () => {
       setEditingSong(null);
       setShowEditSongDialog(false);
     } catch (error) {
-      if (error instanceof Error) {
-        Alert.alert('Error', error.message);
-      } else {
-        Alert.alert('Error', 'An unknown error occurred');
-      }
+      console.error('Error editing song:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to edit song');
     }
   };
 
@@ -1087,22 +1086,24 @@ const HomePage = () => {
 
     return (
       <View style={styles.dialogOverlay}>
-        <View style={[styles.dialog, { maxHeight: '80%' }]}>
-          <Text style={styles.dialogTitle}>Edit Song</Text>
-          <ScrollView style={styles.addSongForm}>
+        <View style={styles.dialogContainer}>
+          <ScrollView style={styles.dialogScrollView}>
+            <Text style={styles.dialogTitle}>Edit Song</Text>
+            
             <TextInput
               style={styles.dialogInput}
               placeholder="Song Title"
               placeholderTextColor="#666666"
               value={editingSong.title}
-              onChangeText={(text) => setEditingSong(prev => ({ ...prev!, title: text }))}
+              onChangeText={(text) => setEditingSong(prev => prev ? { ...prev, title: text } : null)}
             />
+            
             <TextInput
               style={styles.dialogInput}
               placeholder="Artist"
               placeholderTextColor="#666666"
               value={editingSong.artist}
-              onChangeText={(text) => setEditingSong(prev => ({ ...prev!, artist: text }))}
+              onChangeText={(text) => setEditingSong(prev => prev ? { ...prev, artist: text } : null)}
             />
             
             <View style={styles.lyricsSection}>
@@ -1112,49 +1113,47 @@ const HomePage = () => {
                 placeholder="Enter lyrics..."
                 placeholderTextColor="#666666"
                 value={editingSong.lyrics}
-                onChangeText={(text) => setEditingSong(prev => ({ ...prev!, lyrics: text }))}
+                onChangeText={(text) => setEditingSong(prev => prev ? { ...prev, lyrics: text } : null)}
                 multiline
                 numberOfLines={6}
                 textAlignVertical="top"
               />
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={async () => {
-                  try {
-                    const result = await DocumentPicker.getDocumentAsync({
-                      type: 'text/plain',
-                      copyToCacheDirectory: true
-                    });
-                    
-                    if (result.assets && result.assets[0]) {
-                      const file = result.assets[0];
-                      const response = await fetch(file.uri);
-                      const text = await response.text();
-                      setEditingSong(prev => ({
-                        ...prev!,
-                        lyrics: text
-                      }));
-                    }
-                  } catch (error) {
-                    Alert.alert('Error', 'Failed to load lyrics file');
-                  }
-                }}
-              >
-                <Text style={styles.uploadButtonText}>
-                  Import from File
-                </Text>
-              </TouchableOpacity>
             </View>
             
             <View style={styles.lyricsSection}>
               <Text style={styles.sectionTitle}>Sheet Music</Text>
-              <TextInput
-                style={[styles.dialogInput, { marginBottom: 8 }]}
-                placeholder="Score File Name"
-                placeholderTextColor="#666666"
-                value={editingSong.scoreFileName || ''}
-                onChangeText={(text) => setEditingSong(prev => ({ ...prev!, scoreFileName: text }))}
-              />
+              <View style={styles.scoreList}>
+                {editingSong.scores.map((score, index) => (
+                  <View key={score.id} style={styles.scoreItem}>
+                    <TextInput
+                      style={[styles.dialogInput, { flex: 1 }]}
+                      placeholder="Score Name"
+                      placeholderTextColor="#666666"
+                      value={score.name}
+                      onChangeText={(text) => {
+                        setEditingSong(prev => {
+                          if (!prev) return null;
+                          const newScores = [...prev.scores];
+                          newScores[index] = { ...newScores[index], name: text };
+                          return { ...prev, scores: newScores };
+                        });
+                      }}
+                    />
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => {
+                        setEditingSong(prev => {
+                          if (!prev) return null;
+                          const newScores = prev.scores.filter((_, i) => i !== index);
+                          return { ...prev, scores: newScores };
+                        });
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
               <TouchableOpacity
                 style={styles.uploadButton}
                 onPress={async () => {
@@ -1166,102 +1165,48 @@ const HomePage = () => {
                     
                     if (result.assets && result.assets[0]) {
                       const file = result.assets[0];
-                      if (!editingSong.scoreFileName?.trim()) {
-                        Alert.alert('Error', 'Please enter a name for the score file');
-                        return;
-                      }
+                      const scoreName = file.name.split('.')[0];
                       
                       // Show loading state
-                      setEditingSong(prev => ({
-                        ...prev!,
-                        score: 'uploading'
-                      }));
+                      setEditingSong(prev => {
+                        if (!prev) return null;
+                        const newScore: Score = {
+                          id: generateId(),
+                          name: scoreName,
+                          url: 'uploading'
+                        };
+                        return {
+                          ...prev,
+                          scores: [...prev.scores, newScore]
+                        };
+                      });
 
-                      // Upload to Firebase Storage with song title prefix
-                      const downloadURL = await uploadSheetMusic(file, editingSong.scoreFileName, editingSong.title);
+                      // Upload to Firebase Storage
+                      const downloadURL = await uploadSheetMusic(file, scoreName, editingSong.title);
                       
-                      // Update the song with the download URL
-                      setEditingSong(prev => ({
-                        ...prev!,
-                        score: downloadURL
-                      }));
+                      // Update the score with the download URL
+                      setEditingSong(prev => {
+                        if (!prev) return null;
+                        const newScores = prev.scores.map(score => 
+                          score.url === 'uploading' ? { ...score, url: downloadURL } : score
+                        );
+                        return { ...prev, scores: newScores };
+                      });
                     }
                   } catch (error) {
-                    Alert.alert('Error', 'Failed to upload sheet music');
-                    // Reset the sheet music state if upload fails
-                    setEditingSong(prev => ({
-                      ...prev!,
-                      score: prev?.score === 'uploading' ? undefined : prev?.score
-                    }));
+                    console.error('Error uploading score:', error);
+                    Alert.alert('Error', 'Failed to upload score');
+                    // Reset the uploading score
+                    setEditingSong(prev => {
+                      if (!prev) return null;
+                      const newScores = prev.scores.filter(score => score.url !== 'uploading');
+                      return { ...prev, scores: newScores };
+                    });
                   }
                 }}
               >
-                <Text style={styles.uploadButtonText}>
-                  {editingSong.score === 'uploading' ? 'Uploading...' :
-                   editingSong.score ? 'Change Score' : 'Upload Score'}
-                </Text>
+                <Text style={styles.uploadButtonText}>Add Score</Text>
               </TouchableOpacity>
-              {editingSong.score && editingSong.score !== 'uploading' && (
-                <View style={styles.scoreActions}>
-                  <Text style={styles.fileName} numberOfLines={1}>
-                    Score: {editingSong.title} - {editingSong.scoreFileName}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.deleteScoreButton}
-                    onPress={async () => {
-                      try {
-                        // Get the file path from the URL
-                        const storage = getStorage();
-                        // Extract the path from the URL - handle both encoded and decoded URLs
-                        const url = editingSong.score!;
-                        let filePath;
-                        
-                        if (url.includes('/o/')) {
-                          // Handle URLs with /o/ format
-                          filePath = url.split('/o/')[1].split('?')[0];
-                        } else {
-                          // Handle direct URLs
-                          const urlObj = new URL(url);
-                          filePath = urlObj.pathname.split('/').slice(2).join('/');
-                        }
-                        
-                        const decodedPath = decodeURIComponent(filePath);
-                        console.log('Checking file at path:', decodedPath);
-                        
-                        const fileRef = storageRef(storage, decodedPath);
-
-                        try {
-                          // Check if file exists by trying to get its metadata
-                          await getDownloadURL(fileRef);
-                          // If we get here, file exists, so delete it
-                          console.log('File exists, deleting...');
-                          await deleteObject(fileRef);
-                        } catch (error: any) {
-                          // If error is 'object-not-found', file doesn't exist
-                          if (error.code === 'storage/object-not-found') {
-                            console.log('File does not exist in storage, removing reference only');
-                          } else {
-                            // If it's a different error, rethrow it
-                            throw error;
-                          }
-                        }
-
-                        // Update the song state to remove the score
-                        setEditingSong(prev => ({
-                          ...prev!,
-                          score: undefined,
-                          scoreFileName: undefined
-                        }));
-                      } catch (error) {
-                        console.error('Error handling score deletion:', error);
-                        Alert.alert('Error', 'Failed to handle score deletion. Please try again.');
-                      }
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="#FF5252" />
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
             
             <View style={styles.tracksHeader}>
@@ -1291,12 +1236,15 @@ const HomePage = () => {
                       try {
                         const result = await AudioStorageService.getInstance().pickAudioFile();
                         if (result) {
-                          setEditingSong(prev => ({
-                            ...prev!,
-                            tracks: prev!.tracks.map((t) => 
-                              t.id === track.id ? { ...t, file: result } : t
-                            )
-                          }));
+                          setEditingSong(prev => {
+                            if (!prev) return null;
+                            return {
+                              ...prev,
+                              tracks: prev.tracks.map((t) => 
+                                t.id === track.id ? { ...t, file: result } : t
+                              )
+                            };
+                          });
                         }
                       } catch (error) {
                         Alert.alert('Error', 'Failed to pick audio file');
@@ -1323,6 +1271,8 @@ const HomePage = () => {
                 )}
               </View>
             ))}
+            
+            {/* Rest of the dialog content */}
           </ScrollView>
           <View style={styles.dialogButtonContainer}>
             <TouchableOpacity 
@@ -1587,7 +1537,7 @@ const HomePage = () => {
         artist: '',
         tracks: [],
         lyrics: '',
-        score: ''
+        scores: []
       });
       setShowAddSongDialog(false);
     } catch (error) {
@@ -1714,6 +1664,203 @@ const HomePage = () => {
     setIsLyricsEditing(true);
   };
 
+  const renderSongView = () => {
+    if (!selectedSong) return null;
+
+    return (
+      <View style={styles.songView}>
+        <View style={styles.viewToggleContainer}>
+          <TouchableOpacity 
+            style={[
+              styles.viewToggleButton,
+              activeView === 'tracks' && styles.viewToggleButtonActive
+            ]}
+            onPress={() => setActiveView('tracks')}
+          >
+            <Ionicons 
+              name="musical-notes" 
+              size={20} 
+              color={activeView === 'tracks' ? '#BB86FC' : '#BBBBBB'} 
+            />
+            <Text style={[
+              styles.viewToggleText,
+              activeView === 'tracks' && styles.viewToggleTextActive
+            ]}>Tracks</Text>
+          </TouchableOpacity>
+          {selectedSong.lyrics && (
+            <TouchableOpacity 
+              style={[
+                styles.viewToggleButton,
+                activeView === 'lyrics' && styles.viewToggleButtonActive
+              ]}
+              onPress={() => setActiveView('lyrics')}
+            >
+              <Ionicons 
+                name="document-text" 
+                size={20} 
+                color={activeView === 'lyrics' ? '#BB86FC' : '#BBBBBB'} 
+              />
+              <Text style={[
+                styles.viewToggleText,
+                activeView === 'lyrics' && styles.viewToggleTextActive
+              ]}>Lyrics</Text>
+            </TouchableOpacity>
+          )}
+          {selectedSong.scores && selectedSong.scores.length > 0 && (
+            <TouchableOpacity 
+              style={[
+                styles.viewToggleButton,
+                activeView === 'score' && styles.viewToggleButtonActive
+              ]}
+              onPress={() => setActiveView('score')}
+            >
+              <Ionicons 
+                name="musical-note" 
+                size={20} 
+                color={activeView === 'score' ? '#BB86FC' : '#BBBBBB'} 
+              />
+              <Text style={[
+                styles.viewToggleText,
+                activeView === 'score' && styles.viewToggleTextActive
+              ]}>Scores</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={{ flex: 1 }}>
+          <ScrollView style={styles.contentScrollView}>
+            {activeView === 'tracks' ? (
+              // Tracks view content
+              <View>
+                {selectedSong.tracks.map(track => (
+                  <View key={track.id} style={styles.trackContainer}>
+                    <View style={styles.trackInfo}>
+                      <Text style={styles.trackName}>{track.name}</Text>
+                      <View style={styles.trackControls}>
+                        {loadingTracks[track.id] ? (
+                          <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="small" color="#BB86FC" />
+                            <Text style={styles.loadingText}>Loading...</Text>
+                          </View>
+                        ) : (
+                          <>
+                            <TouchableOpacity 
+                              style={[
+                                styles.trackToggleButton,
+                                soloedTrackIds.includes(track.id) && styles.soloActiveButton
+                              ]} 
+                              onPress={() => toggleSolo(track.id)}
+                            >
+                              <Text style={[
+                                styles.trackButtonText,
+                                soloedTrackIds.includes(track.id) && styles.soloActiveText
+                              ]}>S</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={[
+                                styles.trackToggleButton,
+                                !activeTrackIds.includes(track.id) && styles.muteActiveButton
+                              ]} 
+                              onPress={() => toggleTrack(track.id)}
+                            >
+                              <Text style={[
+                                styles.trackButtonText,
+                                !activeTrackIds.includes(track.id) && styles.muteActiveText
+                              ]}>M</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                      </View>
+                    </View>
+                    <View style={styles.volumeContainer}>
+                      <Ionicons 
+                        name={
+                          loadingTracks[track.id] ? 'hourglass-outline' :
+                          trackVolumes[track.id] === 0 ? 'volume-mute' :
+                          trackVolumes[track.id] < 0.3 ? 'volume-low' :
+                          trackVolumes[track.id] < 0.7 ? 'volume-medium' :
+                          'volume-high'
+                        } 
+                        size={20} 
+                        color="#BBBBBB" 
+                      />
+                      <Slider
+                        style={styles.volumeSlider}
+                        minimumValue={0}
+                        maximumValue={1}
+                        value={trackVolumes[track.id] || 1}
+                        onValueChange={(value) => handleVolumeChange(track.id, value)}
+                        minimumTrackTintColor="#BB86FC"
+                        maximumTrackTintColor="#2C2C2C"
+                        disabled={loadingTracks[track.id]}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : activeView === 'lyrics' ? (
+              // Lyrics view content
+              <View style={styles.lyricsContainer}>
+                {isLyricsEditing && isAdminMode ? (
+                  <TextInput
+                    style={styles.lyricsEditInput}
+                    value={editedLyrics}
+                    onChangeText={setEditedLyrics}
+                    multiline
+                    placeholder="Enter lyrics..."
+                    placeholderTextColor="#666666"
+                    textAlignVertical="top"
+                  />
+                ) : (
+                  <Text style={styles.lyricsText}>{selectedSong.lyrics}</Text>
+                )}
+              </View>
+            ) : (
+              // Scores view content
+              <View style={styles.sheetMusicContainer}>
+                {selectedSong.scores?.map((score, index) => (
+                  <View key={score.id} style={styles.scoreView}>
+                    <Text style={styles.scoreTitle}>{score.name}</Text>
+                    {score.url.endsWith('.pdf') ? (
+                      <WebView
+                        source={{ 
+                          uri: `https://docs.google.com/viewer?url=${encodeURIComponent(score.url)}&embedded=true`
+                        }}
+                        style={styles.sheetMusicView}
+                        javaScriptEnabled={true}
+                        domStorageEnabled={true}
+                        startInLoadingState={true}
+                        onError={(syntheticEvent) => {
+                          const { nativeEvent } = syntheticEvent;
+                          console.error('WebView error:', nativeEvent);
+                        }}
+                        onHttpError={(syntheticEvent) => {
+                          const { nativeEvent } = syntheticEvent;
+                          console.error('WebView HTTP error:', nativeEvent);
+                        }}
+                        renderLoading={() => (
+                          <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#BB86FC" />
+                            <Text style={styles.loadingText}>Loading score...</Text>
+                          </View>
+                        )}
+                      />
+                    ) : (
+                      <Image
+                        source={{ uri: score.url }}
+                        style={styles.sheetMusicImage}
+                        resizeMode="contain"
+                      />
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1779,211 +1926,7 @@ const HomePage = () => {
             </View>
             
             <View style={styles.mainContent}>
-              <View style={styles.viewToggleContainer}>
-                <TouchableOpacity 
-                  style={[
-                    styles.viewToggleButton,
-                    activeView === 'tracks' && styles.viewToggleButtonActive
-                  ]}
-                  onPress={() => setActiveView('tracks')}
-                >
-                  <Ionicons 
-                    name="musical-notes" 
-                    size={20} 
-                    color={activeView === 'tracks' ? '#BB86FC' : '#BBBBBB'} 
-                  />
-                  <Text style={[
-                    styles.viewToggleText,
-                    activeView === 'tracks' && styles.viewToggleTextActive
-                  ]}>Tracks</Text>
-                </TouchableOpacity>
-                {selectedSong.lyrics && (
-                  <TouchableOpacity 
-                    style={[
-                      styles.viewToggleButton,
-                      activeView === 'lyrics' && styles.viewToggleButtonActive
-                    ]}
-                    onPress={() => setActiveView('lyrics')}
-                  >
-                    <Ionicons 
-                      name="document-text" 
-                      size={20} 
-                      color={activeView === 'lyrics' ? '#BB86FC' : '#BBBBBB'} 
-                    />
-                    <Text style={[
-                      styles.viewToggleText,
-                      activeView === 'lyrics' && styles.viewToggleTextActive
-                    ]}>Lyrics</Text>
-                  </TouchableOpacity>
-                )}
-                {selectedSong.score && (
-                  <TouchableOpacity 
-                    style={[
-                      styles.viewToggleButton,
-                      activeView === 'score' && styles.viewToggleButtonActive
-                    ]}
-                    onPress={() => setActiveView('score')}
-                  >
-                    <Ionicons 
-                      name="musical-note" 
-                      size={20} 
-                      color={activeView === 'score' ? '#BB86FC' : '#BBBBBB'} 
-                    />
-                    <Text style={[
-                      styles.viewToggleText,
-                      activeView === 'score' && styles.viewToggleTextActive
-                    ]}>Score</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <ScrollView style={styles.contentScrollView}>
-                {activeView === 'tracks' ? (
-                  selectedSong.tracks.map(track => (
-                <View key={track.id} style={styles.trackContainer}>
-                  <View style={styles.trackInfo}>
-                    <Text style={styles.trackName}>{track.name}</Text>
-                    <View style={styles.trackControls}>
-                      {loadingTracks[track.id] ? (
-                        <View style={styles.loadingContainer}>
-                          <ActivityIndicator size="small" color="#BB86FC" />
-                          <Text style={styles.loadingText}>Loading...</Text>
-                        </View>
-                      ) : (
-                        <>
-                          <TouchableOpacity 
-                            style={[
-                              styles.trackToggleButton,
-                              soloedTrackIds.includes(track.id) && styles.soloActiveButton
-                            ]} 
-                            onPress={() => toggleSolo(track.id)}
-                          >
-                            <Text style={[
-                              styles.trackButtonText,
-                              soloedTrackIds.includes(track.id) && styles.soloActiveText
-                            ]}>S</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity 
-                            style={[
-                              styles.trackToggleButton,
-                              !activeTrackIds.includes(track.id) && styles.muteActiveButton
-                            ]} 
-                            onPress={() => toggleTrack(track.id)}
-                          >
-                            <Text style={[
-                              styles.trackButtonText,
-                              !activeTrackIds.includes(track.id) && styles.muteActiveText
-                            ]}>M</Text>
-                          </TouchableOpacity>
-                        </>
-                      )}
-                    </View>
-                  </View>
-                  <View style={styles.volumeContainer}>
-                    <Ionicons 
-                      name={
-                        loadingTracks[track.id] ? 'hourglass-outline' :
-                        trackVolumes[track.id] === 0 ? 'volume-mute' :
-                        trackVolumes[track.id] < 0.3 ? 'volume-low' :
-                        trackVolumes[track.id] < 0.7 ? 'volume-medium' :
-                        'volume-high'
-                      } 
-                      size={20} 
-                      color="#BBBBBB" 
-                    />
-                    <Slider
-                      style={styles.volumeSlider}
-                      minimumValue={0}
-                      maximumValue={1}
-                      value={trackVolumes[track.id] || 1}
-                      onValueChange={(value) => handleVolumeChange(track.id, value)}
-                      minimumTrackTintColor="#BB86FC"
-                      maximumTrackTintColor="#2C2C2C"
-                      disabled={loadingTracks[track.id]}
-                    />
-                  </View>
-                </View>
-                  ))
-                ) : activeView === 'lyrics' ? (
-                  <View style={styles.lyricsContainer}>
-                    <View style={styles.lyricsHeader}>
-                      <Text style={styles.lyricsTitle}>Lyrics</Text>
-                      {isAdminMode && (
-                        !isLyricsEditing ? (
-                          <TouchableOpacity
-                            style={styles.editButton}
-                            onPress={startLyricsEditing}
-                          >
-                            <Ionicons name="create-outline" size={24} color="#BB86FC" />
-                          </TouchableOpacity>
-                        ) : (
-                          <View style={styles.lyricsEditButtons}>
-                            <TouchableOpacity
-                              style={[styles.lyricsEditButton, styles.cancelButton]}
-                              onPress={() => setIsLyricsEditing(false)}
-                            >
-                              <Text style={styles.lyricsEditButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[styles.lyricsEditButton, styles.saveButton]}
-                              onPress={handleLyricsSave}
-                            >
-                              <Text style={styles.lyricsEditButtonText}>Save</Text>
-                            </TouchableOpacity>
-                          </View>
-                        )
-                      )}
-                    </View>
-                    {isLyricsEditing && isAdminMode ? (
-                      <TextInput
-                        style={styles.lyricsEditInput}
-                        value={editedLyrics}
-                        onChangeText={setEditedLyrics}
-                        multiline
-                        placeholder="Enter lyrics..."
-                        placeholderTextColor="#666666"
-                        textAlignVertical="top"
-                      />
-                    ) : (
-                      <Text style={styles.lyricsText}>{selectedSong.lyrics}</Text>
-                    )}
-                  </View>
-                ) : (
-                  <View style={styles.sheetMusicContainer}>
-                    {selectedSong.score?.endsWith('.pdf') ? (
-                      <WebView
-                        source={{ 
-                          uri: `https://docs.google.com/viewer?url=${encodeURIComponent(selectedSong.score)}&embedded=true`
-                        }}
-                        style={styles.sheetMusicView}
-                        javaScriptEnabled={true}
-                        domStorageEnabled={true}
-                        startInLoadingState={true}
-                        onError={(syntheticEvent) => {
-                          const { nativeEvent } = syntheticEvent;
-                          console.error('WebView error:', nativeEvent);
-                        }}
-                        onHttpError={(syntheticEvent) => {
-                          const { nativeEvent } = syntheticEvent;
-                          console.error('WebView HTTP error:', nativeEvent);
-                        }}
-                        renderLoading={() => (
-                          <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color="#BB86FC" />
-                            <Text style={styles.loadingText}>Loading score...</Text>
-                          </View>
-                        )}
-                      />
-                    ) : (
-                      <Image
-                        source={{ uri: selectedSong.score }}
-                        style={styles.sheetMusicImage}
-                        resizeMode="contain"
-                      />
-                    )}
-                  </View>
-                )}
-            </ScrollView>
+              {renderSongView()}
             </View>
           </>
         )}
@@ -2256,7 +2199,16 @@ const styles = StyleSheet.create({
   mainContent: {
     flex: 1,
     backgroundColor: '#121212',
-    padding: 12
+    height: '100%',
+  },
+  songView: {
+    flex: 1,
+    backgroundColor: '#121212',
+    height: '100%',
+  },
+  contentScrollView: {
+    flex: 1,
+    height: '100%',
   },
   trackContainer: {
     backgroundColor: '#1E1E1E',
@@ -2503,8 +2455,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   tracksTitle: {
     fontSize: 16,
@@ -2514,29 +2465,29 @@ const styles = StyleSheet.create({
   addTrackButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
-    padding: 8,
-    borderRadius: 6,
+    gap: 8,
   },
   addTrackButtonText: {
     color: '#BB86FC',
     fontSize: 14,
     fontWeight: '500',
-    marginLeft: 4,
+  },
+  trackUploadContainer: {
+    marginBottom: 12,
   },
   trackHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
     gap: 8,
   },
   trackNameInput: {
+    flex: 1,
+    height: 40,
     backgroundColor: '#2C2C2C',
-    borderRadius: 6,
-    padding: 8,
+    borderRadius: 8,
+    paddingHorizontal: 12,
     color: '#FFFFFF',
     fontSize: 14,
-    flex: 1,
   },
   uploadButton: {
     backgroundColor: '#2C2C2C',
@@ -2554,12 +2505,6 @@ const styles = StyleSheet.create({
   },
   removeTrackButton: {
     padding: 4,
-  },
-  trackUploadContainer: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
   },
   trackUploadLabel: {
     color: '#FFFFFF',
@@ -2701,9 +2646,6 @@ const styles = StyleSheet.create({
   viewToggleTextActive: {
     color: '#BB86FC',
   },
-  contentScrollView: {
-    flex: 1,
-  },
   sheetMusicContainer: {
     backgroundColor: '#1E1E1E',
     borderRadius: 8,
@@ -2765,5 +2707,36 @@ const styles = StyleSheet.create({
     padding: 4,
     backgroundColor: '#3D0C11',
     borderRadius: 4,
+  },
+  scoreList: {
+    marginBottom: 12,
+  },
+  scoreItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  scoreView: {
+    marginBottom: 24,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    padding: 12,
+  },
+  scoreTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  dialogContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 16,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  dialogScrollView: {
+    maxHeight: '100%',
   },
 });
