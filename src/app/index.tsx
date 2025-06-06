@@ -1309,7 +1309,7 @@ const HomePage = () => {
                     style={styles.iconButton}
                     onPress={() => removeTrackFromSong(track.id)}
                   >
-                    <Ionicons name="close-circle" size={24} color="#FF5252" />
+                    <Ionicons name="trash-outline" size={24} color="#FF5252" />
                   </TouchableOpacity>
                 </View>
                 {track.file ? (
