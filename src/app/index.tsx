@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -9,6 +9,8 @@ import { ref, onValue, set, serverTimestamp } from 'firebase/database';
 import { database } from '../config/firebase';
 import AudioStorageService from '../services/audioStorage';
 import * as DocumentPicker from 'expo-document-picker';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { WebView } from 'react-native-webview';
 
 // Custom ID generator
 const generateId = () => {
@@ -29,6 +31,7 @@ interface Song {
   artist: string;
   tracks: Track[];
   lyrics?: string;  // Optional lyrics field
+  score?: string;  // URL or path to the score file
 }
 
 // Add new interface for song creation
@@ -41,6 +44,7 @@ interface NewSongForm {
     file: DocumentPicker.DocumentPickerAsset | null;
   }[];
   lyrics?: string;
+  score?: string;
 }
 
 interface EditSongForm {
@@ -54,6 +58,7 @@ interface EditSongForm {
     file: DocumentPicker.DocumentPickerAsset | null;
   }[];
   lyrics?: string;
+  score?: string;
 }
 
 interface SyncState {
@@ -158,7 +163,8 @@ const HomePage = () => {
     title: '',
     artist: '',
     tracks: [],
-    lyrics: ''
+    lyrics: '',
+    score: ''
   });
   const [showEditSongDialog, setShowEditSongDialog] = useState(false);
   const [editingSong, setEditingSong] = useState<EditSongForm | null>(null);
@@ -169,7 +175,7 @@ const HomePage = () => {
   const [password, setPassword] = useState('');
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
   const [isLyricsExpanded, setIsLyricsExpanded] = useState(false);
-  const [activeView, setActiveView] = useState<'tracks' | 'lyrics'>('tracks');
+  const [activeView, setActiveView] = useState<'tracks' | 'lyrics' | 'sheetMusic' | 'score'>('tracks');
 
   // Load songs from Firebase
   useEffect(() => {
@@ -975,7 +981,8 @@ const HomePage = () => {
         title: '',
         artist: '',
         tracks: [],
-        lyrics: ''
+        lyrics: '',
+        score: ''
       });
       setShowAddSongDialog(false);
     } catch (error) {
@@ -1152,7 +1159,8 @@ const HomePage = () => {
         ...track,
         file: null
       })),
-      lyrics: song.lyrics
+      lyrics: song.lyrics,
+      score: song.score
     });
     setShowEditSongDialog(true);
   };
@@ -1258,7 +1266,8 @@ const HomePage = () => {
         title: editingSong.title,
         artist: editingSong.artist,
         tracks: updatedTracks,
-        lyrics: editingSong.lyrics
+        lyrics: editingSong.lyrics,
+        score: editingSong.score
       });
 
       // Reset and close dialog
@@ -1329,6 +1338,56 @@ const HomePage = () => {
               {editingSong.lyrics && (
                 <Text style={styles.fileName} numberOfLines={1}>
                   Lyrics loaded ({editingSong.lyrics.length} characters)
+                </Text>
+              )}
+            </View>
+            
+            <View style={styles.lyricsSection}>
+              <Text style={styles.sectionTitle}>Sheet Music</Text>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={async () => {
+                  try {
+                    const result = await DocumentPicker.getDocumentAsync({
+                      type: ['application/pdf', 'image/*'],
+                      copyToCacheDirectory: true
+                    });
+                    
+                    if (result.assets && result.assets[0]) {
+                      const file = result.assets[0];
+                      // Show loading state
+                      setEditingSong(prev => ({
+                        ...prev!,
+                        score: 'uploading'
+                      }));
+
+                      // Upload to Firebase Storage
+                      const downloadURL = await uploadSheetMusic(file);
+                      
+                      // Update the song with the download URL
+                      setEditingSong(prev => ({
+                        ...prev!,
+                        score: downloadURL
+                      }));
+                    }
+                  } catch (error) {
+                    Alert.alert('Error', 'Failed to upload sheet music');
+                    // Reset the sheet music state if upload fails
+                    setEditingSong(prev => ({
+                      ...prev!,
+                      score: prev?.score === 'uploading' ? undefined : prev?.score
+                    }));
+                  }
+                }}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {editingSong.score === 'uploading' ? 'Uploading...' :
+                   editingSong.score ? 'Change Score' : 'Upload Score'}
+                </Text>
+              </TouchableOpacity>
+              {editingSong.score && editingSong.score !== 'uploading' && (
+                <Text style={styles.fileName} numberOfLines={1}>
+                  Score uploaded
                 </Text>
               )}
             </View>
@@ -1530,6 +1589,37 @@ const HomePage = () => {
     </View>
   );
 
+  // Add this function after other utility functions
+  const uploadSheetMusic = async (file: DocumentPicker.DocumentPickerAsset): Promise<string> => {
+    try {
+      const storage = getStorage();
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `sheet_music/${generateId()}.${fileExtension}`;
+      const fileRef = storageRef(storage, fileName);
+
+      // Fetch the file and convert to blob
+      const response = await fetch(file.uri);
+      const blob = await response.blob();
+
+      // Upload to Firebase Storage
+      await uploadBytes(fileRef, blob);
+      
+      // Get the download URL
+      const downloadURL = await getDownloadURL(fileRef);
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading sheet music:', error);
+      throw new Error('Failed to upload sheet music');
+    }
+  };
+
+  // Add this function after other utility functions
+  const logSheetMusicInfo = (url: string) => {
+    console.log('Sheet Music URL:', url);
+    console.log('Is PDF:', url.endsWith('.pdf'));
+    console.log('File extension:', url.split('.').pop());
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1632,81 +1722,134 @@ const HomePage = () => {
                     ]}>Lyrics</Text>
                   </TouchableOpacity>
                 )}
+                {selectedSong.score && (
+                  <TouchableOpacity 
+                    style={[
+                      styles.viewToggleButton,
+                      activeView === 'score' && styles.viewToggleButtonActive
+                    ]}
+                    onPress={() => setActiveView('score')}
+                  >
+                    <Ionicons 
+                      name="musical-note" 
+                      size={20} 
+                      color={activeView === 'score' ? '#BB86FC' : '#BBBBBB'} 
+                    />
+                    <Text style={[
+                      styles.viewToggleText,
+                      activeView === 'score' && styles.viewToggleTextActive
+                    ]}>Score</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               <ScrollView style={styles.contentScrollView}>
                 {activeView === 'tracks' ? (
                   selectedSong.tracks.map(track => (
-                    <View key={track.id} style={styles.trackContainer}>
-                      <View style={styles.trackInfo}>
-                        <Text style={styles.trackName}>{track.name}</Text>
-                        <View style={styles.trackControls}>
-                          {loadingTracks[track.id] ? (
-                            <View style={styles.loadingContainer}>
-                              <ActivityIndicator size="small" color="#BB86FC" />
-                              <Text style={styles.loadingText}>Loading...</Text>
-                            </View>
-                          ) : (
-                            <>
-                              <TouchableOpacity 
-                                style={[
-                                  styles.trackToggleButton,
-                                  soloedTrackIds.includes(track.id) && styles.soloActiveButton
-                                ]} 
-                                onPress={() => toggleSolo(track.id)}
-                              >
-                                <Text style={[
-                                  styles.trackButtonText,
-                                  soloedTrackIds.includes(track.id) && styles.soloActiveText
-                                ]}>S</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity 
-                                style={[
-                                  styles.trackToggleButton,
-                                  !activeTrackIds.includes(track.id) && styles.muteActiveButton
-                                ]} 
-                                onPress={() => toggleTrack(track.id)}
-                              >
-                                <Text style={[
-                                  styles.trackButtonText,
-                                  !activeTrackIds.includes(track.id) && styles.muteActiveText
-                                ]}>M</Text>
-                              </TouchableOpacity>
-                            </>
-                          )}
+                <View key={track.id} style={styles.trackContainer}>
+                  <View style={styles.trackInfo}>
+                    <Text style={styles.trackName}>{track.name}</Text>
+                    <View style={styles.trackControls}>
+                      {loadingTracks[track.id] ? (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator size="small" color="#BB86FC" />
+                          <Text style={styles.loadingText}>Loading...</Text>
                         </View>
-                      </View>
-                      <View style={styles.volumeContainer}>
-                        <Ionicons 
-                          name={
-                            loadingTracks[track.id] ? 'hourglass-outline' :
-                            trackVolumes[track.id] === 0 ? 'volume-mute' :
-                            trackVolumes[track.id] < 0.3 ? 'volume-low' :
-                            trackVolumes[track.id] < 0.7 ? 'volume-medium' :
-                            'volume-high'
-                          } 
-                          size={20} 
-                          color="#BBBBBB" 
-                        />
-                        <Slider
-                          style={styles.volumeSlider}
-                          minimumValue={0}
-                          maximumValue={1}
-                          value={trackVolumes[track.id] || 1}
-                          onValueChange={(value) => handleVolumeChange(track.id, value)}
-                          minimumTrackTintColor="#BB86FC"
-                          maximumTrackTintColor="#2C2C2C"
-                          disabled={loadingTracks[track.id]}
-                        />
-                      </View>
+                      ) : (
+                        <>
+                          <TouchableOpacity 
+                            style={[
+                              styles.trackToggleButton,
+                              soloedTrackIds.includes(track.id) && styles.soloActiveButton
+                            ]} 
+                            onPress={() => toggleSolo(track.id)}
+                          >
+                            <Text style={[
+                              styles.trackButtonText,
+                              soloedTrackIds.includes(track.id) && styles.soloActiveText
+                            ]}>S</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[
+                              styles.trackToggleButton,
+                              !activeTrackIds.includes(track.id) && styles.muteActiveButton
+                            ]} 
+                            onPress={() => toggleTrack(track.id)}
+                          >
+                            <Text style={[
+                              styles.trackButtonText,
+                              !activeTrackIds.includes(track.id) && styles.muteActiveText
+                            ]}>M</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
                     </View>
+                  </View>
+                  <View style={styles.volumeContainer}>
+                    <Ionicons 
+                      name={
+                        loadingTracks[track.id] ? 'hourglass-outline' :
+                        trackVolumes[track.id] === 0 ? 'volume-mute' :
+                        trackVolumes[track.id] < 0.3 ? 'volume-low' :
+                        trackVolumes[track.id] < 0.7 ? 'volume-medium' :
+                        'volume-high'
+                      } 
+                      size={20} 
+                      color="#BBBBBB" 
+                    />
+                    <Slider
+                      style={styles.volumeSlider}
+                      minimumValue={0}
+                      maximumValue={1}
+                      value={trackVolumes[track.id] || 1}
+                      onValueChange={(value) => handleVolumeChange(track.id, value)}
+                      minimumTrackTintColor="#BB86FC"
+                      maximumTrackTintColor="#2C2C2C"
+                      disabled={loadingTracks[track.id]}
+                    />
+                  </View>
+                </View>
                   ))
-                ) : (
+                ) : activeView === 'lyrics' ? (
                   <View style={styles.lyricsContainer}>
                     <Text style={styles.lyricsText}>{selectedSong.lyrics}</Text>
                   </View>
+                ) : (
+                  <View style={styles.sheetMusicContainer}>
+                    {selectedSong.score?.endsWith('.pdf') ? (
+                      <WebView
+                        source={{ 
+                          uri: `https://docs.google.com/viewer?url=${encodeURIComponent(selectedSong.score)}&embedded=true`
+                        }}
+                        style={styles.sheetMusicView}
+                        javaScriptEnabled={true}
+                        domStorageEnabled={true}
+                        startInLoadingState={true}
+                        onError={(syntheticEvent) => {
+                          const { nativeEvent } = syntheticEvent;
+                          console.error('WebView error:', nativeEvent);
+                        }}
+                        onHttpError={(syntheticEvent) => {
+                          const { nativeEvent } = syntheticEvent;
+                          console.error('WebView HTTP error:', nativeEvent);
+                        }}
+                        renderLoading={() => (
+                          <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#BB86FC" />
+                            <Text style={styles.loadingText}>Loading score...</Text>
+                          </View>
+                        )}
+                      />
+                    ) : (
+                      <Image
+                        source={{ uri: selectedSong.score }}
+                        style={styles.sheetMusicImage}
+                        resizeMode="contain"
+                      />
+                    )}
+                  </View>
                 )}
-              </ScrollView>
+            </ScrollView>
             </View>
           </>
         )}
@@ -2421,5 +2564,22 @@ const styles = StyleSheet.create({
   },
   contentScrollView: {
     flex: 1,
+  },
+  sheetMusicContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    padding: 12,
+    flex: 1,
+    minHeight: 600,
+  },
+  sheetMusicView: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    width: '100%',
+    height: '100%',
+  },
+  sheetMusicImage: {
+    width: '100%',
+    height: 800,
   },
 });
