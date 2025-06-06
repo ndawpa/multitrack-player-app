@@ -1841,31 +1841,33 @@ const HomePage = () => {
                   <View style={styles.lyricsContainer}>
                     <View style={styles.lyricsHeader}>
                       <Text style={styles.lyricsTitle}>Lyrics</Text>
-                      {!isLyricsEditing ? (
-                        <TouchableOpacity
-                          style={styles.editButton}
-                          onPress={startLyricsEditing}
-                        >
-                          <Ionicons name="create-outline" size={24} color="#BB86FC" />
-                        </TouchableOpacity>
-                      ) : (
-                        <View style={styles.lyricsEditButtons}>
+                      {isAdminMode && (
+                        !isLyricsEditing ? (
                           <TouchableOpacity
-                            style={[styles.lyricsEditButton, styles.cancelButton]}
-                            onPress={() => setIsLyricsEditing(false)}
+                            style={styles.editButton}
+                            onPress={startLyricsEditing}
                           >
-                            <Text style={styles.lyricsEditButtonText}>Cancel</Text>
+                            <Ionicons name="create-outline" size={24} color="#BB86FC" />
                           </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.lyricsEditButton, styles.saveButton]}
-                            onPress={handleLyricsSave}
-                          >
-                            <Text style={styles.lyricsEditButtonText}>Save</Text>
-                          </TouchableOpacity>
-                        </View>
+                        ) : (
+                          <View style={styles.lyricsEditButtons}>
+                            <TouchableOpacity
+                              style={[styles.lyricsEditButton, styles.cancelButton]}
+                              onPress={() => setIsLyricsEditing(false)}
+                            >
+                              <Text style={styles.lyricsEditButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.lyricsEditButton, styles.saveButton]}
+                              onPress={handleLyricsSave}
+                            >
+                              <Text style={styles.lyricsEditButtonText}>Save</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )
                       )}
                     </View>
-                    {isLyricsEditing ? (
+                    {isLyricsEditing && isAdminMode ? (
                       <TextInput
                         style={styles.lyricsEditInput}
                         value={editedLyrics}
