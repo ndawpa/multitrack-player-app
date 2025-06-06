@@ -1816,6 +1816,39 @@ const HomePage = () => {
             ) : activeView === 'lyrics' ? (
               // Lyrics view content
               <View style={styles.lyricsContainer}>
+                <View style={styles.lyricsHeader}>
+                  <Text style={styles.lyricsTitle}>Lyrics</Text>
+                  {isAdminMode && (
+                    <View style={styles.lyricsEditButtons}>
+                      {isLyricsEditing ? (
+                        <>
+                          <TouchableOpacity
+                            style={[styles.lyricsEditButton, styles.cancelButton]}
+                            onPress={() => {
+                              setIsLyricsEditing(false);
+                              setEditedLyrics(selectedSong?.lyrics || '');
+                            }}
+                          >
+                            <Text style={styles.lyricsEditButtonText}>Cancel</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.lyricsEditButton, styles.saveButton]}
+                            onPress={handleLyricsSave}
+                          >
+                            <Text style={styles.lyricsEditButtonText}>Save</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.iconButton}
+                          onPress={startLyricsEditing}
+                        >
+                          <Ionicons name="create-outline" size={24} color="#BB86FC" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
                 {isLyricsEditing && isAdminMode ? (
                   <TextInput
                     style={styles.lyricsEditInput}
