@@ -1107,7 +1107,15 @@ const HomePage = () => {
             />
             
             <View style={styles.lyricsSection}>
-              <Text style={styles.sectionTitle}>Lyrics</Text>
+              <View style={styles.lyricsHeader}>
+                <Text style={styles.sectionTitle}>Lyrics</Text>
+                <TouchableOpacity
+                  style={styles.uploadButton}
+                  onPress={uploadLyricsFromFile}
+                >
+                  <Text style={styles.uploadButtonText}>Upload from File</Text>
+                </TouchableOpacity>
+              </View>
               <TextInput
                 style={[styles.dialogInput, styles.lyricsInput]}
                 placeholder="Enter lyrics..."
@@ -1869,6 +1877,30 @@ const HomePage = () => {
     );
   };
 
+  const uploadLyricsFromFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/plain'],
+        copyToCacheDirectory: true
+      });
+      
+      if (result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        const response = await fetch(file.uri);
+        const text = await response.text();
+        
+        if (editingSong) {
+          setEditingSong(prev => prev ? { ...prev, lyrics: text } : null);
+        } else {
+          setNewSong(prev => ({ ...prev, lyrics: text }));
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading lyrics file:', error);
+      Alert.alert('Error', 'Failed to upload lyrics file');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -2621,7 +2653,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   lyricsTitle: {
     fontSize: 18,
