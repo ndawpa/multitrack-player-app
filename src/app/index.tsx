@@ -816,20 +816,39 @@ const HomePage = () => {
     setShowSessionsList(true);
   };
 
-  const renderSessionMenu = () => (
-    <View style={styles.sessionMenuContainer}>
-      <TouchableOpacity 
-        style={styles.sessionMenuHeader}
-        onPress={() => setIsSessionMenuExpanded(!isSessionMenuExpanded)}
-      >
-        <Text style={styles.sessionMenuTitle}>Session Management</Text>
-        <Ionicons 
-          name={isSessionMenuExpanded ? 'chevron-up' : 'chevron-down'} 
-          size={24} 
-          color="#BBBBBB" 
-        />
-      </TouchableOpacity>
-      
+  const renderSongList = () => (
+    <View style={styles.songListContainer}>
+      <View style={styles.titleContainer}>
+        <Text style={styles.title}>Select a Song</Text>
+        <View style={styles.titleButtons}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => {
+              if (isAdminMode) {
+                setIsAdminMode(false);
+              } else {
+                setShowPasswordDialog(true);
+              }
+            }}
+          >
+            <Ionicons 
+              name="pencil" 
+              size={24} 
+              color={isAdminMode ? "#03DAC6" : "#BB86FC"} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => setIsSessionMenuExpanded(!isSessionMenuExpanded)}
+          >
+            <Ionicons 
+              name="people" 
+              size={24} 
+              color="#BB86FC" 
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
       {isSessionMenuExpanded && (
         <View style={styles.sessionMenuContent}>
           {sessionId ? (
@@ -884,235 +903,6 @@ const HomePage = () => {
           )}
         </View>
       )}
-    </View>
-  );
-
-  // Add function to add a new track
-  const addNewTrack = () => {
-    setNewSong(prev => ({
-      ...prev,
-      tracks: [
-        ...prev.tracks,
-        {
-          id: generateId(),
-          name: '',
-          file: null
-        }
-      ]
-    }));
-  };
-
-  // Add function to remove a track
-  const removeTrack = (trackId: string) => {
-    setNewSong(prev => ({
-      ...prev,
-      tracks: prev.tracks.filter(track => track.id !== trackId)
-    }));
-  };
-
-  // Add function to update track name
-  const updateTrackName = (trackId: string, name: string) => {
-    setNewSong(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => 
-        track.id === trackId ? { ...track, name } : track
-      )
-    }));
-  };
-
-  // Modify handleAddSong to use custom track names
-  const handleAddSong = async () => {
-    try {
-      if (!newSong.title.trim() || !newSong.artist.trim()) {
-        throw new Error('Please enter song title and artist');
-      }
-
-      if (newSong.tracks.length === 0) {
-        throw new Error('Please add at least one track');
-      }
-
-      // Generate a new ID
-      const newId = generateId();
-      
-      // Create folder name from title
-      const folderName = newSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
-      
-      // Upload files and create tracks
-      const tracks = await Promise.all(
-        newSong.tracks.map(async (track, index) => {
-          if (!track.file) {
-            throw new Error(`Please upload file for track "${track.name || `Track ${index + 1}`}"`);
-          }
-          
-          if (!track.name.trim()) {
-            throw new Error(`Please enter a name for track ${index + 1}`);
-          }
-          
-          // Upload file to Firebase Storage
-          const filePath = `audio/${folderName}/${newSong.title} - ${track.name}.mp3`;
-          await AudioStorageService.getInstance().uploadAudioFile(track.file, filePath);
-          
-          return {
-            id: `${newId}-${index + 1}`,
-            name: track.name,
-            path: filePath
-          };
-        })
-      );
-
-      // Create new song object
-      const songToAdd: Song = {
-        id: newId,
-        title: newSong.title,
-        artist: newSong.artist,
-        tracks
-      };
-
-      // Add to Firebase
-      const songRef = ref(database, `songs/${newId}`);
-      await set(songRef, {
-        title: songToAdd.title,
-        artist: songToAdd.artist,
-        tracks: songToAdd.tracks
-      });
-
-      // Reset form and close dialog
-      setNewSong({
-        title: '',
-        artist: '',
-        tracks: [],
-        lyrics: '',
-        score: ''
-      });
-      setShowAddSongDialog(false);
-    } catch (error) {
-      if (error instanceof Error) {
-        Alert.alert('Error', error.message);
-      } else {
-        Alert.alert('Error', 'An unknown error occurred');
-      }
-    }
-  };
-
-  const renderAddSongDialog = () => (
-    <View style={styles.dialogOverlay}>
-      <View style={[styles.dialog, { maxHeight: '80%' }]}>
-        <Text style={styles.dialogTitle}>Add New Song</Text>
-        <ScrollView style={styles.addSongForm}>
-          <TextInput
-            style={styles.dialogInput}
-            placeholder="Song Title"
-            placeholderTextColor="#666666"
-            value={newSong.title}
-            onChangeText={(text) => setNewSong(prev => ({ ...prev, title: text }))}
-          />
-          <TextInput
-            style={styles.dialogInput}
-            placeholder="Artist"
-            placeholderTextColor="#666666"
-            value={newSong.artist}
-            onChangeText={(text) => setNewSong(prev => ({ ...prev, artist: text }))}
-          />
-          
-          <View style={styles.tracksHeader}>
-            <Text style={styles.tracksTitle}>Tracks</Text>
-            <TouchableOpacity
-              style={styles.addTrackButton}
-              onPress={addNewTrack}
-            >
-              <Ionicons name="add-circle" size={24} color="#BB86FC" />
-              <Text style={styles.addTrackButtonText}>Add Track</Text>
-            </TouchableOpacity>
-          </View>
-
-          {newSong.tracks.map((track, index) => (
-            <View key={track.id} style={styles.trackUploadContainer}>
-              <View style={styles.trackHeader}>
-                <TextInput
-                  style={[styles.trackNameInput, { flex: 1 }]}
-                  placeholder={`Track ${index + 1} Name`}
-                  placeholderTextColor="#666666"
-                  value={track.name}
-                  onChangeText={(text) => updateTrackName(track.id, text)}
-                />
-                <TouchableOpacity
-                  style={styles.removeTrackButton}
-                  onPress={() => removeTrack(track.id)}
-                >
-                  <Ionicons name="close-circle" size={24} color="#FF5252" />
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={async () => {
-                  try {
-                    const result = await AudioStorageService.getInstance().pickAudioFile();
-                    if (result) {
-                      setNewSong(prev => ({
-                        ...prev,
-                        tracks: prev.tracks.map((t) => 
-                          t.id === track.id ? { ...t, file: result } : t
-                        )
-                      }));
-                    }
-                  } catch (error) {
-                    Alert.alert('Error', 'Failed to pick audio file');
-                  }
-                }}
-              >
-                <Text style={styles.uploadButtonText}>
-                  {track.file ? 'Change File' : 'Upload File'}
-                </Text>
-              </TouchableOpacity>
-              {track.file && (
-                <Text style={styles.fileName} numberOfLines={1}>
-                  {track.file.name}
-                </Text>
-              )}
-            </View>
-          ))}
-        </ScrollView>
-        <View style={styles.dialogButtonContainer}>
-          <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonSecondary]}
-            onPress={() => setShowAddSongDialog(false)}
-          >
-            <Text style={styles.dialogButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonPrimary]}
-            onPress={handleAddSong}
-          >
-            <Text style={styles.dialogButtonText}>Add Song</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-
-  // Modify the song list view to include the pencil icon
-  const renderSongList = () => (
-    <View style={styles.songListContainer}>
-      <View style={styles.titleContainer}>
-        <Text style={styles.title}>Select a Song</Text>
-        <TouchableOpacity
-          style={styles.pencilButton}
-          onPress={() => {
-            if (isAdminMode) {
-              setIsAdminMode(false);
-            } else {
-              setShowPasswordDialog(true);
-            }
-          }}
-        >
-          <Ionicons 
-            name="pencil" 
-            size={24} 
-            color={isAdminMode ? "#03DAC6" : "#BB86FC"} 
-          />
-        </TouchableOpacity>
-      </View>
-      {renderSessionMenu()}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
         <TextInput
@@ -1619,6 +1409,209 @@ const HomePage = () => {
     console.log('Is PDF:', url.endsWith('.pdf'));
     console.log('File extension:', url.split('.').pop());
   };
+
+  // Add function to add a new track
+  const addNewTrack = () => {
+    setNewSong(prev => ({
+      ...prev,
+      tracks: [
+        ...prev.tracks,
+        {
+          id: generateId(),
+          name: '',
+          file: null
+        }
+      ]
+    }));
+  };
+
+  // Add function to remove a track
+  const removeTrack = (trackId: string) => {
+    setNewSong(prev => ({
+      ...prev,
+      tracks: prev.tracks.filter(track => track.id !== trackId)
+    }));
+  };
+
+  // Add function to update track name
+  const updateTrackName = (trackId: string, name: string) => {
+    setNewSong(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(track => 
+        track.id === trackId ? { ...track, name } : track
+      )
+    }));
+  };
+
+  // Modify handleAddSong to use custom track names
+  const handleAddSong = async () => {
+    try {
+      if (!newSong.title.trim() || !newSong.artist.trim()) {
+        throw new Error('Please enter song title and artist');
+      }
+
+      if (newSong.tracks.length === 0) {
+        throw new Error('Please add at least one track');
+      }
+
+      // Generate a new ID
+      const newId = generateId();
+      
+      // Create folder name from title
+      const folderName = newSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      
+      // Upload files and create tracks
+      const tracks = await Promise.all(
+        newSong.tracks.map(async (track, index) => {
+          if (!track.file) {
+            throw new Error(`Please upload file for track "${track.name || `Track ${index + 1}`}"`);
+          }
+          
+          if (!track.name.trim()) {
+            throw new Error(`Please enter a name for track ${index + 1}`);
+          }
+          
+          // Upload file to Firebase Storage
+          const filePath = `audio/${folderName}/${newSong.title} - ${track.name}.mp3`;
+          await AudioStorageService.getInstance().uploadAudioFile(track.file, filePath);
+          
+          return {
+            id: `${newId}-${index + 1}`,
+            name: track.name,
+            path: filePath
+          };
+        })
+      );
+
+      // Create new song object
+      const songToAdd: Song = {
+        id: newId,
+        title: newSong.title,
+        artist: newSong.artist,
+        tracks
+      };
+
+      // Add to Firebase
+      const songRef = ref(database, `songs/${newId}`);
+      await set(songRef, {
+        title: songToAdd.title,
+        artist: songToAdd.artist,
+        tracks: songToAdd.tracks
+      });
+
+      // Reset form and close dialog
+      setNewSong({
+        title: '',
+        artist: '',
+        tracks: [],
+        lyrics: '',
+        score: ''
+      });
+      setShowAddSongDialog(false);
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert('Error', error.message);
+      } else {
+        Alert.alert('Error', 'An unknown error occurred');
+      }
+    }
+  };
+
+  const renderAddSongDialog = () => (
+    <View style={styles.dialogOverlay}>
+      <View style={[styles.dialog, { maxHeight: '80%' }]}>
+        <Text style={styles.dialogTitle}>Add New Song</Text>
+        <ScrollView style={styles.addSongForm}>
+          <TextInput
+            style={styles.dialogInput}
+            placeholder="Song Title"
+            placeholderTextColor="#666666"
+            value={newSong.title}
+            onChangeText={(text) => setNewSong(prev => ({ ...prev, title: text }))}
+          />
+          <TextInput
+            style={styles.dialogInput}
+            placeholder="Artist"
+            placeholderTextColor="#666666"
+            value={newSong.artist}
+            onChangeText={(text) => setNewSong(prev => ({ ...prev, artist: text }))}
+          />
+          
+          <View style={styles.tracksHeader}>
+            <Text style={styles.tracksTitle}>Tracks</Text>
+            <TouchableOpacity
+              style={styles.addTrackButton}
+              onPress={addNewTrack}
+            >
+              <Ionicons name="add-circle" size={24} color="#BB86FC" />
+              <Text style={styles.addTrackButtonText}>Add Track</Text>
+            </TouchableOpacity>
+          </View>
+
+          {newSong.tracks.map((track, index) => (
+            <View key={track.id} style={styles.trackUploadContainer}>
+              <View style={styles.trackHeader}>
+                <TextInput
+                  style={[styles.trackNameInput, { flex: 1 }]}
+                  placeholder={`Track ${index + 1} Name`}
+                  placeholderTextColor="#666666"
+                  value={track.name}
+                  onChangeText={(text) => updateTrackName(track.id, text)}
+                />
+                <TouchableOpacity
+                  style={styles.removeTrackButton}
+                  onPress={() => removeTrack(track.id)}
+                >
+                  <Ionicons name="close-circle" size={24} color="#FF5252" />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={async () => {
+                  try {
+                    const result = await AudioStorageService.getInstance().pickAudioFile();
+                    if (result) {
+                      setNewSong(prev => ({
+                        ...prev,
+                        tracks: prev.tracks.map((t) => 
+                          t.id === track.id ? { ...t, file: result } : t
+                        )
+                      }));
+                    }
+                  } catch (error) {
+                    Alert.alert('Error', 'Failed to pick audio file');
+                  }
+                }}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {track.file ? 'Change File' : 'Upload File'}
+                </Text>
+              </TouchableOpacity>
+              {track.file && (
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {track.file.name}
+                </Text>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+        <View style={styles.dialogButtonContainer}>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonSecondary]}
+            onPress={() => setShowAddSongDialog(false)}
+          >
+            <Text style={styles.dialogButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.dialogButton, styles.dialogButtonPrimary]}
+            onPress={handleAddSong}
+          >
+            <Text style={styles.dialogButtonText}>Add Song</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -2473,7 +2466,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  pencilButton: {
+  titleButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: '#1E1E1E',
