@@ -1226,12 +1226,25 @@ const HomePage = () => {
                         }
                         
                         const decodedPath = decodeURIComponent(filePath);
-                        console.log('Attempting to delete file at path:', decodedPath);
+                        console.log('Checking file at path:', decodedPath);
                         
                         const fileRef = storageRef(storage, decodedPath);
 
-                        // Delete the file from Firebase Storage
-                        await deleteObject(fileRef);
+                        try {
+                          // Check if file exists by trying to get its metadata
+                          await getDownloadURL(fileRef);
+                          // If we get here, file exists, so delete it
+                          console.log('File exists, deleting...');
+                          await deleteObject(fileRef);
+                        } catch (error: any) {
+                          // If error is 'object-not-found', file doesn't exist
+                          if (error.code === 'storage/object-not-found') {
+                            console.log('File does not exist in storage, removing reference only');
+                          } else {
+                            // If it's a different error, rethrow it
+                            throw error;
+                          }
+                        }
 
                         // Update the song state to remove the score
                         setEditingSong(prev => ({
@@ -1240,8 +1253,8 @@ const HomePage = () => {
                           scoreFileName: undefined
                         }));
                       } catch (error) {
-                        console.error('Error deleting score:', error);
-                        Alert.alert('Error', 'Failed to delete score. Please try again.');
+                        console.error('Error handling score deletion:', error);
+                        Alert.alert('Error', 'Failed to handle score deletion. Please try again.');
                       }
                     }}
                   >
