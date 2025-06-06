@@ -1610,12 +1610,20 @@ const HomePage = () => {
                 >
                   <Ionicons name="cloud-upload-outline" size={24} color="#BB86FC" />
                 </TouchableOpacity>
-                {track.file && (
-                  <Text style={styles.fileName} numberOfLines={1}>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() => removeTrack(track.id)}
+                >
+                  <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                </TouchableOpacity>
+              </View>
+              {track.file && (
+                <View style={styles.fileNameContainer}>
+                  <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
                     {track.file.name}
                   </Text>
-                )}
-              </View>
+                </View>
+              )}
             </View>
           ))}
         </ScrollView>
@@ -2474,6 +2482,9 @@ const styles = StyleSheet.create({
   },
   trackUploadContainer: {
     marginBottom: 12,
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
   },
   trackHeader: {
     flexDirection: 'row',
@@ -2483,11 +2494,19 @@ const styles = StyleSheet.create({
   trackNameInput: {
     flex: 1,
     height: 40,
-    backgroundColor: '#2C2C2C',
+    backgroundColor: '#1E1E1E',
     borderRadius: 8,
     paddingHorizontal: 12,
     color: '#FFFFFF',
     fontSize: 14,
+  },
+  fileNameContainer: {
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  fileName: {
+    color: '#BBBBBB',
+    fontSize: 12,
   },
   uploadButton: {
     backgroundColor: '#2C2C2C',
@@ -2510,11 +2529,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     marginBottom: 4,
-  },
-  fileName: {
-    color: '#BBBBBB',
-    fontSize: 12,
-    marginTop: 4,
   },
   songActions: {
     flexDirection: 'row',
