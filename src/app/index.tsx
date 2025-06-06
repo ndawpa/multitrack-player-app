@@ -6,10 +6,10 @@ import { Audio } from 'expo-av';
 import { useEffect, useState, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ref, onValue, set, serverTimestamp } from 'firebase/database';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { database } from '../config/firebase';
 import AudioStorageService from '../services/audioStorage';
 import * as DocumentPicker from 'expo-document-picker';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { WebView } from 'react-native-webview';
 
 // Custom ID generator
@@ -1202,9 +1202,52 @@ const HomePage = () => {
                 </Text>
               </TouchableOpacity>
               {editingSong.score && editingSong.score !== 'uploading' && (
-                <Text style={styles.fileName} numberOfLines={1}>
-                  Score: {editingSong.title} - {editingSong.scoreFileName}
-                </Text>
+                <View style={styles.scoreActions}>
+                  <Text style={styles.fileName} numberOfLines={1}>
+                    Score: {editingSong.title} - {editingSong.scoreFileName}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.deleteScoreButton}
+                    onPress={async () => {
+                      try {
+                        // Get the file path from the URL
+                        const storage = getStorage();
+                        // Extract the path from the URL - handle both encoded and decoded URLs
+                        const url = editingSong.score!;
+                        let filePath;
+                        
+                        if (url.includes('/o/')) {
+                          // Handle URLs with /o/ format
+                          filePath = url.split('/o/')[1].split('?')[0];
+                        } else {
+                          // Handle direct URLs
+                          const urlObj = new URL(url);
+                          filePath = urlObj.pathname.split('/').slice(2).join('/');
+                        }
+                        
+                        const decodedPath = decodeURIComponent(filePath);
+                        console.log('Attempting to delete file at path:', decodedPath);
+                        
+                        const fileRef = storageRef(storage, decodedPath);
+
+                        // Delete the file from Firebase Storage
+                        await deleteObject(fileRef);
+
+                        // Update the song state to remove the score
+                        setEditingSong(prev => ({
+                          ...prev!,
+                          score: undefined,
+                          scoreFileName: undefined
+                        }));
+                      } catch (error) {
+                        console.error('Error deleting score:', error);
+                        Alert.alert('Error', 'Failed to delete score. Please try again.');
+                      }
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#FF5252" />
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
             
@@ -2698,5 +2741,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minHeight: 400,
     textAlignVertical: 'top',
+  },
+  scoreActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  deleteScoreButton: {
+    padding: 4,
+    backgroundColor: '#3D0C11',
+    borderRadius: 4,
   },
 });
