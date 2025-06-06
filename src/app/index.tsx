@@ -144,6 +144,7 @@ const HomePage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSessionMenuExpanded, setIsSessionMenuExpanded] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [expandedScores, setExpandedScores] = useState<{ [key: string]: boolean }>({});
   
   // Sync state
   const [deviceId] = useState(() => generateId());
@@ -1681,6 +1682,14 @@ const HomePage = () => {
     setIsLyricsEditing(true);
   };
 
+  // Add this function before renderSongView
+  const toggleScoreExpansion = (scoreId: string) => {
+    setExpandedScores(prev => ({
+      ...prev,
+      [scoreId]: !prev[scoreId]
+    }));
+  };
+
   const renderSongView = () => {
     if (!selectedSong) return null;
 
@@ -1869,52 +1878,66 @@ const HomePage = () => {
               <View style={styles.sheetMusicContainer}>
                 {selectedSong.scores?.map((score, index) => (
                   <View key={score.id} style={styles.scoreView}>
-                    <Text style={styles.scoreTitle}>{score.name}</Text>
-                    {score.url.endsWith('.pdf') ? (
-                      <View style={styles.sheetMusicView}>
-                        <WebView
-                          source={{ 
-                            uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(score.url)}`
-                          }}
-                          style={{
-                            flex: 1,
-                            width: Dimensions.get('window').width - 48,
-                            backgroundColor: '#FFFFFF',
-                          }}
-                          onError={(syntheticEvent) => {
-                            const { nativeEvent } = syntheticEvent;
-                            console.error('WebView error:', nativeEvent);
-                            Alert.alert(
-                              'PDF Viewing Error',
-                              'Unable to load PDF. You can try opening it in your browser.',
-                              [
-                                {
-                                  text: 'Open in Browser',
-                                  onPress: () => {
-                                    Linking.openURL(score.url);
-                                  }
-                                },
-                                {
-                                  text: 'Cancel',
-                                  style: 'cancel'
-                                }
-                              ]
-                            );
-                          }}
-                          renderLoading={() => (
-                            <View style={styles.loadingContainer}>
-                              <ActivityIndicator size="large" color="#BB86FC" />
-                              <Text style={styles.loadingText}>Loading PDF...</Text>
-                            </View>
-                          )}
+                    <View style={styles.scoreHeader}>
+                      <Text style={styles.scoreTitle}>{score.name}</Text>
+                      <TouchableOpacity
+                        style={styles.expandButton}
+                        onPress={() => toggleScoreExpansion(score.id)}
+                      >
+                        <Ionicons
+                          name={expandedScores[score.id] ? "chevron-up" : "chevron-down"}
+                          size={24}
+                          color="#BB86FC"
                         />
-                      </View>
-                    ) : (
-                      <Image
-                        source={{ uri: score.url }}
-                        style={styles.sheetMusicImage}
-                        resizeMode="contain"
-                      />
+                      </TouchableOpacity>
+                    </View>
+                    {expandedScores[score.id] && (
+                      score.url.endsWith('.pdf') ? (
+                        <View style={styles.sheetMusicView}>
+                          <WebView
+                            source={{ 
+                              uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(score.url)}`
+                            }}
+                            style={{
+                              flex: 1,
+                              width: Dimensions.get('window').width - 48,
+                              backgroundColor: '#FFFFFF',
+                            }}
+                            onError={(syntheticEvent) => {
+                              const { nativeEvent } = syntheticEvent;
+                              console.error('WebView error:', nativeEvent);
+                              Alert.alert(
+                                'PDF Viewing Error',
+                                'Unable to load PDF. You can try opening it in your browser.',
+                                [
+                                  {
+                                    text: 'Open in Browser',
+                                    onPress: () => {
+                                      Linking.openURL(score.url);
+                                    }
+                                  },
+                                  {
+                                    text: 'Cancel',
+                                    style: 'cancel'
+                                  }
+                                ]
+                              );
+                            }}
+                            renderLoading={() => (
+                              <View style={styles.loadingContainer}>
+                                <ActivityIndicator size="large" color="#BB86FC" />
+                                <Text style={styles.loadingText}>Loading PDF...</Text>
+                              </View>
+                            )}
+                          />
+                        </View>
+                      ) : (
+                        <Image
+                          source={{ uri: score.url }}
+                          style={styles.sheetMusicImage}
+                          resizeMode="contain"
+                        />
+                      )
                     )}
                   </View>
                 ))}
@@ -2839,5 +2862,14 @@ const styles = StyleSheet.create({
     flex: 1,
     width: Dimensions.get('window').width - 48, // Account for padding
     backgroundColor: '#FFFFFF',
+  },
+  scoreHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  expandButton: {
+    padding: 4,
   },
 });
