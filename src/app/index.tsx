@@ -836,7 +836,7 @@ const HomePage = () => {
             }}
           >
             <Ionicons 
-              name="pencil" 
+              name="create-outline" 
               size={24} 
               color={isAdminMode ? "#03DAC6" : "#BB86FC"} 
             />
