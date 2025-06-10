@@ -351,7 +351,6 @@ const HomePage = () => {
     try {
       console.log('Starting local playback');
       setIsFinished(false);
-      setSeekPosition(0);
       setTrackProgress({});
       
       const playPromises = players.map(async (player, index) => {
@@ -359,7 +358,7 @@ const HomePage = () => {
           console.log(`Starting track ${selectedSong.tracks[index].name}`);
           const status = await player.getStatusAsync();
           if (status.isLoaded) {
-            await player.setPositionAsync(0);
+            await player.setPositionAsync(seekPosition * 1000);
             await player.playAsync();
             console.log(`Track ${selectedSong.tracks[index].name} started successfully`);
           } else {
