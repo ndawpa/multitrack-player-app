@@ -2010,6 +2010,15 @@ const HomePage = () => {
     );
     
     await handleSeek(selectedSong.tracks[0].id, newPosition);
+    
+    // Sync with remote clients if admin
+    if (sessionId && isAdmin) {
+      const sessionRef = ref(database, `sessions/${sessionId}/state`);
+      await set(sessionRef, {
+        ...syncState,
+        seekPosition: newPosition
+      });
+    }
   };
 
   // Add rewind function
@@ -2022,6 +2031,15 @@ const HomePage = () => {
     );
     
     await handleSeek(selectedSong.tracks[0].id, newPosition);
+    
+    // Sync with remote clients if admin
+    if (sessionId && isAdmin) {
+      const sessionRef = ref(database, `sessions/${sessionId}/state`);
+      await set(sessionRef, {
+        ...syncState,
+        seekPosition: newPosition
+      });
+    }
   };
 
   // Add handleRestart function before the return statement
@@ -2048,6 +2066,16 @@ const HomePage = () => {
       });
       await Promise.all(playPromises);
       setIsPlaying(true);
+
+      // Sync with remote clients if admin
+      if (sessionId && isAdmin) {
+        const sessionRef = ref(database, `sessions/${sessionId}/state`);
+        await set(sessionRef, {
+          ...syncState,
+          isPlaying: true,
+          seekPosition: 0
+        });
+      }
     } catch (error) {
       console.error('Error restarting playback:', error);
     }
@@ -2069,6 +2097,16 @@ const HomePage = () => {
       
       // Reset all tracks to beginning
       await Promise.all(players.map(player => player.setPositionAsync(0)));
+
+      // Sync with remote clients if admin
+      if (sessionId && isAdmin) {
+        const sessionRef = ref(database, `sessions/${sessionId}/state`);
+        await set(sessionRef, {
+          ...syncState,
+          isPlaying: false,
+          seekPosition: 0
+        });
+      }
     } catch (error) {
       console.error('Error stopping playback:', error);
     }
@@ -2164,9 +2202,18 @@ const HomePage = () => {
                   maximumValue={trackDurations[selectedSong.tracks[0]?.id] || 0}
                   value={isSeeking ? seekPosition : (trackProgress[selectedSong.tracks[0]?.id] || 0)}
                   onSlidingStart={() => setIsSeeking(true)}
-                  onSlidingComplete={(value) => {
+                  onSlidingComplete={async (value) => {
                     setIsSeeking(false);
-                    handleSeek(selectedSong.tracks[0].id, value);
+                    await handleSeek(selectedSong.tracks[0].id, value);
+                    
+                    // Sync with remote clients if admin
+                    if (sessionId && isAdmin) {
+                      const sessionRef = ref(database, `sessions/${sessionId}/state`);
+                      await set(sessionRef, {
+                        ...syncState,
+                        seekPosition: value
+                      });
+                    }
                   }}
                   onValueChange={(value) => {
                     setSeekPosition(value);
