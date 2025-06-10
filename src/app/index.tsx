@@ -146,6 +146,7 @@ const HomePage = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [expandedScores, setExpandedScores] = useState<{ [key: string]: boolean }>({});
   const [isFinished, setIsFinished] = useState(false);
+  const [isRepeat, setIsRepeat] = useState(false);
   
   // Sync state
   const [deviceId] = useState(() => generateId());
@@ -401,7 +402,6 @@ const HomePage = () => {
             const position = status.positionMillis / 1000;
             const duration = status.durationMillis / 1000;
             
-            // Only check active tracks
             if (activeTrackIds.includes(selectedSong.tracks[i].id)) {
               hasActiveTracks = true;
               setTrackProgress(prev => ({
@@ -410,7 +410,6 @@ const HomePage = () => {
               }));
               setSeekPosition(position);
               
-              // Check if track is still playing
               if (position < duration) {
                 allFinished = false;
               }
@@ -418,17 +417,21 @@ const HomePage = () => {
           }
         }
         
-        // Update finished state only if there are active tracks
         if (hasActiveTracks && allFinished && !isFinished) {
           console.log('Song finished playing');
           setIsFinished(true);
           setIsPlaying(false);
+          
+          // If repeat is enabled, restart the song
+          if (isRepeat) {
+            handleRestart();
+          }
         }
       }
     }, 50);
 
     return () => clearInterval(progressInterval);
-  }, [isPlaying, isSeeking, players, isInitialized, selectedSong, isFinished, activeTrackIds]);
+  }, [isPlaying, isSeeking, players, isInitialized, selectedSong, isFinished, activeTrackIds, isRepeat]);
 
   // Optimize handleSeek function
   const handleSeek = async (trackId: string, value: number) => {
@@ -2051,6 +2054,27 @@ const HomePage = () => {
     }
   };
 
+  // Add handleStop function
+  const handleStop = async () => {
+    if (!isInitialized || !selectedSong) return;
+    
+    try {
+      // Stop all players
+      await Promise.all(players.map(player => player.stopAsync()));
+      
+      // Reset states
+      setIsFinished(false);
+      setIsPlaying(false);
+      setSeekPosition(0);
+      setTrackProgress({});
+      
+      // Reset all tracks to beginning
+      await Promise.all(players.map(player => player.setPositionAsync(0)));
+    } catch (error) {
+      console.error('Error stopping playback:', error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -2081,6 +2105,16 @@ const HomePage = () => {
                 <View style={styles.playbackControls}>
                   <TouchableOpacity 
                     style={styles.controlButton} 
+                    onPress={handleRestart}
+                  >
+                    <Ionicons 
+                      name="refresh-circle" 
+                      size={32} 
+                      color="#BB86FC" 
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.controlButton} 
                     onPress={handleRewind}
                   >
                     <Ionicons 
@@ -2107,6 +2141,16 @@ const HomePage = () => {
                       name="play-forward" 
                       size={32} 
                       color="#BB86FC" 
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.controlButton} 
+                    onPress={() => setIsRepeat(!isRepeat)}
+                  >
+                    <Ionicons 
+                      name={isRepeat ? 'repeat' : 'repeat-outline'} 
+                      size={32} 
+                      color={isRepeat ? '#BB86FC' : '#BBBBBB'} 
                     />
                   </TouchableOpacity>
                 </View>
