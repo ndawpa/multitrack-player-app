@@ -145,6 +145,7 @@ const HomePage = () => {
   const [isSessionMenuExpanded, setIsSessionMenuExpanded] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
   const [expandedScores, setExpandedScores] = useState<{ [key: string]: boolean }>({});
+  const [isFinished, setIsFinished] = useState(false);
   
   // Sync state
   const [deviceId] = useState(() => generateId());
@@ -348,12 +349,16 @@ const HomePage = () => {
 
     try {
       console.log('Starting local playback');
+      setIsFinished(false);
+      setSeekPosition(0);
+      setTrackProgress({});
+      
       const playPromises = players.map(async (player, index) => {
         if (activeTrackIds.includes(selectedSong.tracks[index].id)) {
           console.log(`Starting track ${selectedSong.tracks[index].name}`);
           const status = await player.getStatusAsync();
           if (status.isLoaded) {
-            await player.setPositionAsync(seekPosition * 1000);
+            await player.setPositionAsync(0);
             await player.playAsync();
             console.log(`Track ${selectedSong.tracks[index].name} started successfully`);
           } else {
@@ -387,22 +392,43 @@ const HomePage = () => {
   useEffect(() => {
     const progressInterval = setInterval(async () => {
       if (isPlaying && !isSeeking && selectedSong) {
+        let allFinished = true;
+        let hasActiveTracks = false;
+        
         for (let i = 0; i < players.length; i++) {
           const status = await players[i].getStatusAsync();
-          if (status.isLoaded) {
+          if (status.isLoaded && status.durationMillis) {
             const position = status.positionMillis / 1000;
-            setTrackProgress(prev => ({
-              ...prev,
-              [selectedSong.tracks[i].id]: position
-            }));
-            setSeekPosition(position);
+            const duration = status.durationMillis / 1000;
+            
+            // Only check active tracks
+            if (activeTrackIds.includes(selectedSong.tracks[i].id)) {
+              hasActiveTracks = true;
+              setTrackProgress(prev => ({
+                ...prev,
+                [selectedSong.tracks[i].id]: position
+              }));
+              setSeekPosition(position);
+              
+              // Check if track is still playing
+              if (position < duration) {
+                allFinished = false;
+              }
+            }
           }
         }
+        
+        // Update finished state only if there are active tracks
+        if (hasActiveTracks && allFinished && !isFinished) {
+          console.log('Song finished playing');
+          setIsFinished(true);
+          setIsPlaying(false);
+        }
       }
-    }, 50); // Increased update frequency for smoother progress
+    }, 50);
 
     return () => clearInterval(progressInterval);
-  }, [isPlaying, isSeeking, players, isInitialized, selectedSong]);
+  }, [isPlaying, isSeeking, players, isInitialized, selectedSong, isFinished, activeTrackIds]);
 
   // Optimize handleSeek function
   const handleSeek = async (trackId: string, value: number) => {
@@ -1996,6 +2022,35 @@ const HomePage = () => {
     await handleSeek(selectedSong.tracks[0].id, newPosition);
   };
 
+  // Add handleRestart function before the return statement
+  const handleRestart = async () => {
+    if (!isInitialized || !selectedSong) return;
+    
+    try {
+      // First stop all players
+      await Promise.all(players.map(player => player.stopAsync()));
+      
+      // Reset states
+      setIsFinished(false);
+      setSeekPosition(0);
+      setTrackProgress({});
+      
+      // Reset all tracks to beginning
+      await Promise.all(players.map(player => player.setPositionAsync(0)));
+      
+      // Start playback
+      const playPromises = players.map(async (player, index) => {
+        if (activeTrackIds.includes(selectedSong.tracks[index].id)) {
+          await player.playAsync();
+        }
+      });
+      await Promise.all(playPromises);
+      setIsPlaying(true);
+    } catch (error) {
+      console.error('Error restarting playback:', error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -2036,10 +2091,10 @@ const HomePage = () => {
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.controlButton} 
-                    onPress={togglePlayback}
+                    onPress={isFinished ? handleRestart : togglePlayback}
                   >
                     <Ionicons 
-                      name={isPlaying ? 'pause-circle' : 'play-circle'} 
+                      name={isFinished ? 'refresh-circle' : (isPlaying ? 'pause-circle' : 'play-circle')} 
                       size={48} 
                       color="#BB86FC" 
                     />
