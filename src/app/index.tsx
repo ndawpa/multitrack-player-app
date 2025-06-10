@@ -802,47 +802,63 @@ const HomePage = () => {
     }
   }, [showSessionsList]);
 
+  const deleteSession = async (sessionIdToDelete: string) => {
+    try {
+      const sessionRef = ref(database, `sessions/${sessionIdToDelete}`);
+      await set(sessionRef, null);
+      // If we're currently in the session being deleted, leave it
+      if (sessionId === sessionIdToDelete) {
+        await leaveSession();
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+    }
+  };
+
   const renderSessionsList = () => (
     <View style={styles.dialogOverlay}>
       <View style={styles.dialog}>
         <Text style={styles.dialogTitle}>Active Sessions</Text>
         {activeSessions.length === 0 ? (
-          <Text style={styles.noSessionsText}>No active sessions found</Text>
+          <Text style={styles.dialogText}>No active sessions</Text>
         ) : (
           <ScrollView style={styles.sessionsList}>
             {activeSessions.map(session => (
-              <TouchableOpacity
-                key={session.id}
-                style={styles.sessionItem}
-                onPress={() => {
-                  joinSession(session.id);
-                  setShowSessionsList(false);
-                }}
-              >
-                <View style={styles.sessionItemInfo}>
-                  <Text style={styles.sessionItemId}>ID: {session.id.substring(0, 8)}...</Text>
-                  <Text style={styles.sessionItemAdmin}>Admin: {session.admin.substring(0, 8)}...</Text>
+              <View key={session.id} style={styles.sessionItem}>
+                <View style={styles.sessionInfo}>
+                  <Text style={styles.sessionItemId}>ID: {session.id}</Text>
+                  <Text style={styles.sessionItemAdmin}>Admin: {session.admin}</Text>
+                  <Text style={styles.sessionDate}>
+                    Created: {new Date(session.createdAt).toLocaleString()}
+                  </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#BBBBBB" />
-              </TouchableOpacity>
+                <View style={[styles.sessionActions, { flexWrap: 'wrap', gap: 8 }]}>
+                  <TouchableOpacity
+                    style={[styles.dialogButton, styles.dialogButtonPrimary, { flex: 1, minWidth: 100 }]}
+                    onPress={() => {
+                      setShowSessionsList(false);
+                      joinSession(session.id);
+                    }}
+                  >
+                    <Text style={styles.dialogButtonText}>Join</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.dialogButton, styles.dialogButtonDelete, { flex: 1, minWidth: 100 }]}
+                    onPress={() => deleteSession(session.id)}
+                  >
+                    <Text style={styles.dialogButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             ))}
           </ScrollView>
         )}
-        <View style={styles.dialogButtonContainer}>
+        <View style={[styles.dialogButtonContainer, { justifyContent: 'center' }]}>
           <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonSecondary]}
+            style={[styles.dialogButton, styles.dialogButtonSecondary, { minWidth: 200 }]}
             onPress={() => setShowSessionsList(false)}
           >
             <Text style={styles.dialogButtonText}>Close</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonPrimary]}
-            onPress={() => {
-              setShowSessionsList(false);
-              setShowJoinDialog(true);
-            }}
-          >
-            <Text style={styles.dialogButtonText}>Enter ID</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -2304,7 +2320,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     gap: 8,
-    maxWidth: '40%',
+    maxWidth: '100%',
     flexWrap: 'wrap',
   },
   sessionIdContainer: {
@@ -2603,50 +2619,53 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sessionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#2C2C2C',
-    padding: 12,
+    backgroundColor: '#2D2D2D',
     borderRadius: 8,
-    marginBottom: 8,
-  },
-  sessionItemInfo: {
-    flex: 1,
+    padding: 16,
+    marginBottom: 12,
   },
   sessionItemId: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 4,
   },
   sessionItemAdmin: {
     color: '#BBBBBB',
-    fontSize: 12,
+    fontSize: 14,
+    marginBottom: 4,
   },
-  fullSessionId: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontFamily: 'monospace',
-    backgroundColor: '#1E1E1E',
-    padding: 12,
-    borderRadius: 6,
-    textAlign: 'center',
-    marginBottom: 16,
+  sessionDate: {
+    color: '#BBBBBB',
+    fontSize: 14,
   },
-  copyButton: {
-    backgroundColor: '#BB86FC',
-    borderRadius: 6,
-    padding: 12,
+  sessionActions: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    marginTop: 8,
   },
-  copyButtonText: {
+  button: {
+    padding: 12,
+    borderRadius: 8,
+    minWidth: 120,
+    marginHorizontal: 4,
+  },
+  joinButton: {
+    backgroundColor: '#1B4332',
+  },
+  deleteButton: {
+    backgroundColor: '#3D0C11',
+  },
+  closeButton: {
+    backgroundColor: '#3D0C11',
+    marginTop: 16,
+  },
+  buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   sessionMenuContainer: {
     backgroundColor: '#1E1E1E',
@@ -2829,9 +2848,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   editButton: {
-    padding: 4,
-  },
-  deleteButton: {
     padding: 4,
   },
   dialogButtonDelete: {
@@ -3069,5 +3085,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+  },
+  dialogContent: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#1E1E1E',
+  },
+  sessionButton: {
+    padding: 12,
+    borderRadius: 8,
+    minWidth: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullSessionId: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontFamily: 'monospace',
+    backgroundColor: '#2D2D2D',
+    padding: 12,
+    borderRadius: 6,
+    textAlign: 'center',
+    marginBottom: 16,
   },
 });
