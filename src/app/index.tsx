@@ -1972,6 +1972,30 @@ const HomePage = () => {
     }
   };
 
+  // Add fast forward function
+  const handleFastForward = async () => {
+    if (!isInitialized || !selectedSong) return;
+    
+    const newPosition = Math.min(
+      (trackProgress[selectedSong.tracks[0]?.id] || 0) + 10,
+      trackDurations[selectedSong.tracks[0]?.id] || 0
+    );
+    
+    await handleSeek(selectedSong.tracks[0].id, newPosition);
+  };
+
+  // Add rewind function
+  const handleRewind = async () => {
+    if (!isInitialized || !selectedSong) return;
+    
+    const newPosition = Math.max(
+      (trackProgress[selectedSong.tracks[0]?.id] || 0) - 10,
+      0
+    );
+    
+    await handleSeek(selectedSong.tracks[0].id, newPosition);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -1982,33 +2006,55 @@ const HomePage = () => {
           <>
             <View style={styles.header}>
               <View style={styles.headerTop}>
-                <View style={[styles.songHeader, { flex: 1, marginRight: 12 }]}>
-                  <TouchableOpacity 
-                    style={styles.backButton}
-                    onPress={() => setSelectedSong(null)}
-                  >
-                    <Ionicons name="chevron-back" size={24} color="#BB86FC" />
-                  </TouchableOpacity>
-                  <View style={styles.songHeaderText}>
-                    <MarqueeText 
-                      text={selectedSong.title} 
-                      style={styles.title}
-                    />
-                    <Text style={styles.artist} numberOfLines={1}>
-                      {selectedSong.artist}
-                    </Text>
-                  </View>
-                </View>
                 <TouchableOpacity 
-                  style={styles.controlButton} 
-                  onPress={togglePlayback}
+                  style={styles.backButton}
+                  onPress={() => setSelectedSong(null)}
                 >
-                  <Ionicons 
-                    name={isPlaying ? 'pause-circle' : 'play-circle'} 
-                    size={48} 
-                    color="#BB86FC" 
-                  />
+                  <Ionicons name="chevron-back" size={24} color="#BB86FC" />
                 </TouchableOpacity>
+                <View style={styles.songHeaderText}>
+                  <MarqueeText 
+                    text={selectedSong.title} 
+                    style={[styles.title, { textAlign: 'center' }]}
+                  />
+                  <Text style={[styles.artist, { textAlign: 'center' }]} numberOfLines={1}>
+                    {selectedSong.artist}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.playbackControlsContainer}>
+                <View style={styles.playbackControls}>
+                  <TouchableOpacity 
+                    style={styles.controlButton} 
+                    onPress={handleRewind}
+                  >
+                    <Ionicons 
+                      name="play-back" 
+                      size={32} 
+                      color="#BB86FC" 
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.controlButton} 
+                    onPress={togglePlayback}
+                  >
+                    <Ionicons 
+                      name={isPlaying ? 'pause-circle' : 'play-circle'} 
+                      size={48} 
+                      color="#BB86FC" 
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.controlButton} 
+                    onPress={handleFastForward}
+                  >
+                    <Ionicons 
+                      name="play-forward" 
+                      size={32} 
+                      color="#BB86FC" 
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               <View style={styles.seekbarContainer}>
                 <Text style={styles.timeText}>
@@ -2081,8 +2127,8 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 16,
+    position: 'relative',
   },
   songHeader: {
     flexDirection: 'row',
@@ -2091,20 +2137,17 @@ const styles = StyleSheet.create({
   },
   songHeaderText: {
     flex: 1,
-    marginLeft: 8,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#FFFFFF',
-    letterSpacing: -0.5,
-    flexWrap: 'wrap',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   artist: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#BBBBBB',
-    flexWrap: 'wrap',
   },
   sessionInfo: {
     flexDirection: 'row',
@@ -2215,7 +2258,9 @@ const styles = StyleSheet.create({
     color: '#BBBBBB',
   },
   backButton: {
-    padding: 4,
+    position: 'absolute',
+    left: 0,
+    zIndex: 1,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -2870,5 +2915,14 @@ const styles = StyleSheet.create({
   },
   expandButton: {
     padding: 4,
+  },
+  playbackControlsContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  playbackControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
 });
