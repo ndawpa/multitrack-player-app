@@ -74,6 +74,7 @@ interface SyncState {
   activeTracks: string[];
   soloedTracks: string[];
   trackVolumes: { [key: string]: number };
+  playbackSpeed: number; // Add playback speed state
 }
 
 // Add helper functions before the HomePage component
@@ -147,6 +148,7 @@ const HomePage = () => {
   const [expandedScores, setExpandedScores] = useState<{ [key: string]: boolean }>({});
   const [isFinished, setIsFinished] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Add playback speed state
   
   // Sync state
   const [deviceId] = useState(() => generateId());
@@ -157,7 +159,8 @@ const HomePage = () => {
     seekPosition: 0,
     activeTracks: [],
     soloedTracks: [],
-    trackVolumes: {}
+    trackVolumes: {},
+    playbackSpeed: 1.0
   });
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [joinSessionInput, setJoinSessionInput] = useState('');
@@ -234,7 +237,8 @@ const HomePage = () => {
         seekPosition: 0,
         activeTracks: [],
         soloedTracks: [],
-        trackVolumes: {}
+        trackVolumes: {},
+        playbackSpeed: 1.0
       }
     });
   };
@@ -251,7 +255,8 @@ const HomePage = () => {
         seekPosition: 0,
         activeTracks: [],
         soloedTracks: [],
-        trackVolumes: {}
+        trackVolumes: {},
+        playbackSpeed: 1.0
       });
     } catch (error) {
       console.error('Error joining session:', error);
@@ -271,7 +276,8 @@ const HomePage = () => {
           seekPosition: data.seekPosition || 0,
           activeTracks: data.activeTracks || [],
           soloedTracks: data.soloedTracks || [],
-          trackVolumes: data.trackVolumes || {}
+          trackVolumes: data.trackVolumes || {},
+          playbackSpeed: data.playbackSpeed || 1.0
         });
       }
     });
@@ -299,7 +305,8 @@ const HomePage = () => {
               seekPosition,
               activeTracks: [],
               soloedTracks: [],
-              trackVolumes: {}
+              trackVolumes: {},
+              playbackSpeed: 1.0
             });
           }
         }
@@ -314,7 +321,8 @@ const HomePage = () => {
               seekPosition,
               activeTracks: [],
               soloedTracks: [],
-              trackVolumes: {}
+              trackVolumes: {},
+              playbackSpeed: 1.0
             });
           }
         }
@@ -366,6 +374,7 @@ const HomePage = () => {
           const status = await player.getStatusAsync();
           if (status.isLoaded) {
             await player.setPositionAsync(seekPosition * 1000);
+            await player.setRateAsync(playbackSpeed, true);
             await player.playAsync();
             console.log(`Track ${selectedSong.tracks[index].name} started successfully`);
           } else {
@@ -780,7 +789,8 @@ const HomePage = () => {
         seekPosition: 0,
         activeTracks: [],
         soloedTracks: [],
-        trackVolumes: {}
+        trackVolumes: {},
+        playbackSpeed: 1.0
       });
     } catch (error) {
       console.error('Error leaving session:', error);
@@ -2420,6 +2430,27 @@ const HomePage = () => {
     </View>
   );
 
+  // Add playback speed control function
+  const handlePlaybackSpeedChange = async (speed: number) => {
+    if (!isInitialized || !selectedSong) return;
+    
+    try {
+      setPlaybackSpeed(speed);
+      await Promise.all(players.map(player => player.setRateAsync(speed, true)));
+      
+      // Sync with remote clients if admin
+      if (sessionId && isAdmin) {
+        const sessionRef = ref(database, `sessions/${sessionId}/state`);
+        await set(sessionRef, {
+          ...syncState,
+          playbackSpeed: speed
+        });
+      }
+    } catch (error) {
+      console.error('Error changing playback speed:', error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -2478,9 +2509,26 @@ const HomePage = () => {
                   minimumTrackTintColor="#BB86FC"
                   maximumTrackTintColor="#2C2C2C"
                 />
-                <Text style={styles.timeText}>
-                  {formatTime(trackDurations[selectedSong.tracks[0]?.id] || 0)}
-                </Text>
+                <View style={styles.seekbarEndContainer}>
+                  <Text style={styles.timeText}>
+                    {formatTime(trackDurations[selectedSong.tracks[0]?.id] || 0)}
+                  </Text>
+                  {selectedSong && (
+                    <TouchableOpacity
+                      style={[styles.speedButton, playbackSpeed !== 1.0 && styles.speedButtonActive]}
+                      onPress={() => {
+                        const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+                        const currentIndex = speeds.indexOf(playbackSpeed);
+                        const nextIndex = (currentIndex + 1) % speeds.length;
+                        handlePlaybackSpeedChange(speeds[nextIndex]);
+                      }}
+                    >
+                      <Text style={[styles.speedText, { color: playbackSpeed !== 1.0 ? '#BB86FC' : '#BBBBBB' }]}>
+                        {playbackSpeed}x
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             </View>
             
@@ -3385,5 +3433,23 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginRight: 8,
     minWidth: 150,
+  },
+  speedText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  seekbarEndContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  speedButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    backgroundColor: '#2C2C2C',
+  },
+  speedButtonActive: {
+    backgroundColor: '#1F1F1F',
   },
 });
