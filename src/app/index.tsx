@@ -194,6 +194,7 @@ const HomePage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [showRecordingControls, setShowRecordingControls] = useState(false);
+  const [recordingName, setRecordingName] = useState('Voice Recording');
 
   // Load songs from Firebase
   useEffect(() => {
@@ -2236,7 +2237,7 @@ const HomePage = () => {
 
       // Create folder name from title
       const folderName = selectedSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
-      const filePath = `audio/${folderName}/${selectedSong.title} - Voice Recording.mp3`;
+      const filePath = `audio/${folderName}/${selectedSong.title} - ${recordingName}.mp3`;
 
       console.log('Uploading recording to path:', filePath);
       // Upload the recording
@@ -2245,7 +2246,7 @@ const HomePage = () => {
       // Add the new track to the song
       const newTrack = {
         id: generateId(),
-        name: 'Voice Recording',
+        name: recordingName,
         path: filePath
       };
 
@@ -2259,6 +2260,7 @@ const HomePage = () => {
       // Reset recording state
       setRecordedUri(null);
       setShowRecordingControls(false);
+      setRecordingName('Voice Recording');
 
       // Reload the song to include the new track
       const updatedSong = { ...selectedSong, tracks: [...selectedSong.tracks, newTrack] };
@@ -2274,6 +2276,7 @@ const HomePage = () => {
   const cancelRecording = () => {
     setRecordedUri(null);
     setShowRecordingControls(false);
+    setRecordingName('Voice Recording');
   };
 
   // Add recording controls to the UI
@@ -2300,6 +2303,13 @@ const HomePage = () => {
         )}
         {recordedUri && (
           <View style={styles.recordingActions}>
+            <TextInput
+              style={styles.recordingNameInput}
+              placeholder="Enter recording name"
+              placeholderTextColor="#666666"
+              value={recordingName}
+              onChangeText={setRecordingName}
+            />
             <TouchableOpacity
               style={[styles.controlButton, styles.saveButton]}
               onPress={saveRecording}
@@ -3367,5 +3377,13 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     textAlign: 'center',
     marginBottom: 16,
+  },
+  recordingNameInput: {
+    backgroundColor: '#2C2C2C',
+    color: '#FFFFFF',
+    padding: 8,
+    borderRadius: 4,
+    marginRight: 8,
+    minWidth: 150,
   },
 });
