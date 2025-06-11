@@ -189,6 +189,12 @@ const HomePage = () => {
   const [isLyricsEditing, setIsLyricsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState('');
 
+  // Recording state
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedUri, setRecordedUri] = useState<string | null>(null);
+  const [showRecordingControls, setShowRecordingControls] = useState(false);
+
   // Load songs from Firebase
   useEffect(() => {
     const songsRef = ref(database, 'songs');
@@ -2128,6 +2134,233 @@ const HomePage = () => {
     }
   };
 
+  // Add recording functions
+  const startRecording = async () => {
+    try {
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(recording);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      Alert.alert('Error', 'Failed to start recording');
+    }
+  };
+
+  const stopRecording = async () => {
+    if (!recording) return;
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecordedUri(uri);
+      setRecording(null);
+      setIsRecording(false);
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+      Alert.alert('Error', 'Failed to stop recording');
+    }
+  };
+
+  const saveRecording = async () => {
+    if (!recordedUri || !selectedSong) return;
+
+    try {
+      // Create a file object from the recorded URI
+      const response = await fetch(recordedUri);
+      const blob = await response.blob();
+      const file = new File([blob], 'recording.mp3', { type: 'audio/mpeg' });
+
+      // Create a DocumentPickerAsset-like object
+      const recordingAsset = {
+        uri: recordedUri,
+        name: 'recording.mp3',
+        type: 'audio/mpeg',
+        size: blob.size,
+      };
+
+      // Create folder name from title
+      const folderName = selectedSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const filePath = `audio/${folderName}/${selectedSong.title} - Voice Recording.mp3`;
+
+      // Upload the recording
+      await AudioStorageService.getInstance().uploadAudioFile(recordingAsset, filePath);
+
+      // Add the new track to the song
+      const newTrack = {
+        id: generateId(),
+        name: 'Voice Recording',
+        path: filePath
+      };
+
+      // Update the song in Firebase
+      const songRef = ref(database, `songs/${selectedSong.id}`);
+      await set(songRef, {
+        ...selectedSong,
+        tracks: [...selectedSong.tracks, newTrack]
+      });
+
+      // Reset recording state
+      setRecordedUri(null);
+      setShowRecordingControls(false);
+
+      // Reload the song to include the new track
+      const updatedSong = { ...selectedSong, tracks: [...selectedSong.tracks, newTrack] };
+      setSelectedSong(updatedSong);
+    } catch (error) {
+      console.error('Failed to save recording:', error);
+      Alert.alert('Error', 'Failed to save recording');
+    }
+  };
+
+  const cancelRecording = () => {
+    setRecordedUri(null);
+    setShowRecordingControls(false);
+  };
+
+  // Add recording controls to the UI
+  const renderRecordingControls = () => {
+    if (!showRecordingControls) return null;
+
+    return (
+      <View style={styles.recordingControls}>
+        {!isRecording && !recordedUri && (
+          <TouchableOpacity
+            style={[styles.controlButton, styles.recordButton]}
+            onPress={startRecording}
+          >
+            <Ionicons name="mic" size={32} color="#FF5252" />
+          </TouchableOpacity>
+        )}
+        {isRecording && (
+          <TouchableOpacity
+            style={[styles.controlButton, styles.stopButton]}
+            onPress={stopRecording}
+          >
+            <Ionicons name="stop-circle" size={32} color="#FF5252" />
+          </TouchableOpacity>
+        )}
+        {recordedUri && (
+          <View style={styles.recordingActions}>
+            <TouchableOpacity
+              style={[styles.controlButton, styles.saveButton]}
+              onPress={saveRecording}
+            >
+              <Ionicons name="save" size={32} color="#4CAF50" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.controlButton, styles.cancelButton]}
+              onPress={cancelRecording}
+            >
+              <Ionicons name="close-circle" size={32} color="#FF5252" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // Add playback controls to the UI
+  const renderPlaybackControls = () => (
+    <View style={styles.playbackControlsContainer}>
+      <View style={styles.playbackControls}>
+        <TouchableOpacity 
+          style={[styles.controlButton, styles.smallButton]} 
+          onPress={() => {
+            // Placeholder for future functionality
+            console.log('Placeholder button pressed');
+          }}
+        >
+          <Ionicons 
+            name="ellipsis-horizontal-circle" 
+            size={20} 
+            color="#BB86FC" 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.controlButton, styles.smallButton]} 
+          onPress={handleRestart}
+        >
+          <Ionicons 
+            name="refresh-circle" 
+            size={20} 
+            color="#BB86FC" 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.controlButton, styles.smallButton]} 
+          onPress={handleRewind}
+        >
+          <Ionicons 
+            name="play-back" 
+            size={20} 
+            color="#BB86FC" 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.controlButton, styles.playButton]} 
+          onPress={isFinished ? handleRestart : togglePlayback}
+        >
+          <Ionicons 
+            name={isFinished ? 'refresh-circle' : (isPlaying ? 'pause-circle' : 'play-circle')} 
+            size={40} 
+            color="#BB86FC" 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.controlButton, styles.smallButton]} 
+          onPress={handleFastForward}
+        >
+          <Ionicons 
+            name="play-forward" 
+            size={20} 
+            color="#BB86FC" 
+          />
+        </TouchableOpacity>
+
+        {selectedSong && (
+          <>
+            <TouchableOpacity
+              style={[styles.controlButton, styles.smallButton]}
+              onPress={() => setShowRecordingControls(!showRecordingControls)}
+            >
+              <Ionicons
+                name={showRecordingControls ? 'mic-off' : 'mic'}
+                size={20}
+                color={showRecordingControls ? '#FF5252' : '#BB86FC'}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.controlButton, styles.smallButton]}
+              onPress={() => setIsRepeat(!isRepeat)}
+            >
+              <Ionicons
+                name={isRepeat ? 'repeat' : 'repeat-outline'} 
+                size={20}
+                color={isRepeat ? '#BB86FC' : '#BBBBBB'} 
+              />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+      {renderRecordingControls()}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -2155,58 +2388,7 @@ const HomePage = () => {
                 </View>
               </View>
               <View style={styles.playbackControlsContainer}>
-                <View style={styles.playbackControls}>
-                  <TouchableOpacity 
-                    style={styles.controlButton} 
-                    onPress={handleRestart}
-                  >
-                    <Ionicons 
-                      name="refresh-circle" 
-                      size={32} 
-                      color="#BB86FC" 
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.controlButton} 
-                    onPress={handleRewind}
-                  >
-                    <Ionicons 
-                      name="play-back" 
-                      size={32} 
-                      color="#BB86FC" 
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.controlButton} 
-                    onPress={isFinished ? handleRestart : togglePlayback}
-                  >
-                    <Ionicons 
-                      name={isFinished ? 'refresh-circle' : (isPlaying ? 'pause-circle' : 'play-circle')} 
-                      size={48} 
-                      color="#BB86FC" 
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.controlButton} 
-                    onPress={handleFastForward}
-                  >
-                    <Ionicons 
-                      name="play-forward" 
-                      size={32} 
-                      color="#BB86FC" 
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.controlButton} 
-                    onPress={() => setIsRepeat(!isRepeat)}
-                  >
-                    <Ionicons 
-                      name={isRepeat ? 'repeat' : 'repeat-outline'} 
-                      size={32} 
-                      color={isRepeat ? '#BB86FC' : '#BBBBBB'} 
-                    />
-                  </TouchableOpacity>
-                </View>
+                {renderPlaybackControls()}
               </View>
               <View style={styles.seekbarContainer}>
                 <Text style={styles.timeText}>
@@ -3078,25 +3260,54 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   playbackControlsContainer: {
-    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 8,
     marginBottom: 16,
   },
   playbackControls: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  dialogContent: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#1E1E1E',
-  },
-  sessionButton: {
-    padding: 12,
-    borderRadius: 8,
-    minWidth: 120,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  controlButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  smallButton: {
+    width: 36,
+    height: 36,
+  },
+  playButton: {
+    width: 48,
+    height: 48,
+  },
+  recordingControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#1F1F1F',
+    borderRadius: 10,
+  },
+  recordingActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 20,
+  },
+  recordButton: {
+    backgroundColor: '#1F1F1F',
+  },
+  stopButton: {
+    backgroundColor: '#1F1F1F',
+  },
+  saveButton: {
+    backgroundColor: '#1F1F1F',
+  },
+  cancelButton: {
+    backgroundColor: '#1F1F1F',
   },
   fullSessionId: {
     fontSize: 18,
