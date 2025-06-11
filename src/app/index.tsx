@@ -1620,6 +1620,29 @@ const HomePage = () => {
     }
   };
 
+  // Add function to add multiple tracks at once
+  const addMultipleTracks = async () => {
+    try {
+      const files = await AudioStorageService.getInstance().pickMultipleAudioFiles();
+      if (files.length > 0) {
+        setNewSong(prev => ({
+          ...prev,
+          tracks: [
+            ...prev.tracks,
+            ...files.map(file => ({
+              id: generateId(),
+              name: file.name.split('.')[0], // Use filename without extension as initial name
+              file: file
+            }))
+          ]
+        }));
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick audio files');
+    }
+  };
+
+  // Modify renderAddSongDialog to use the new multiple track selection
   const renderAddSongDialog = () => (
     <View style={styles.dialogOverlay}>
       <View style={[styles.dialog, { maxHeight: '80%' }]}>
@@ -1644,10 +1667,10 @@ const HomePage = () => {
             <Text style={styles.tracksTitle}>Tracks</Text>
             <TouchableOpacity
               style={styles.addTrackButton}
-              onPress={addNewTrack}
+              onPress={addMultipleTracks}
             >
               <Ionicons name="add-circle" size={24} color="#BB86FC" />
-              <Text style={styles.addTrackButtonText}>Add Track</Text>
+              <Text style={styles.addTrackButtonText}>Add Tracks</Text>
             </TouchableOpacity>
           </View>
 
@@ -1661,26 +1684,6 @@ const HomePage = () => {
                   value={track.name}
                   onChangeText={(text) => updateTrackName(track.id, text)}
                 />
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={async () => {
-                    try {
-                      const result = await AudioStorageService.getInstance().pickAudioFile();
-                      if (result) {
-                        setNewSong(prev => ({
-                          ...prev,
-                          tracks: prev.tracks.map((t) => 
-                            t.id === track.id ? { ...t, file: result } : t
-                          )
-                        }));
-                      }
-                    } catch (error) {
-                      Alert.alert('Error', 'Failed to pick audio file');
-                    }
-                  }}
-                >
-                  <Ionicons name="cloud-upload-outline" size={24} color="#BB86FC" />
-                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.iconButton}
                   onPress={() => removeTrack(track.id)}

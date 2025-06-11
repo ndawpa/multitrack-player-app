@@ -45,6 +45,24 @@ class AudioStorageService {
     }
   }
 
+  async pickMultipleAudioFiles(): Promise<DocumentPicker.DocumentPickerAsset[]> {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: true,
+        multiple: true
+      });
+      
+      if (result.assets && result.assets.length > 0) {
+        return result.assets;
+      }
+      return [];
+    } catch (error) {
+      console.error('Error picking multiple audio files:', error);
+      throw error;
+    }
+  }
+
   async uploadAudioFile(file: DocumentPicker.DocumentPickerAsset, path: string): Promise<string> {
     try {
       const response = await fetch(file.uri);
