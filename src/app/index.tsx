@@ -143,6 +143,7 @@ const HomePage = () => {
   const [seekPosition, setSeekPosition] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedLyricsIds, setExpandedLyricsIds] = useState<Set<string>>(new Set());
   const [isSessionMenuExpanded, setIsSessionMenuExpanded] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
   const [expandedScores, setExpandedScores] = useState<{ [key: string]: boolean }>({});
@@ -579,55 +580,173 @@ const HomePage = () => {
     if (!searchQuery.trim()) return songs;
     
     const query = searchQuery.toLowerCase().trim();
-    const filtered = songs.filter(song => 
-      song.title.toLowerCase().includes(query) || 
-      song.artist.toLowerCase().includes(query) ||
-      (song.lyrics && song.lyrics.toLowerCase().includes(query))
-    );
+    const filtered = songs
+      .map(song => {
+        const titleMatch = song.title.toLowerCase().includes(query);
+        const artistMatch = song.artist.toLowerCase().includes(query);
+        const lyricsMatch = song.lyrics && song.lyrics.toLowerCase().includes(query);
+        
+        // Calculate match priority (higher number = higher priority)
+        let priority = 0;
+        if (titleMatch) priority += 3;
+        if (artistMatch) priority += 2;
+        if (lyricsMatch) priority += 1;
+        
+        return {
+          ...song,
+          matchInfo: {
+            titleMatch,
+            artistMatch,
+            lyricsMatch,
+            priority
+          }
+        };
+      })
+      .filter(song => song.matchInfo.priority > 0)
+      .sort((a, b) => b.matchInfo.priority - a.matchInfo.priority);
+    
     console.log('Filtered songs:', filtered);
     return filtered;
   }, [searchQuery, songs]);
 
-  const renderSongItem = ({ item }: { item: Song }) => (
-    <TouchableOpacity
-      style={[
-        styles.songItem,
-        selectedSong?.id === item.id && styles.selectedSongItem
-      ]}
-      onPress={() => handleSongSelect(item)}
-    >
-      <View style={styles.songInfo}>
-        <Text style={styles.songTitle}>{item.title}</Text>
-        <Text style={styles.songArtist}>{item.artist}</Text>
-      </View>
-      <View style={styles.songActions}>
-        {isAdminMode && (
-          <>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => startEditingSong(item)}
-            >
-              <Ionicons name="create-outline" size={24} color="#BB86FC" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => {
-                setSongToDelete(item);
-                setShowDeleteConfirmDialog(true);
-              }}
-            >
-              <Ionicons name="trash-outline" size={24} color="#FF5252" />
-            </TouchableOpacity>
-          </>
-        )}
-        <Ionicons 
-          name="chevron-forward" 
-          size={24} 
-          color="#BBBBBB" 
-        />
-      </View>
-    </TouchableOpacity>
-  );
+  const renderSongItem = ({ item }: { item: Song & { matchInfo?: { titleMatch: boolean; artistMatch: boolean; lyricsMatch: boolean } } }) => {
+    const searchTerm = searchQuery.toLowerCase().trim();
+    const hasLyricsMatch = item.lyrics && item.lyrics.toLowerCase().includes(searchTerm);
+    const isExpanded = expandedLyricsIds.has(item.id);
+    
+    // Function to get all lyrics snippets with context
+    const getAllLyricsSnippets = () => {
+      if (!item.lyrics || !searchTerm) return [];
+      
+      const lyrics = item.lyrics.toLowerCase();
+      const snippets = [];
+      let startIndex = 0;
+      
+      while (true) {
+        const termIndex = lyrics.indexOf(searchTerm, startIndex);
+        if (termIndex === -1) break;
+        
+        // Get 30 characters before and after the term
+        const start = Math.max(0, termIndex - 30);
+        const end = Math.min(lyrics.length, termIndex + searchTerm.length + 30);
+        
+        let snippet = item.lyrics.slice(start, end);
+        
+        // Add ellipsis if we're not at the start/end
+        if (start > 0) snippet = '...' + snippet;
+        if (end < item.lyrics.length) snippet = snippet + '...';
+        
+        // Highlight the search term
+        const termStart = snippet.toLowerCase().indexOf(searchTerm);
+        if (termStart !== -1) {
+          const beforeTerm = snippet.slice(0, termStart);
+          const term = snippet.slice(termStart, termStart + searchTerm.length);
+          const afterTerm = snippet.slice(termStart + searchTerm.length);
+          
+          snippets.push(
+            <Text key={termIndex} style={styles.lyricsSnippet}>
+              {beforeTerm}
+              <Text style={styles.highlightedTerm}>{term}</Text>
+              {afterTerm}
+            </Text>
+          );
+        }
+        
+        startIndex = termIndex + searchTerm.length;
+      }
+      
+      return snippets;
+    };
+    
+    const snippets = getAllLyricsSnippets();
+    const hasMultipleMatches = snippets.length > 1;
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.songItem,
+          selectedSong?.id === item.id && styles.selectedSongItem
+        ]}
+        onPress={() => handleSongSelect(item)}
+      >
+        <View style={styles.songInfo}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.songTitle}>{item.title}</Text>
+            {item.matchInfo?.titleMatch && (
+              <View style={styles.matchBadge}>
+                <Text style={styles.matchBadgeText}>Title</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.artistContainer}>
+            <Text style={styles.songArtist}>{item.artist}</Text>
+            {item.matchInfo?.artistMatch && (
+              <View style={styles.matchBadge}>
+                <Text style={styles.matchBadgeText}>Artist</Text>
+              </View>
+            )}
+          </View>
+          {searchTerm && hasLyricsMatch && (
+            <View style={styles.matchIndicator}>
+              <View style={styles.lyricsHeader}>
+                <View style={styles.lyricsTitleContainer}>
+                  <Ionicons name="document-text" size={14} color="#BB86FC" />
+                  <Text style={styles.matchText}>
+                    Found in lyrics ({snippets.length} matches)
+                  </Text>
+                </View>
+                {hasMultipleMatches && (
+                  <TouchableOpacity
+                    style={styles.expandButton}
+                    onPress={() => toggleLyricsExpansion(item.id)}
+                  >
+                    <Ionicons
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color="#BB86FC"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.snippetsContainer}>
+                {isExpanded ? (
+                  snippets
+                ) : (
+                  snippets.slice(0, 1)
+                )}
+              </View>
+            </View>
+          )}
+        </View>
+        <View style={styles.songActions}>
+          {isAdminMode && (
+            <>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => startEditingSong(item)}
+              >
+                <Ionicons name="create-outline" size={24} color="#BB86FC" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => {
+                  setSongToDelete(item);
+                  setShowDeleteConfirmDialog(true);
+                }}
+              >
+                <Ionicons name="trash-outline" size={24} color="#FF5252" />
+              </TouchableOpacity>
+            </>
+          )}
+          <Ionicons 
+            name="chevron-forward" 
+            size={24} 
+            color="#BBBBBB" 
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderJoinDialog = () => (
     <View style={styles.dialogOverlay}>
@@ -2481,6 +2600,19 @@ const HomePage = () => {
     }
   };
 
+  // Add function to toggle lyrics expansion
+  const toggleLyricsExpansion = (songId: string) => {
+    setExpandedLyricsIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(songId)) {
+        newSet.delete(songId);
+      } else {
+        newSet.add(songId);
+      }
+      return newSet;
+    });
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statusBarBackground} />
@@ -3481,5 +3613,62 @@ const styles = StyleSheet.create({
   },
   speedButtonActive: {
     backgroundColor: '#1F1F1F',
+  },
+  matchIndicator: {
+    flexDirection: 'column',
+    marginTop: 4,
+    gap: 4,
+  },
+  matchText: {
+    fontSize: 12,
+    color: '#BB86FC',
+    fontStyle: 'italic',
+  },
+  lyricsSnippet: {
+    fontSize: 12,
+    color: '#BBBBBB',
+    marginLeft: 18, // Align with the text after the icon
+  },
+  highlightedTerm: {
+    color: '#BB86FC',
+    fontWeight: 'bold',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  artistContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  matchBadge: {
+    backgroundColor: '#BB86FC',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  matchBadgeText: {
+    color: '#000000',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  lyricsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  lyricsTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  expandButton: {
+    padding: 4,
+  },
+  snippetsContainer: {
+    marginLeft: 18,
   },
 });
