@@ -581,7 +581,8 @@ const HomePage = () => {
     const query = searchQuery.toLowerCase().trim();
     const filtered = songs.filter(song => 
       song.title.toLowerCase().includes(query) || 
-      song.artist.toLowerCase().includes(query)
+      song.artist.toLowerCase().includes(query) ||
+      (song.lyrics && song.lyrics.toLowerCase().includes(query))
     );
     console.log('Filtered songs:', filtered);
     return filtered;
