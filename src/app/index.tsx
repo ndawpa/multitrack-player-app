@@ -194,6 +194,7 @@ const HomePage = () => {
   const [isLyricsEditing, setIsLyricsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState('');
   const [showArtistFilterDialog, setShowArtistFilterDialog] = useState(false);
+  const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
 
   // Recording state
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -577,13 +578,15 @@ const HomePage = () => {
     setSelectedSong(song);
   };
 
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
   const filteredSongs = useMemo(() => {
     console.log('Current songs state:', songs);
     let filtered = songs;
     
     // Apply artist filter if selected
-    if (selectedArtist) {
-      filtered = filtered.filter(song => song.artist === selectedArtist);
+    if (selectedArtists.size > 0) {
+      filtered = filtered.filter(song => selectedArtists.has(song.artist));
     }
     
     // Apply search query if present
@@ -615,15 +618,36 @@ const HomePage = () => {
         .sort((a, b) => b.matchInfo.priority - a.matchInfo.priority);
     }
     
+    // Sort songs by title
+    filtered = [...filtered].sort((a, b) => {
+      const titleA = a.title.toLowerCase();
+      const titleB = b.title.toLowerCase();
+      return sortOrder === 'asc' 
+        ? titleA.localeCompare(titleB)
+        : titleB.localeCompare(titleA);
+    });
+    
     console.log('Filtered songs:', filtered);
     return filtered;
-  }, [searchQuery, selectedArtist, songs]);
+  }, [searchQuery, selectedArtists, songs, sortOrder]);
 
   // Get unique artists for the filter dropdown
   const uniqueArtists = useMemo(() => {
     const artists = new Set(songs.map(song => song.artist));
     return Array.from(artists).sort();
   }, [songs]);
+
+  const toggleArtistSelection = (artist: string) => {
+    setSelectedArtists(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(artist)) {
+        newSet.delete(artist);
+      } else {
+        newSet.add(artist);
+      }
+      return newSet;
+    });
+  };
 
   const renderSongItem = ({ item }: { item: Song & { matchInfo?: { titleMatch: boolean; artistMatch: boolean; lyricsMatch: boolean } } }) => {
     const searchTerm = searchQuery.toLowerCase().trim();
@@ -1059,6 +1083,60 @@ const HomePage = () => {
           </TouchableOpacity>
         </View>
       </View>
+      {isSessionMenuExpanded && (
+        <View style={styles.sessionMenuContent}>
+          {sessionId ? (
+            <View style={styles.activeSessionInfo}>
+              <View style={styles.sessionIdContainer}>
+                <Text style={styles.sessionIdLabel}>Session ID:</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowSessionIdDialog(true)}
+                  style={styles.sessionIdButtonMain}
+                >
+                  <Text style={styles.sessionIdText} numberOfLines={1}>
+                    {sessionId.substring(0, 8)}...
+                  </Text>
+                </TouchableOpacity>
+                {isAdmin && (
+                  <Text style={styles.adminBadge}>Admin</Text>
+                )}
+              </View>
+              <TouchableOpacity 
+                style={styles.leaveButton}
+                onPress={leaveSession}
+              >
+                <Ionicons name="exit-outline" size={20} color="#FF5252" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.sessionMenuButtons}>
+              <TouchableOpacity 
+                style={[styles.sessionMenuButton, styles.adminButton]}
+                onPress={async () => {
+                  try {
+                    await initializeSyncSession();
+                    setShowSessionIdDialog(true);
+                  } catch (error) {
+                    Alert.alert('Error', 'Failed to create session. Please try again.');
+                  }
+                }}
+              >
+                <Ionicons name="people" size={24} color="#FFFFFF" />
+                <Text style={styles.sessionMenuButtonText}>Create Session</Text>
+                <Text style={styles.sessionMenuButtonSubtext}>Become an admin</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.sessionMenuButton, styles.clientButton]}
+                onPress={handleJoinPress}
+              >
+                <Ionicons name="enter" size={24} color="#FFFFFF" />
+                <Text style={styles.sessionMenuButtonText}>Join Session</Text>
+                <Text style={styles.sessionMenuButtonSubtext}>Join as client</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
       <View style={styles.filterContainer}>
         <View style={styles.artistFilterContainer}>
           <TouchableOpacity
@@ -1070,17 +1148,27 @@ const HomePage = () => {
             <Ionicons 
               name="filter" 
               size={24} 
-              color={selectedArtist ? "#BB86FC" : "#BBBBBB"} 
+              color={selectedArtists.size > 0 ? "#BB86FC" : "#BBBBBB"} 
             />
           </TouchableOpacity>
-          {selectedArtist && (
+          {selectedArtists.size > 0 && (
             <TouchableOpacity 
               style={styles.clearFilterButton}
-              onPress={() => setSelectedArtist(null)}
+              onPress={() => setSelectedArtists(new Set())}
             >
               <Ionicons name="close-circle" size={20} color="#BBBBBB" />
             </TouchableOpacity>
           )}
+          <TouchableOpacity
+            style={styles.sortButton}
+            onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+          >
+            <Ionicons 
+              name={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
+              size={24} 
+              color="#BBBBBB" 
+            />
+          </TouchableOpacity>
         </View>
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
@@ -1119,33 +1207,25 @@ const HomePage = () => {
       {showArtistFilterDialog && (
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogContainer}>
-            <Text style={styles.dialogTitle}>Filter by Artist</Text>
+            <Text style={styles.dialogTitle}>Filter by Artists</Text>
             <ScrollView style={styles.dialogScrollView}>
-              <TouchableOpacity
-                style={styles.artistFilterOption}
-                onPress={() => {
-                  setSelectedArtist(null);
-                  setShowArtistFilterDialog(false);
-                }}
-              >
-                <Text style={[
-                  styles.artistFilterOptionText,
-                  !selectedArtist && styles.artistFilterOptionTextSelected
-                ]}>All Artists</Text>
-              </TouchableOpacity>
               {uniqueArtists.map(artist => (
                 <TouchableOpacity
                   key={artist}
                   style={styles.artistFilterOption}
-                  onPress={() => {
-                    setSelectedArtist(artist);
-                    setShowArtistFilterDialog(false);
-                  }}
+                  onPress={() => toggleArtistSelection(artist)}
                 >
-                  <Text style={[
-                    styles.artistFilterOptionText,
-                    selectedArtist === artist && styles.artistFilterOptionTextSelected
-                  ]}>{artist}</Text>
+                  <View style={styles.artistFilterOptionContent}>
+                    <Ionicons 
+                      name={selectedArtists.has(artist) ? "checkbox" : "square-outline"} 
+                      size={24} 
+                      color={selectedArtists.has(artist) ? "#BB86FC" : "#BBBBBB"} 
+                    />
+                    <Text style={[
+                      styles.artistFilterOptionText,
+                      selectedArtists.has(artist) && styles.artistFilterOptionTextSelected
+                    ]}>{artist}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1154,7 +1234,7 @@ const HomePage = () => {
                 style={[styles.dialogButton, styles.dialogButtonSecondary]}
                 onPress={() => setShowArtistFilterDialog(false)}
               >
-                <Text style={styles.dialogButtonText}>Cancel</Text>
+                <Text style={styles.dialogButtonText}>Done</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -3169,7 +3249,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   sessionMenuContent: {
-    marginTop: 8,
+    backgroundColor: '#1F1F1F',
+    borderRadius: 8,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
   activeSessionInfo: {
     backgroundColor: '#2C2C2C',
@@ -3210,31 +3294,27 @@ const styles = StyleSheet.create({
   sessionMenuButtons: {
     flexDirection: 'row',
     gap: 12,
+    justifyContent: 'space-between',
   },
   sessionMenuButton: {
     flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 120,
-  },
-  adminButton: {
-    backgroundColor: '#1B4332',
-  },
-  clientButton: {
     backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
   },
   sessionMenuButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginTop: 8,
-    marginBottom: 4,
+    textAlign: 'center',
   },
   sessionMenuButtonSubtext: {
     color: '#BBBBBB',
     fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
   },
   addSongButton: {
     flexDirection: 'row',
@@ -3757,5 +3837,19 @@ const styles = StyleSheet.create({
   },
   clearFilterButton: {
     padding: 4,
+  },
+  sortButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#1F1F1F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  artistFilterOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
 });
