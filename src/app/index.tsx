@@ -1591,7 +1591,9 @@ const HomePage = () => {
         id: newId,
         title: newSong.title,
         artist: newSong.artist,
-        tracks
+        tracks,
+        lyrics: newSong.lyrics,
+        scores: newSong.scores
       };
 
       // Add to Firebase
@@ -1599,7 +1601,9 @@ const HomePage = () => {
       await set(songRef, {
         title: songToAdd.title,
         artist: songToAdd.artist,
-        tracks: songToAdd.tracks
+        tracks: songToAdd.tracks,
+        lyrics: songToAdd.lyrics,
+        scores: songToAdd.scores
       });
 
       // Reset form and close dialog
@@ -1662,6 +1666,28 @@ const HomePage = () => {
             value={newSong.artist}
             onChangeText={(text) => setNewSong(prev => ({ ...prev, artist: text }))}
           />
+          
+          <View style={styles.lyricsSection}>
+            <View style={styles.lyricsHeader}>
+              <Text style={styles.sectionTitle}>Lyrics</Text>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={uploadLyricsFromFile}
+              >
+                <Text style={styles.uploadButtonText}>Upload from File</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={[styles.dialogInput, styles.lyricsInput]}
+              placeholder="Enter lyrics..."
+              placeholderTextColor="#666666"
+              value={newSong.lyrics}
+              onChangeText={(text) => setNewSong(prev => ({ ...prev, lyrics: text }))}
+              multiline
+              numberOfLines={6}
+              textAlignVertical="top"
+            />
+          </View>
           
           <View style={styles.tracksHeader}>
             <Text style={styles.tracksTitle}>Tracks</Text>
