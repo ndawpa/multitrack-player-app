@@ -2145,11 +2145,37 @@ const HomePage = () => {
         shouldDuckAndroid: true,
       });
 
+      console.log('Starting recording...');
       const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
+        {
+          android: {
+            ...Audio.RecordingOptionsPresets.HIGH_QUALITY.android,
+            maxFileSize: 0, // No file size limit
+          },
+          ios: {
+            ...Audio.RecordingOptionsPresets.HIGH_QUALITY.ios,
+            outputFormat: Audio.RecordingOptionsPresets.HIGH_QUALITY.ios.outputFormat,
+            audioQuality: Audio.RecordingOptionsPresets.HIGH_QUALITY.ios.audioQuality,
+          },
+          web: {
+            mimeType: 'audio/webm',
+            bitsPerSecond: 128000,
+          },
+        },
+        (status) => {
+          console.log('Recording status update:', status);
+        },
+        1000 // Update interval in milliseconds
       );
+      
+      console.log('Recording created successfully');
       setRecording(recording);
       setIsRecording(true);
+
+      // Start song playback if a song is selected and not already playing
+      if (selectedSong && !isPlaying) {
+        await startLocalPlayback();
+      }
     } catch (error) {
       console.error('Failed to start recording:', error);
       Alert.alert('Error', 'Failed to start recording');
@@ -2160,11 +2186,23 @@ const HomePage = () => {
     if (!recording) return;
 
     try {
+      console.log('Stopping recording...');
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
+      console.log('Recording URI:', uri);
+      
+      // Get the recording status to verify duration
+      const status = await recording.getStatusAsync();
+      console.log('Recording status:', status);
+      
       setRecordedUri(uri);
       setRecording(null);
       setIsRecording(false);
+
+      // Stop song playback if it's playing
+      if (isPlaying) {
+        await stopLocalPlayback();
+      }
     } catch (error) {
       console.error('Failed to stop recording:', error);
       Alert.alert('Error', 'Failed to stop recording');
@@ -2175,9 +2213,17 @@ const HomePage = () => {
     if (!recordedUri || !selectedSong) return;
 
     try {
+      console.log('Saving recording from URI:', recordedUri);
+      
+      // Get file info to verify size and duration
+      const fileInfo = await FileSystem.getInfoAsync(recordedUri);
+      console.log('Recording file info:', fileInfo);
+
       // Create a file object from the recorded URI
       const response = await fetch(recordedUri);
       const blob = await response.blob();
+      console.log('Recording blob size:', blob.size);
+      
       const file = new File([blob], 'recording.mp3', { type: 'audio/mpeg' });
 
       // Create a DocumentPickerAsset-like object
@@ -2192,6 +2238,7 @@ const HomePage = () => {
       const folderName = selectedSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
       const filePath = `audio/${folderName}/${selectedSong.title} - Voice Recording.mp3`;
 
+      console.log('Uploading recording to path:', filePath);
       // Upload the recording
       await AudioStorageService.getInstance().uploadAudioFile(recordingAsset, filePath);
 
@@ -2216,6 +2263,8 @@ const HomePage = () => {
       // Reload the song to include the new track
       const updatedSong = { ...selectedSong, tracks: [...selectedSong.tracks, newTrack] };
       setSelectedSong(updatedSong);
+      
+      console.log('Recording saved successfully');
     } catch (error) {
       console.error('Failed to save recording:', error);
       Alert.alert('Error', 'Failed to save recording');
