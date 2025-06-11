@@ -695,24 +695,27 @@ const HomePage = () => {
                     Found in lyrics ({snippets.length} matches)
                   </Text>
                 </View>
-                {hasMultipleMatches && (
-                  <TouchableOpacity
-                    style={styles.expandButton}
-                    onPress={() => toggleLyricsExpansion(item.id)}
-                  >
-                    <Ionicons
-                      name={isExpanded ? "chevron-up" : "chevron-down"}
-                      size={16}
-                      color="#BB86FC"
-                    />
-                  </TouchableOpacity>
-                )}
               </View>
               <View style={styles.snippetsContainer}>
                 {isExpanded ? (
                   snippets
                 ) : (
                   snippets.slice(0, 1)
+                )}
+                {hasMultipleMatches && (
+                  <TouchableOpacity
+                    style={styles.expandButton}
+                    onPress={() => toggleLyricsExpansion(item.id)}
+                  >
+                    <Text style={styles.expandButtonText}>
+                      {isExpanded ? 'Show less' : `Show ${snippets.length - 1} more`}
+                    </Text>
+                    <Ionicons
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color="#BB86FC"
+                    />
+                  </TouchableOpacity>
                 )}
               </View>
             </View>
@@ -3526,7 +3529,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   expandButton: {
-    padding: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    marginTop: 8,
+    gap: 4,
+    backgroundColor: '#2C2C2C',
+    borderRadius: 4,
+  },
+  expandButtonText: {
+    color: '#BB86FC',
+    fontSize: 12,
+    fontWeight: '500',
   },
   playbackControlsContainer: {
     width: '100%',
