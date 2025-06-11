@@ -143,6 +143,7 @@ const HomePage = () => {
   const [seekPosition, setSeekPosition] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [expandedLyricsIds, setExpandedLyricsIds] = useState<Set<string>>(new Set());
   const [isSessionMenuExpanded, setIsSessionMenuExpanded] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
@@ -192,6 +193,7 @@ const HomePage = () => {
   const [activeView, setActiveView] = useState<'tracks' | 'lyrics' | 'sheetMusic' | 'score'>('tracks');
   const [isLyricsEditing, setIsLyricsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState('');
+  const [showArtistFilterDialog, setShowArtistFilterDialog] = useState(false);
 
   // Recording state
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -577,37 +579,51 @@ const HomePage = () => {
 
   const filteredSongs = useMemo(() => {
     console.log('Current songs state:', songs);
-    if (!searchQuery.trim()) return songs;
+    let filtered = songs;
     
-    const query = searchQuery.toLowerCase().trim();
-    const filtered = songs
-      .map(song => {
-        const titleMatch = song.title.toLowerCase().includes(query);
-        const artistMatch = song.artist.toLowerCase().includes(query);
-        const lyricsMatch = song.lyrics && song.lyrics.toLowerCase().includes(query);
-        
-        // Calculate match priority (higher number = higher priority)
-        let priority = 0;
-        if (titleMatch) priority += 3;
-        if (artistMatch) priority += 2;
-        if (lyricsMatch) priority += 1;
-        
-        return {
-          ...song,
-          matchInfo: {
-            titleMatch,
-            artistMatch,
-            lyricsMatch,
-            priority
-          }
-        };
-      })
-      .filter(song => song.matchInfo.priority > 0)
-      .sort((a, b) => b.matchInfo.priority - a.matchInfo.priority);
+    // Apply artist filter if selected
+    if (selectedArtist) {
+      filtered = filtered.filter(song => song.artist === selectedArtist);
+    }
+    
+    // Apply search query if present
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered
+        .map(song => {
+          const titleMatch = song.title.toLowerCase().includes(query);
+          const artistMatch = song.artist.toLowerCase().includes(query);
+          const lyricsMatch = song.lyrics && song.lyrics.toLowerCase().includes(query);
+          
+          // Calculate match priority (higher number = higher priority)
+          let priority = 0;
+          if (titleMatch) priority += 3;
+          if (artistMatch) priority += 2;
+          if (lyricsMatch) priority += 1;
+          
+          return {
+            ...song,
+            matchInfo: {
+              titleMatch,
+              artistMatch,
+              lyricsMatch,
+              priority
+            }
+          };
+        })
+        .filter(song => song.matchInfo.priority > 0)
+        .sort((a, b) => b.matchInfo.priority - a.matchInfo.priority);
+    }
     
     console.log('Filtered songs:', filtered);
     return filtered;
-  }, [searchQuery, songs]);
+  }, [searchQuery, selectedArtist, songs]);
+
+  // Get unique artists for the filter dropdown
+  const uniqueArtists = useMemo(() => {
+    const artists = new Set(songs.map(song => song.artist));
+    return Array.from(artists).sort();
+  }, [songs]);
 
   const renderSongItem = ({ item }: { item: Song & { matchInfo?: { titleMatch: boolean; artistMatch: boolean; lyricsMatch: boolean } } }) => {
     const searchTerm = searchQuery.toLowerCase().trim();
@@ -1043,77 +1059,47 @@ const HomePage = () => {
           </TouchableOpacity>
         </View>
       </View>
-      {isSessionMenuExpanded && (
-        <View style={styles.sessionMenuContent}>
-          {sessionId ? (
-            <View style={styles.activeSessionInfo}>
-              <View style={styles.sessionIdContainer}>
-                <Text style={styles.sessionIdLabel}>Session ID:</Text>
-                <TouchableOpacity 
-                  onPress={() => setShowSessionIdDialog(true)}
-                  style={styles.sessionIdButtonMain}
-                >
-                  <Text style={styles.sessionIdText} numberOfLines={1}>
-                    {sessionId.substring(0, 8)}...
-                  </Text>
-                </TouchableOpacity>
-                {isAdmin && (
-                  <Text style={styles.adminBadge}>Admin</Text>
-                )}
-              </View>
-              <TouchableOpacity 
-                style={styles.leaveButton}
-                onPress={leaveSession}
-              >
-                <Ionicons name="exit-outline" size={20} color="#FF5252" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.sessionMenuButtons}>
-              <TouchableOpacity 
-                style={[styles.sessionMenuButton, styles.adminButton]}
-                onPress={async () => {
-                  try {
-                    await initializeSyncSession();
-                    setShowSessionIdDialog(true);
-                  } catch (error) {
-                    Alert.alert('Error', 'Failed to create session. Please try again.');
-                  }
-                }}
-              >
-                <Ionicons name="people" size={24} color="#FFFFFF" />
-                <Text style={styles.sessionMenuButtonText}>Create Session</Text>
-                <Text style={styles.sessionMenuButtonSubtext}>Become an admin</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.sessionMenuButton, styles.clientButton]}
-                onPress={handleJoinPress}
-              >
-                <Ionicons name="enter" size={24} color="#FFFFFF" />
-                <Text style={styles.sessionMenuButtonText}>Join Session</Text>
-                <Text style={styles.sessionMenuButtonSubtext}>Join as client</Text>
-              </TouchableOpacity>
-            </View>
+      <View style={styles.filterContainer}>
+        <View style={styles.artistFilterContainer}>
+          <TouchableOpacity
+            style={styles.artistFilterButton}
+            onPress={() => {
+              setShowArtistFilterDialog(true);
+            }}
+          >
+            <Ionicons 
+              name="filter" 
+              size={24} 
+              color={selectedArtist ? "#BB86FC" : "#BBBBBB"} 
+            />
+          </TouchableOpacity>
+          {selectedArtist && (
+            <TouchableOpacity 
+              style={styles.clearFilterButton}
+              onPress={() => setSelectedArtist(null)}
+            >
+              <Ionicons name="close-circle" size={20} color="#BBBBBB" />
+            </TouchableOpacity>
           )}
         </View>
-      )}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search songs..."
-          placeholderTextColor="#666666"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery ? (
-          <TouchableOpacity 
-            style={styles.clearButton}
-            onPress={() => setSearchQuery('')}
-          >
-            <Ionicons name="close-circle" size={20} color="#BBBBBB" />
-          </TouchableOpacity>
-        ) : null}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search songs..."
+            placeholderTextColor="#666666"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery ? (
+            <TouchableOpacity 
+              style={styles.clearButton}
+              onPress={() => setSearchQuery('')}
+            >
+              <Ionicons name="close-circle" size={20} color="#BBBBBB" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
       {isAdminMode && (
         <TouchableOpacity 
@@ -1130,6 +1116,50 @@ const HomePage = () => {
         keyExtractor={item => item.id}
         style={styles.songList}
       />
+      {showArtistFilterDialog && (
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogContainer}>
+            <Text style={styles.dialogTitle}>Filter by Artist</Text>
+            <ScrollView style={styles.dialogScrollView}>
+              <TouchableOpacity
+                style={styles.artistFilterOption}
+                onPress={() => {
+                  setSelectedArtist(null);
+                  setShowArtistFilterDialog(false);
+                }}
+              >
+                <Text style={[
+                  styles.artistFilterOptionText,
+                  !selectedArtist && styles.artistFilterOptionTextSelected
+                ]}>All Artists</Text>
+              </TouchableOpacity>
+              {uniqueArtists.map(artist => (
+                <TouchableOpacity
+                  key={artist}
+                  style={styles.artistFilterOption}
+                  onPress={() => {
+                    setSelectedArtist(artist);
+                    setShowArtistFilterDialog(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.artistFilterOptionText,
+                    selectedArtist === artist && styles.artistFilterOptionTextSelected
+                  ]}>{artist}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <View style={styles.dialogButtonContainer}>
+              <TouchableOpacity 
+                style={[styles.dialogButton, styles.dialogButtonSecondary]}
+                onPress={() => setShowArtistFilterDialog(false)}
+              >
+                <Text style={styles.dialogButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 
@@ -2878,14 +2908,13 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#1F1F1F',
     borderRadius: 8,
     paddingHorizontal: 12,
-    marginTop: 16,
-    marginBottom: 8,
-    height: 44,
+    height: 40,
   },
   searchIcon: {
     marginRight: 8,
@@ -2893,8 +2922,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: '#FFFFFF',
-    fontSize: 16,
-    height: '100%',
+    fontSize: 14,
   },
   clearButton: {
     padding: 4,
@@ -3685,5 +3713,49 @@ const styles = StyleSheet.create({
   },
   snippetsContainer: {
     marginLeft: 18,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  artistFilterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  artistFilterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#1F1F1F',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  artistFilterOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  artistFilterOptionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  artistFilterOptionTextSelected: {
+    color: '#BB86FC',
+    fontWeight: '600',
+  },
+  filterIcon: {
+    marginRight: 8,
+  },
+  artistFilterText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  clearFilterButton: {
+    padding: 4,
   },
 });
