@@ -1517,10 +1517,10 @@ const HomePage = () => {
               <Text style={styles.tracksTitle}>Tracks</Text>
               <TouchableOpacity
                 style={styles.addTrackButton}
-                onPress={addNewTrackToSong}
+                onPress={addMultipleTracksToSong}
               >
                 <Ionicons name="add-circle" size={24} color="#BB86FC" />
-                <Text style={styles.addTrackButtonText}>Add Track</Text>
+                <Text style={styles.addTrackButtonText}>Add Tracks</Text>
               </TouchableOpacity>
             </View>
 
@@ -1879,6 +1879,31 @@ const HomePage = () => {
     }
   };
 
+  const addMultipleTracksToSong = async () => {
+    try {
+      const files = await AudioStorageService.getInstance().pickMultipleAudioFiles();
+      if (files.length > 0) {
+        setEditingSong(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            tracks: [
+              ...prev.tracks,
+              ...files.map(file => ({
+                id: generateId(),
+                name: file.name.split('.')[0], // Use filename without extension as initial name
+                path: '', // Will be set when uploaded
+                file: file
+              }))
+            ]
+          };
+        });
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick audio files');
+    }
+  };
+
   // Modify renderAddSongDialog to use the new multiple track selection
   const renderAddSongDialog = () => (
     <View style={styles.dialogOverlay}>
@@ -1926,7 +1951,7 @@ const HomePage = () => {
             <Text style={styles.tracksTitle}>Tracks</Text>
             <TouchableOpacity
               style={styles.addTrackButton}
-              onPress={addMultipleTracks}
+              onPress={addMultipleTracksToSong}
             >
               <Ionicons name="add-circle" size={24} color="#BB86FC" />
               <Text style={styles.addTrackButtonText}>Add Tracks</Text>
