@@ -1,4 +1,4 @@
-# Multitrack Player App
+# Multitrack Player Appp
 
 A React Native application for playing and managing multitrack audio files.
 
