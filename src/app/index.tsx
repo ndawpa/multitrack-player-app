@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image, Linking, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image, Linking, Dimensions, Modal } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -151,6 +151,12 @@ const HomePage = () => {
   const [isFinished, setIsFinished] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Add playback speed state
+  
+  // Full-screen image state
+  const [fullScreenImage, setFullScreenImage] = useState<{ url: string; name: string } | null>(null);
+  const [imageScale, setImageScale] = useState(1);
+  const [imageTranslateX, setImageTranslateX] = useState(0);
+  const [imageTranslateY, setImageTranslateY] = useState(0);
   
   // Sync state
   const [deviceId] = useState(() => generateId());
@@ -2279,11 +2285,16 @@ const HomePage = () => {
                           />
                         </View>
                       ) : (
-                        <Image
-                          source={{ uri: score.url }}
-                          style={styles.sheetMusicImage}
-                          resizeMode="contain"
-                        />
+                        <TouchableOpacity
+                          onPress={() => setFullScreenImage({ url: score.url, name: score.name })}
+                          activeOpacity={0.8}
+                        >
+                          <Image
+                            source={{ uri: score.url }}
+                            style={styles.sheetMusicImage}
+                            resizeMode="contain"
+                          />
+                        </TouchableOpacity>
                       )
                     )}
                   </View>
@@ -2293,6 +2304,64 @@ const HomePage = () => {
           </ScrollView>
         </View>
       </View>
+    );
+  };
+
+  const renderFullScreenImage = () => {
+    if (!fullScreenImage) return null;
+
+    return (
+      <Modal
+        visible={!!fullScreenImage}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setFullScreenImage(null);
+          setImageScale(1);
+          setImageTranslateX(0);
+          setImageTranslateY(0);
+        }}
+      >
+        <View style={styles.fullScreenContainer}>
+          <TouchableOpacity
+            style={styles.fullScreenCloseButton}
+            onPress={() => {
+              setFullScreenImage(null);
+              setImageScale(1);
+              setImageTranslateX(0);
+              setImageTranslateY(0);
+            }}
+          >
+            <Ionicons name="close" size={30} color="#FFFFFF" />
+          </TouchableOpacity>
+          
+          <ScrollView
+            contentContainerStyle={styles.fullScreenImageContainer}
+            maximumZoomScale={5}
+            minimumZoomScale={1}
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            bouncesZoom={false}
+            centerContent={true}
+          >
+            <Image
+              source={{ uri: fullScreenImage.url }}
+              style={[
+                styles.fullScreenImage,
+                {
+                  transform: [
+                    { scale: imageScale },
+                    { translateX: imageTranslateX },
+                    { translateY: imageTranslateY }
+                  ]
+                }
+              ]}
+              resizeMode="contain"
+            />
+          </ScrollView>
+        </View>
+      </Modal>
     );
   };
 
@@ -2845,6 +2914,7 @@ const HomePage = () => {
       {showEditSongDialog && renderEditSongDialog()}
       {showDeleteConfirmDialog && renderDeleteConfirmDialog()}
       {showPasswordDialog && renderPasswordDialog()}
+      {renderFullScreenImage()}
     </View>
   );
 };
@@ -3876,5 +3946,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: Dimensions.get('window').width,
+    minHeight: Dimensions.get('window').height,
+  },
+  fullScreenImage: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height * 0.8,
   },
 });
