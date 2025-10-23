@@ -1235,7 +1235,7 @@ const HomePage = () => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <View style={styles.dialogButtonContainer}>
+            <View style={[styles.dialogButtonContainer, { justifyContent: 'center' }]}>
               <TouchableOpacity 
                 style={[styles.dialogButton, styles.dialogButtonSecondary]}
                 onPress={() => setShowArtistFilterDialog(false)}
