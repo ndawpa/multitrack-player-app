@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "multitrack-player-app",
+    "name": "Kit de Voz",
     "slug": "multitrack-player-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -26,7 +26,7 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
-      "package": "com.anonymous.multitrackplayerapp"
+      "package": "com.anonymous.kitdevoz"
     },
     "web": {
       "bundler": "metro",
