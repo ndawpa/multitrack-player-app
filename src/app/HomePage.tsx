@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
 import { useEffect, useState, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ref, onValue, set, serverTimestamp } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { database } from '../config/firebase';
@@ -13,6 +14,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system';
 import { User } from '../types/user';
+import FavoritesService from '../services/favoritesService';
 
 // Custom ID generator
 const generateId = () => {
@@ -137,6 +139,7 @@ interface HomePageProps {
 }
 
 const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
+  const insets = useSafeAreaInsets();
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [players, setPlayers] = useState<Audio.Sound[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -208,6 +211,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
   const [showArtistFilterDialog, setShowArtistFilterDialog] = useState(false);
   const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
 
+  // Favorites state
+  const [favoriteSongs, setFavoriteSongs] = useState<Set<string>>(new Set());
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [favoritesService] = useState(() => FavoritesService.getInstance());
+
   // Recording state
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -236,6 +244,22 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
 
     return () => unsubscribe();
   }, []);
+
+  // Load user's favorite songs
+  useEffect(() => {
+    const loadFavorites = async () => {
+      if (user) {
+        try {
+          const favorites = await favoritesService.getFavoriteSongs();
+          setFavoriteSongs(new Set(favorites));
+        } catch (error) {
+          console.error('Error loading favorites:', error);
+        }
+      }
+    };
+
+    loadFavorites();
+  }, [user, favoritesService]);
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -590,6 +614,28 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     setSelectedSong(song);
   };
 
+  const handleToggleFavorite = async (songId: string, event: any) => {
+    event.stopPropagation(); // Prevent song selection when clicking favorite button
+    
+    try {
+      const isNowFavorite = await favoritesService.toggleFavorite(songId);
+      
+      // Update local state
+      setFavoriteSongs(prev => {
+        const newFavorites = new Set(prev);
+        if (isNowFavorite) {
+          newFavorites.add(songId);
+        } else {
+          newFavorites.delete(songId);
+        }
+        return newFavorites;
+      });
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      Alert.alert('Error', 'Failed to update favorite status');
+    }
+  };
+
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const filteredSongs = useMemo(() => {
@@ -599,6 +645,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     // Apply artist filter if selected
     if (selectedArtists.size > 0) {
       filtered = filtered.filter(song => selectedArtists.has(song.artist));
+    }
+    
+    // Apply favorites filter if enabled
+    if (showFavoritesOnly) {
+      filtered = filtered.filter(song => favoriteSongs.has(song.id));
     }
     
     // Apply search query if present
@@ -641,7 +692,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     
     console.log('Filtered songs:', filtered);
     return filtered;
-  }, [searchQuery, selectedArtists, songs, sortOrder]);
+  }, [searchQuery, selectedArtists, songs, sortOrder, showFavoritesOnly, favoriteSongs]);
 
   // Get unique artists for the filter dropdown
   const uniqueArtists = useMemo(() => {
@@ -793,6 +844,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
               </TouchableOpacity>
             </>
           )}
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={(event) => handleToggleFavorite(item.id, event)}
+          >
+            <Ionicons 
+              name={favoriteSongs.has(item.id) ? "star" : "star-outline"} 
+              size={24} 
+              color={favoriteSongs.has(item.id) ? "#BB86FC" : "#BBBBBB"} 
+            />
+          </TouchableOpacity>
           <Ionicons 
             name="chevron-forward" 
             size={24} 
@@ -1101,6 +1162,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
               name="people" 
               size={24} 
               color="#BB86FC" 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.iconButton, showFavoritesOnly && styles.activeFilterButton]}
+            onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
+          >
+            <Ionicons 
+              name="star" 
+              size={24} 
+              color={showFavoritesOnly ? "#BB86FC" : "#BB86FC"} 
             />
           </TouchableOpacity>
         </View>
@@ -2123,12 +2194,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
           )}
         </View>
         <View style={{ flex: 1 }}>
-          <ScrollView style={styles.contentScrollView}>
+          <ScrollView 
+            style={styles.contentScrollView}
+            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 20, 40) }}
+          >
             {activeView === 'tracks' ? (
               // Tracks view content
               <View>
                 {selectedSong.tracks.map(track => (
-                  <View key={track.id} style={styles.trackContainer}>
+                  <TouchableOpacity 
+                    key={track.id} 
+                    style={styles.trackContainer}
+                    onPress={() => toggleTrack(track.id)}
+                    activeOpacity={0.7}
+                  >
                     <View style={styles.trackInfo}>
                       <Text style={styles.trackName}>{track.name}</Text>
                       <View style={styles.trackControls}>
@@ -2151,18 +2230,17 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                                 soloedTrackIds.includes(track.id) && styles.soloActiveText
                               ]}>S</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity 
+                            <View 
                               style={[
                                 styles.trackToggleButton,
                                 !activeTrackIds.includes(track.id) && styles.muteActiveButton
                               ]} 
-                              onPress={() => toggleTrack(track.id)}
                             >
                               <Text style={[
                                 styles.trackButtonText,
                                 !activeTrackIds.includes(track.id) && styles.muteActiveText
                               ]}>M</Text>
-                            </TouchableOpacity>
+                            </View>
                           </>
                         )}
                       </View>
@@ -2190,7 +2268,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                         disabled={loadingTracks[track.id]}
                       />
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             ) : activeView === 'lyrics' ? (
@@ -2329,8 +2407,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     return (
       <Modal
         visible={!!fullScreenImage}
-        transparent={true}
+        transparent={false}
         animationType="fade"
+        presentationStyle="fullScreen"
         onRequestClose={() => {
           setFullScreenImage(null);
           setImageScale(1);
@@ -2339,6 +2418,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         }}
       >
         <View style={styles.fullScreenContainer}>
+          <StatusBar hidden={true} />
           <TouchableOpacity
             style={styles.fullScreenCloseButton}
             onPress={() => {
@@ -2756,7 +2836,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         >
           <Ionicons 
             name={isFinished ? 'refresh-circle' : (isPlaying ? 'pause-circle' : 'play-circle')} 
-            size={40} 
+            size={48} 
             color="#BB86FC" 
           />
         </TouchableOpacity>
@@ -2917,7 +2997,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
               </View>
             </View>
             
-            <View style={styles.mainContent}>
+            <View style={[styles.mainContent, { paddingBottom: insets.bottom }]}>
               {renderSongView()}
             </View>
           </>
@@ -3045,6 +3125,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   syncButtons: {
     flexDirection: 'row',
@@ -3204,7 +3286,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E1E1E',
     borderRadius: 8,
     padding: 10,
-    marginBottom: 8,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
@@ -3523,6 +3605,9 @@ const styles = StyleSheet.create({
   editButton: {
     padding: 4,
   },
+  favoriteButton: {
+    padding: 4,
+  },
   dialogButtonDelete: {
     backgroundColor: '#3D0C11',
   },
@@ -3559,6 +3644,10 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 4,
+  },
+  activeFilterButton: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 4,
   },
   menuButtonContainer: {
     gap: 12,
@@ -3778,8 +3867,8 @@ const styles = StyleSheet.create({
     height: 36,
   },
   playButton: {
-    width: 48,
-    height: 48,
+    width: 64,
+    height: 64,
   },
   recordingControls: {
     flexDirection: 'row',
@@ -3941,9 +4030,14 @@ const styles = StyleSheet.create({
   },
   fullScreenContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    backgroundColor: 'rgba(0, 0, 0, 1)',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   fullScreenCloseButton: {
     position: 'absolute',
@@ -3961,12 +4055,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: Dimensions.get('window').width,
-    minHeight: Dimensions.get('window').height,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
   },
   fullScreenImage: {
     width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height * 0.8,
+    height: Dimensions.get('window').height,
   },
   adminButton: {
     backgroundColor: '#03DAC6',

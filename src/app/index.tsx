@@ -84,6 +84,7 @@ const App = () => {
       return (
         <ProfileScreen 
           onNavigateToSettings={handleNavigateToSettings}
+          onBack={handleBackToMain}
           onSignOut={handleSignOut}
         />
       );

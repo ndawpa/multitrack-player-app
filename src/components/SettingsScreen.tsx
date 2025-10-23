@@ -11,6 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { User, UserPreferences } from '../types/user';
 
@@ -19,6 +20,7 @@ interface SettingsScreenProps {
 }
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
+  const insets = useSafeAreaInsets();
   const [user, setUser] = useState<User | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,7 +112,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 20, 40) }}
+      >
         {/* Profile Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>👤 Profile</Text>

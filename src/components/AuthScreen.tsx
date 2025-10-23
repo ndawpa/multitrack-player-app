@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { LoginForm, SignupForm } from '../types/user';
 
@@ -20,6 +21,7 @@ interface AuthScreenProps {
 }
 
 const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
+  const insets = useSafeAreaInsets();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -95,7 +97,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           </Text>
         </View>
 
-        <View style={styles.form}>
+        <View style={[styles.form, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}>
           {!isLogin && (
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Display Name</Text>
