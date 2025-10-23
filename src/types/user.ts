@@ -1,0 +1,51 @@
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  avatar: string | null;
+  preferences: UserPreferences;
+  stats: UserStats;
+  createdAt: Date;
+  lastActiveAt: Date;
+}
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  defaultPlaybackSpeed: number;
+  autoPlay: boolean;
+  notifications: boolean;
+  language: string;
+}
+
+export interface UserStats {
+  totalSessions: number;
+  totalPlayTime: number; // in minutes
+  joinedDate: Date;
+  lastSessionDate?: Date;
+  favoriteArtists: string[];
+  favoriteSongs: string[];
+}
+
+export interface AuthUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
+export interface LoginForm {
+  email: string;
+  password: string;
+}
+
+export interface SignupForm {
+  email: string;
+  password: string;
+  displayName: string;
+}
+
+export interface ProfileUpdateForm {
+  displayName?: string;
+  avatar?: string;
+  preferences?: Partial<UserPreferences>;
+}
