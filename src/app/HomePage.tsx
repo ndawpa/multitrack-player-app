@@ -245,21 +245,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     return () => unsubscribe();
   }, []);
 
-  // Load user's favorite songs
+  // Load user's favorite songs with real-time sync
   useEffect(() => {
-    const loadFavorites = async () => {
-      if (user) {
-        try {
-          const favorites = await favoritesService.getFavoriteSongs();
-          setFavoriteSongs(new Set(favorites));
-        } catch (error) {
-          console.error('Error loading favorites:', error);
-        }
-      }
-    };
+    if (!user) {
+      setFavoriteSongs(new Set());
+      return;
+    }
 
-    loadFavorites();
-  }, [user, favoritesService]);
+    const userRef = ref(database, `users/${user.id}/stats/favoriteSongs`);
+    const unsubscribe = onValue(userRef, (snapshot) => {
+      const favorites = snapshot.val() || [];
+      setFavoriteSongs(new Set(favorites));
+    }, (error) => {
+      console.error('Error listening to favorites:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -620,19 +622,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     try {
       const isNowFavorite = await favoritesService.toggleFavorite(songId);
       
-      // Update local state
-      setFavoriteSongs(prev => {
-        const newFavorites = new Set(prev);
-        if (isNowFavorite) {
-          newFavorites.add(songId);
-        } else {
-          newFavorites.delete(songId);
-        }
-        return newFavorites;
-      });
+      // Note: Local state update is no longer needed since we have real-time sync
+      // The real-time listener will automatically update the state when Firebase changes
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      Alert.alert('Error', 'Failed to update favorite status');
+      Alert.alert(
+        'Error',
+        'Failed to update favorites. Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -1130,16 +1128,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         <View style={styles.titleButtons}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={onNavigateToProfile}
-          >
-            <Ionicons 
-              name="person-circle" 
-              size={24} 
-              color="#BB86FC" 
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconButton}
             onPress={() => {
               if (isAdminMode) {
                 setIsAdminMode(false);
@@ -1172,6 +1160,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
               name="star" 
               size={24} 
               color={showFavoritesOnly ? "#BB86FC" : "#BB86FC"} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={onNavigateToProfile}
+          >
+            <Ionicons 
+              name="person-circle" 
+              size={24} 
+              color="#BB86FC" 
             />
           </TouchableOpacity>
         </View>
@@ -1230,39 +1228,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
           )}
         </View>
       )}
-      <View style={styles.filterContainer}>
-        <View style={styles.artistFilterContainer}>
-          <TouchableOpacity
-            style={styles.artistFilterButton}
-            onPress={() => {
-              setShowArtistFilterDialog(true);
-            }}
-          >
-            <Ionicons 
-              name="filter" 
-              size={24} 
-              color={selectedArtists.size > 0 ? "#BB86FC" : "#BBBBBB"} 
-            />
-          </TouchableOpacity>
-          {selectedArtists.size > 0 && (
-            <TouchableOpacity 
-              style={styles.clearFilterButton}
-              onPress={() => setSelectedArtists(new Set())}
-            >
-              <Ionicons name="close-circle" size={20} color="#BBBBBB" />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.sortButton}
-            onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-          >
-            <Ionicons 
-              name={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
-              size={24} 
-              color="#BBBBBB" 
-            />
-          </TouchableOpacity>
-        </View>
+      <View style={styles.searchAndFilterContainer}>
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
           <TextInput
@@ -1280,6 +1246,38 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
               <Ionicons name="close-circle" size={20} color="#BBBBBB" />
             </TouchableOpacity>
           ) : null}
+        </View>
+        <View style={styles.filterButtonsContainer}>
+          <TouchableOpacity
+            style={styles.artistFilterButton}
+            onPress={() => {
+              setShowArtistFilterDialog(true);
+            }}
+          >
+            <Ionicons 
+              name="filter" 
+              size={20} 
+              color={selectedArtists.size > 0 ? "#BB86FC" : "#BBBBBB"} 
+            />
+          </TouchableOpacity>
+          {selectedArtists.size > 0 && (
+            <TouchableOpacity 
+              style={styles.clearFilterButton}
+              onPress={() => setSelectedArtists(new Set())}
+            >
+              <Ionicons name="close-circle" size={20} color="#BBBBBB" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.sortButton}
+            onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+          >
+            <Ionicons 
+              name={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
+              size={20} 
+              color="#BBBBBB" 
+            />
+          </TouchableOpacity>
         </View>
       </View>
       {isAdminMode && (
@@ -3188,6 +3186,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 40,
+    marginRight: 4,
   },
   searchIcon: {
     marginRight: 8,
@@ -3970,21 +3969,22 @@ const styles = StyleSheet.create({
   snippetsContainer: {
     marginLeft: 18,
   },
-  filterContainer: {
+  searchAndFilterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
     marginBottom: 12,
     paddingHorizontal: 16,
   },
-  artistFilterContainer: {
+  filterButtonsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   artistFilterButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 6,
     backgroundColor: '#1F1F1F',
     justifyContent: 'center',
     alignItems: 'center',
@@ -4015,13 +4015,13 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   sortButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 6,
     backgroundColor: '#1F1F1F',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    marginLeft: 4,
   },
   artistFilterOptionContent: {
     flexDirection: 'row',
