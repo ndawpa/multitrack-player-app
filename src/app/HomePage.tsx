@@ -1715,18 +1715,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                         });
                       }}
                     />
-                    <TouchableOpacity
-                      style={styles.iconButton}
-                      onPress={() => {
-                        setEditingSong(prev => {
-                          if (!prev) return null;
-                          const newResources = prev.resources.filter((_, i) => i !== index);
-                          return { ...prev, resources: newResources };
-                        });
-                      }}
-                    >
-                      <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                    </TouchableOpacity>
+                    <View style={styles.centeredTrashButton}>
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => {
+                          setEditingSong(prev => {
+                            if (!prev) return null;
+                            const newResources = prev.resources.filter((_, i) => i !== index);
+                            return { ...prev, resources: newResources };
+                          });
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -2360,17 +2362,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                       });
                     }}
                   />
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={() => {
-                      setNewSong(prev => {
-                        const newResources = prev.resources.filter((_, i) => i !== index);
-                        return { ...prev, resources: newResources };
-                      });
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                  </TouchableOpacity>
+                  <View style={styles.centeredTrashButton}>
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => {
+                        setNewSong(prev => {
+                          const newResources = prev.resources.filter((_, i) => i !== index);
+                          return { ...prev, resources: newResources };
+                        });
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
             </View>
@@ -4192,6 +4196,11 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 4,
+  },
+  centeredTrashButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
   },
   activeFilterButton: {
     backgroundColor: '#2C2C2C',
