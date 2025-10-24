@@ -2072,6 +2072,90 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
             />
           </View>
           
+          <View style={styles.lyricsSection}>
+            <Text style={styles.sectionTitle}>Sheet Music</Text>
+            <View style={styles.scoreList}>
+              {newSong.scores.map((score, index) => (
+                <View key={score.id} style={styles.scoreItem}>
+                  <TextInput
+                    style={[styles.dialogInput, { flex: 1 }]}
+                    placeholder="Score Name"
+                    placeholderTextColor="#666666"
+                    value={score.name}
+                    onChangeText={(text) => {
+                      setNewSong(prev => {
+                        const newScores = [...prev.scores];
+                        newScores[index] = { ...newScores[index], name: text };
+                        return { ...prev, scores: newScores };
+                      });
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => {
+                      setNewSong(prev => {
+                        const newScores = prev.scores.filter((_, i) => i !== index);
+                        return { ...prev, scores: newScores };
+                      });
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={async () => {
+                try {
+                  const result = await DocumentPicker.getDocumentAsync({
+                    type: ['application/pdf', 'image/*'],
+                    copyToCacheDirectory: true
+                  });
+                  
+                  if (result.assets && result.assets[0]) {
+                    const file = result.assets[0];
+                    const scoreName = file.name.split('.')[0];
+                    
+                    // Show loading state
+                    setNewSong(prev => {
+                      const newScore: Score = {
+                        id: generateId(),
+                        name: scoreName,
+                        url: 'uploading'
+                      };
+                      return {
+                        ...prev,
+                        scores: [...prev.scores, newScore]
+                      };
+                    });
+
+                    // Upload to Firebase Storage
+                    const downloadURL = await uploadSheetMusic(file, scoreName, newSong.title);
+                    
+                    // Update the score with the download URL
+                    setNewSong(prev => {
+                      const newScores = prev.scores.map(score => 
+                        score.url === 'uploading' ? { ...score, url: downloadURL } : score
+                      );
+                      return { ...prev, scores: newScores };
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error uploading score:', error);
+                  Alert.alert('Error', 'Failed to upload score');
+                  // Reset the uploading score
+                  setNewSong(prev => {
+                    const newScores = prev.scores.filter(score => score.url !== 'uploading');
+                    return { ...prev, scores: newScores };
+                  });
+                }
+              }}
+            >
+              <Text style={styles.uploadButtonText}>Add Score</Text>
+            </TouchableOpacity>
+          </View>
+          
           <View style={styles.tracksHeader}>
             <Text style={styles.tracksTitle}>Tracks</Text>
             <TouchableOpacity
