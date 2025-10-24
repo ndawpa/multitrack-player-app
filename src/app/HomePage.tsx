@@ -39,7 +39,7 @@ interface Song {
   id: string;
   title: string;
   artist: string;
-  tracks: Track[];
+  tracks?: Track[];  // Optional tracks field
   lyrics?: string;  // Optional lyrics field
   scores?: Score[];  // Array of scores instead of single score
 }
@@ -405,8 +405,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     }
 
     // Update seek position
-    if (Math.abs(syncState.seekPosition - seekPosition) > 0.1) {
-      handleSeek(selectedSong.tracks[0].id, syncState.seekPosition);
+    if (selectedSong.tracks && selectedSong.tracks.length > 0 && Math.abs(syncState.seekPosition - seekPosition) > 0.1) {
+      handleSeek(selectedSong.tracks![0].id, syncState.seekPosition);
     }
   }, [syncState, isAdmin, selectedSong]);
 
@@ -423,7 +423,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
       setTrackProgress({});
       
       const playPromises = players.map(async (player, index) => {
-        if (activeTrackIds.includes(selectedSong.tracks[index].id)) {
+        if (selectedSong.tracks && selectedSong.tracks[index] && activeTrackIds.includes(selectedSong.tracks[index].id)) {
           console.log(`Starting track ${selectedSong.tracks[index].name}`);
           const status = await player.getStatusAsync();
           if (status.isLoaded) {
@@ -471,11 +471,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
             const position = status.positionMillis / 1000;
             const duration = status.durationMillis / 1000;
             
-            if (activeTrackIds.includes(selectedSong.tracks[i].id)) {
+            if (selectedSong.tracks && selectedSong.tracks[i] && activeTrackIds.includes(selectedSong.tracks[i].id)) {
               hasActiveTracks = true;
               setTrackProgress(prev => ({
                 ...prev,
-                [selectedSong.tracks[i].id]: position
+                [selectedSong.tracks![i].id]: position
               }));
               setSeekPosition(position);
               
@@ -522,7 +522,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
 
       setTrackProgress(prev => {
         const newProgress = { ...prev };
-        selectedSong.tracks.forEach(track => {
+        selectedSong.tracks?.forEach(track => {
           newProgress[track.id] = value;
         });
         return newProgress;
@@ -548,7 +548,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         });
 
         // Set all tracks as loading initially
-        const initialLoadingState = selectedSong.tracks.reduce((acc, track) => ({
+        const initialLoadingState = (selectedSong.tracks || []).reduce((acc, track) => ({
           ...acc,
           [track.id]: true
         }), {});
@@ -559,7 +559,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
 
         const audioStorage = AudioStorageService.getInstance();
         const loadedPlayers = await Promise.all(
-          selectedSong.tracks.map(async (track) => {
+          (selectedSong.tracks || []).map(async (track) => {
             console.log(`Loading track: ${track.name}`);
             try {
               const audioFile = await audioStorage.getAudioFile(track.path);
@@ -588,7 +588,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         setSeekPosition(0);
 
         // Initialize volumes
-        const initialVolumes = selectedSong.tracks.reduce((acc, track) => ({
+        const initialVolumes = (selectedSong.tracks || []).reduce((acc, track) => ({
           ...acc,
           [track.id]: 1
         }), {});
@@ -598,15 +598,17 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         loadedPlayers.forEach(async (player, index) => {
           const status = await player.getStatusAsync();
           if (status.isLoaded && status.durationMillis) {
-            setTrackDurations(prev => ({
-              ...prev,
-              [selectedSong.tracks[index].id]: status.durationMillis! / 1000
-            }));
+            if (selectedSong.tracks && selectedSong.tracks[index]) {
+              setTrackDurations(prev => ({
+                ...prev,
+                [selectedSong.tracks![index].id]: status.durationMillis! / 1000
+              }));
+            }
           }
         });
 
         // Set all tracks as active initially
-        setActiveTrackIds(selectedSong.tracks.map(track => track.id));
+        setActiveTrackIds((selectedSong.tracks || []).map(track => track.id));
         setSoloedTrackIds([]);
         setTrackProgress({});
       } catch (error) {
@@ -948,7 +950,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
   const toggleSolo = async (trackId: string) => {
     if (!isInitialized || !selectedSong) return;
 
-    const trackIndex = selectedSong.tracks.findIndex(t => t.id === trackId);
+    const trackIndex = selectedSong.tracks?.findIndex(t => t.id === trackId) ?? -1;
     if (trackIndex === -1) return;
 
     const player = players[trackIndex];
@@ -964,7 +966,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     }
     setSoloedTrackIds(newSoloedTrackIds);
 
-    selectedSong.tracks.forEach(async (track, index) => {
+    selectedSong.tracks?.forEach(async (track, index) => {
       const isActive = activeTrackIds.includes(track.id);
       if (newSoloedTrackIds.length === 0) {
         await players[index].setVolumeAsync(isActive ? (trackVolumes[track.id] || 1) : 0);
@@ -979,7 +981,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
   const handleVolumeChange = async (trackId: string, value: number) => {
     if (!isInitialized || !selectedSong) return;
 
-    const trackIndex = selectedSong.tracks.findIndex(t => t.id === trackId);
+    const trackIndex = selectedSong.tracks?.findIndex(t => t.id === trackId) ?? -1;
     if (trackIndex === -1) return;
 
     const player = players[trackIndex];
@@ -998,7 +1000,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
   const toggleTrack = async (trackId: string) => {
     if (!isInitialized || !selectedSong) return;
 
-    const trackIndex = selectedSong.tracks.findIndex(t => t.id === trackId);
+    const trackIndex = selectedSong.tracks?.findIndex(t => t.id === trackId) ?? -1;
     if (trackIndex === -1) return;
 
     const player = players[trackIndex];
@@ -1352,7 +1354,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
       id: song.id,
       title: song.title,
       artist: song.artist,
-      tracks: song.tracks.map(track => ({
+      tracks: (song.tracks || []).map(track => ({
         ...track,
         file: null
       })),
@@ -1427,9 +1429,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         throw new Error('Please enter song title and artist');
       }
 
-      if (editingSong.tracks.length === 0) {
-        throw new Error('Please add at least one track');
-      }
 
       // Create folder name from title
       const folderName = editingSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -1710,7 +1709,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     try {
       // Delete all audio files from Firebase Storage
       await Promise.all(
-        songToDelete.tracks.map(async (track) => {
+        (songToDelete.tracks || []).map(async (track) => {
           try {
             await AudioStorageService.getInstance().deleteAudioFile(track.path);
           } catch (error) {
@@ -1889,9 +1888,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         throw new Error('Please enter song title and artist');
       }
 
-      if (newSong.tracks.length === 0) {
-        throw new Error('Please add at least one track');
-      }
 
       // Generate a new ID
       const newId = generateId();
@@ -1899,27 +1895,25 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
       // Create folder name from title
       const folderName = newSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
       
-      // Upload files and create tracks
+      // Upload files and create tracks (only if files are provided)
       const tracks = await Promise.all(
-        newSong.tracks.map(async (track, index) => {
-          if (!track.file) {
-            throw new Error(`Please upload file for track "${track.name || `Track ${index + 1}`}"`);
-          }
-          
-          if (!track.name.trim()) {
-            throw new Error(`Please enter a name for track ${index + 1}`);
-          }
-          
-          // Upload file to Firebase Storage
-          const filePath = `audio/${folderName}/${newSong.title} - ${track.name}.mp3`;
-          await AudioStorageService.getInstance().uploadAudioFile(track.file, filePath);
-          
-          return {
-            id: `${newId}-${index + 1}`,
-            name: track.name,
-            path: filePath
-          };
-        })
+        newSong.tracks
+          .filter(track => track.file) // Only process tracks that have files
+          .map(async (track, index) => {
+            if (!track.name.trim()) {
+              throw new Error(`Please enter a name for track ${index + 1}`);
+            }
+            
+            // Upload file to Firebase Storage
+            const filePath = `audio/${folderName}/${newSong.title} - ${track.name}.mp3`;
+            await AudioStorageService.getInstance().uploadAudioFile(track.file!, filePath);
+            
+            return {
+              id: `${newId}-${index + 1}`,
+              name: track.name,
+              path: filePath
+            };
+          })
       );
 
       // Create new song object
@@ -2211,7 +2205,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
             {activeView === 'tracks' ? (
               // Tracks view content
               <View style={isLandscape ? styles.tracksLandscapeContainer : styles.tracksPortraitContainer}>
-                {selectedSong.tracks.map(track => (
+                {(selectedSong.tracks || []).map(track => (
                   <TouchableOpacity 
                     key={track.id} 
                     style={[
@@ -2498,14 +2492,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
 
   // Add fast forward function
   const handleFastForward = async () => {
-    if (!isInitialized || !selectedSong) return;
+    if (!isInitialized || !selectedSong || !selectedSong.tracks || selectedSong.tracks.length === 0) return;
     
     const newPosition = Math.min(
       (trackProgress[selectedSong.tracks[0]?.id] || 0) + 10,
       trackDurations[selectedSong.tracks[0]?.id] || 0
     );
     
-    await handleSeek(selectedSong.tracks[0].id, newPosition);
+    await handleSeek(selectedSong.tracks![0].id, newPosition);
     
     // Sync with remote clients if admin
     if (sessionId && isAdmin) {
@@ -2519,14 +2513,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
 
   // Add rewind function
   const handleRewind = async () => {
-    if (!isInitialized || !selectedSong) return;
+    if (!isInitialized || !selectedSong || !selectedSong.tracks || selectedSong.tracks.length === 0) return;
     
     const newPosition = Math.max(
       (trackProgress[selectedSong.tracks[0]?.id] || 0) - 10,
       0
     );
     
-    await handleSeek(selectedSong.tracks[0].id, newPosition);
+    await handleSeek(selectedSong.tracks![0].id, newPosition);
     
     // Sync with remote clients if admin
     if (sessionId && isAdmin) {
@@ -2556,7 +2550,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
       
       // Start playback
       const playPromises = players.map(async (player, index) => {
-        if (activeTrackIds.includes(selectedSong.tracks[index].id)) {
+        if (selectedSong.tracks && selectedSong.tracks[index] && activeTrackIds.includes(selectedSong.tracks[index].id)) {
           await player.playAsync();
         }
       });
@@ -2727,7 +2721,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
       const songRef = ref(database, `songs/${selectedSong.id}`);
       await set(songRef, {
         ...selectedSong,
-        tracks: [...selectedSong.tracks, newTrack]
+        tracks: [...(selectedSong.tracks || []), newTrack]
       });
 
       // Reset recording state
@@ -2953,59 +2947,63 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                   </Text>
                 </View>
               </View>
-              <View style={styles.playbackControlsContainer}>
-                {renderPlaybackControls()}
-              </View>
-              <View style={styles.seekbarContainer}>
-                <Text style={styles.timeText}>
-                  {formatTime(trackProgress[selectedSong.tracks[0]?.id] || 0)}
-                </Text>
-                <Slider
-                  style={styles.seekbar}
-                  minimumValue={0}
-                  maximumValue={trackDurations[selectedSong.tracks[0]?.id] || 0}
-                  value={isSeeking ? seekPosition : (trackProgress[selectedSong.tracks[0]?.id] || 0)}
-                  onSlidingStart={() => setIsSeeking(true)}
-                  onSlidingComplete={async (value) => {
-                    setIsSeeking(false);
-                    await handleSeek(selectedSong.tracks[0].id, value);
-                    
-                    // Sync with remote clients if admin
-                    if (sessionId && isAdmin) {
-                      const sessionRef = ref(database, `sessions/${sessionId}/state`);
-                      await set(sessionRef, {
-                        ...syncState,
-                        seekPosition: value
-                      });
-                    }
-                  }}
-                  onValueChange={(value) => {
-                    setSeekPosition(value);
-                  }}
-                  minimumTrackTintColor="#BB86FC"
-                  maximumTrackTintColor="#2C2C2C"
-                />
-                <View style={styles.seekbarEndContainer}>
-                  <Text style={styles.timeText}>
-                    {formatTime(trackDurations[selectedSong.tracks[0]?.id] || 0)}
-                  </Text>
-                  {selectedSong && (
-                    <TouchableOpacity
-                      style={[styles.speedButton, playbackSpeed !== 1.0 && styles.speedButtonActive]}
-                      onPress={() => {
-                        const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
-                        const currentIndex = speeds.indexOf(playbackSpeed);
-                        const nextIndex = (currentIndex + 1) % speeds.length;
-                        handlePlaybackSpeedChange(speeds[nextIndex]);
-                      }}
-                    >
-                      <Text style={[styles.speedText, { color: playbackSpeed !== 1.0 ? '#BB86FC' : '#BBBBBB' }]}>
-                        {playbackSpeed}x
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+              {selectedSong.tracks && selectedSong.tracks.length > 0 && (
+                <View style={styles.playbackControlsContainer}>
+                  {renderPlaybackControls()}
                 </View>
-              </View>
+              )}
+              {selectedSong.tracks && selectedSong.tracks.length > 0 && (
+                <View style={styles.seekbarContainer}>
+                  <Text style={styles.timeText}>
+                    {formatTime(trackProgress[selectedSong.tracks[0]?.id] || 0)}
+                  </Text>
+                  <Slider
+                    style={styles.seekbar}
+                    minimumValue={0}
+                    maximumValue={trackDurations[selectedSong.tracks[0]?.id] || 0}
+                    value={isSeeking ? seekPosition : (trackProgress[selectedSong.tracks[0]?.id] || 0)}
+                    onSlidingStart={() => setIsSeeking(true)}
+                    onSlidingComplete={async (value) => {
+                      setIsSeeking(false);
+                      await handleSeek(selectedSong.tracks![0].id, value);
+                      
+                      // Sync with remote clients if admin
+                      if (sessionId && isAdmin) {
+                        const sessionRef = ref(database, `sessions/${sessionId}/state`);
+                        await set(sessionRef, {
+                          ...syncState,
+                          seekPosition: value
+                        });
+                      }
+                    }}
+                    onValueChange={(value) => {
+                      setSeekPosition(value);
+                    }}
+                    minimumTrackTintColor="#BB86FC"
+                    maximumTrackTintColor="#2C2C2C"
+                  />
+                  <View style={styles.seekbarEndContainer}>
+                    <Text style={styles.timeText}>
+                      {formatTime(trackDurations[selectedSong.tracks[0]?.id] || 0)}
+                    </Text>
+                    {selectedSong && (
+                      <TouchableOpacity
+                        style={[styles.speedButton, playbackSpeed !== 1.0 && styles.speedButtonActive]}
+                        onPress={() => {
+                          const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+                          const currentIndex = speeds.indexOf(playbackSpeed);
+                          const nextIndex = (currentIndex + 1) % speeds.length;
+                          handlePlaybackSpeedChange(speeds[nextIndex]);
+                        }}
+                      >
+                        <Text style={[styles.speedText, { color: playbackSpeed !== 1.0 ? '#BB86FC' : '#BBBBBB' }]}>
+                          {playbackSpeed}x
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
             </View>
             
             <View style={[styles.mainContent, { paddingBottom: insets.bottom }]}>
