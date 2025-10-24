@@ -145,7 +145,7 @@ const SongAssignmentScreen: React.FC<SongAssignmentScreenProps> = ({
           Access: {item.accessLevel || 'Not assigned'}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#666" />
+      <Ionicons name="chevron-forward" size={20} color="#BBBBBB" />
     </TouchableOpacity>
   );
 
@@ -166,7 +166,7 @@ const SongAssignmentScreen: React.FC<SongAssignmentScreenProps> = ({
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#FFFFFF" />
         <Text style={styles.loadingText}>Loading songs...</Text>
       </View>
     );
@@ -176,7 +176,7 @@ const SongAssignmentScreen: React.FC<SongAssignmentScreenProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Song Assignment</Text>
         <View style={styles.headerSpacer} />
@@ -327,18 +327,18 @@ const SongAssignmentScreen: React.FC<SongAssignmentScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#121212',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#121212',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: '#BBBBBB',
   },
   header: {
     flexDirection: 'row',
@@ -346,17 +346,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#333333',
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   headerSpacer: {
     width: 40,
@@ -370,24 +370,24 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
     paddingHorizontal: 16,
     marginBottom: 4,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     paddingHorizontal: 16,
     marginBottom: 12,
   },
   songCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     marginHorizontal: 16,
     marginBottom: 8,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#333333',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -398,26 +398,26 @@ const styles = StyleSheet.create({
   songTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   songArtist: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 2,
   },
   songMeta: {
     fontSize: 12,
-    color: '#999',
+    color: '#AAAAAA',
     marginTop: 4,
   },
   assignmentCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     marginHorizontal: 16,
     marginBottom: 8,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#333333',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -428,11 +428,11 @@ const styles = StyleSheet.create({
   assignmentSong: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   assignmentOrg: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 2,
   },
   assignmentMeta: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   assignmentDate: {
     fontSize: 12,
-    color: '#999',
+    color: '#AAAAAA',
     marginLeft: 8,
   },
   accessLevelBadge: {
@@ -465,12 +465,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 12,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: '#AAAAAA',
     marginTop: 4,
     textAlign: 'center',
   },
@@ -489,16 +489,16 @@ const styles = StyleSheet.create({
   },
   modalCancel: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#FFFFFF',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   modalSave: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#FFFFFF',
     fontWeight: '600',
   },
   modalContent: {
@@ -514,17 +514,17 @@ const styles = StyleSheet.create({
   selectedSongTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   selectedSongArtist: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 4,
   },
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
     marginBottom: 8,
     marginTop: 16,
   },
@@ -544,12 +544,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   orgOptionSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   orgOptionText: {
     fontSize: 14,
-    color: '#333',
+    color: '#FFFFFF',
   },
   orgOptionTextSelected: {
     color: '#fff',
@@ -570,19 +570,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   accessOptionSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   accessOptionText: {
     fontSize: 14,
-    color: '#333',
+    color: '#FFFFFF',
   },
   accessOptionTextSelected: {
     color: '#fff',
   },
   accessDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     fontStyle: 'italic',
   },
 });

@@ -213,7 +213,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#BB86FC" />
         <Text style={styles.loadingText}>Loading user data...</Text>
       </View>
     );
@@ -223,7 +223,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color="#BB86FC" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {organization ? organization.name : tenant?.name} - Users
@@ -235,7 +235,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
           }}
           style={styles.addButton}
         >
-          <Ionicons name="person-add" size={24} color="#007AFF" />
+          <Ionicons name="person-add" size={24} color="#BB86FC" />
         </TouchableOpacity>
       </View>
 
@@ -319,7 +319,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                       </Text>
                     </View>
                     {selectedUser?.id === user.id && (
-                      <Ionicons name="checkmark" size={20} color="#007AFF" />
+                      <Ionicons name="checkmark" size={20} color="#BB86FC" />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -362,18 +362,18 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#121212',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#121212',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: '#BBBBBB',
   },
   header: {
     flexDirection: 'row',
@@ -381,17 +381,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#333333',
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
     flex: 1,
     textAlign: 'center',
   },
@@ -407,18 +407,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
     paddingHorizontal: 16,
     marginBottom: 12,
   },
   userCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     marginHorizontal: 16,
     marginBottom: 8,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#333333',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -429,16 +429,16 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   userRole: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 4,
   },
   userMeta: {
     fontSize: 12,
-    color: '#999',
+    color: '#AAAAAA',
     marginTop: 4,
   },
   removeButton: {
@@ -451,18 +451,18 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 12,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: '#AAAAAA',
     marginTop: 4,
     textAlign: 'center',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#121212',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -471,20 +471,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#333333',
   },
   modalCancel: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#BB86FC',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   modalSave: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#BB86FC',
     fontWeight: '600',
   },
   modalContent: {
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
     marginBottom: 8,
     marginTop: 16,
   },
@@ -523,19 +523,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   roleOptionSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#BB86FC',
+    borderColor: '#BB86FC',
   },
   roleOptionText: {
     fontSize: 14,
-    color: '#333',
+    color: '#FFFFFF',
   },
   roleOptionTextSelected: {
     color: '#fff',
   },
   roleDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     fontStyle: 'italic',
   },
   userList: {
@@ -553,8 +553,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9F9F9'
   },
   userOptionSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#F0F8FF'
+    borderColor: '#BB86FC',
+    backgroundColor: '#2A1A3A'
   },
   userOptionInfo: {
     flex: 1
@@ -565,15 +565,15 @@ const styles = StyleSheet.create({
     color: '#333'
   },
   userOptionNameSelected: {
-    color: '#007AFF'
+    color: '#BB86FC'
   },
   userOptionEmail: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 2
   },
   userOptionEmailSelected: {
-    color: '#007AFF'
+    color: '#BB86FC'
   }
 });
 

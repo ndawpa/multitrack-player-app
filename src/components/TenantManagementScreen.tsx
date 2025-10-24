@@ -135,7 +135,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
     >
       <View style={styles.tenantHeader}>
         <Text style={styles.tenantName}>{item.name}</Text>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
+        <Ionicons name="chevron-forward" size={20} color="#BBBBBB" />
       </View>
       {item.description && (
         <Text style={styles.tenantDescription}>{item.description}</Text>
@@ -148,13 +148,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
 
   const renderOrganization = ({ item }: { item: Organization }) => (
     <View style={styles.orgCard}>
-      <TouchableOpacity
-        style={styles.orgInfo}
-        onPress={() => {
-          setSelectedOrganization(item);
-          setShowUserManagement(true);
-        }}
-      >
+      <View style={styles.orgHeader}>
         <View style={styles.orgInfoContent}>
           <Text style={styles.orgName}>{item.name}</Text>
           {item.description && (
@@ -164,19 +158,29 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
             Created: {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
-        <Ionicons name="people" size={20} color="#666" />
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={styles.songAssignmentButton}
-        onPress={() => {
-          setSelectedOrganization(item);
-          setShowSongAssignment(true);
-        }}
-      >
-        <Ionicons name="musical-notes" size={20} color="#007AFF" />
-        <Text style={styles.songAssignmentText}>Songs</Text>
-      </TouchableOpacity>
+        
+        <View style={styles.orgActions}>
+          <TouchableOpacity
+            style={styles.orgActionButton}
+            onPress={() => {
+              setSelectedOrganization(item);
+              setShowUserManagement(true);
+            }}
+          >
+            <Ionicons name="people" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.orgActionButton}
+            onPress={() => {
+              setSelectedOrganization(item);
+              setShowSongAssignment(true);
+            }}
+          >
+            <Ionicons name="musical-notes" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 
@@ -211,7 +215,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#BB86FC" />
         <Text style={styles.loadingText}>Loading tenant data...</Text>
       </View>
     );
@@ -221,14 +225,14 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color="#BB86FC" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tenant Management</Text>
         <TouchableOpacity
           onPress={() => setShowCreateTenant(true)}
           style={styles.addButton}
         >
-          <Ionicons name="add" size={24} color="#007AFF" />
+          <Ionicons name="add" size={24} color="#BB86FC" />
         </TouchableOpacity>
       </View>
 
@@ -240,7 +244,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
               onPress={() => setShowCreateTenant(true)}
               style={styles.sectionAction}
             >
-              <Ionicons name="add" size={20} color="#007AFF" />
+              <Ionicons name="add" size={20} color="#BB86FC" />
             </TouchableOpacity>
           </View>
           
@@ -274,7 +278,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
                 }}
                 style={styles.sectionAction}
               >
-                <Ionicons name="add" size={20} color="#007AFF" />
+                <Ionicons name="add" size={20} color="#BB86FC" />
               </TouchableOpacity>
             </View>
             
@@ -389,18 +393,18 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#121212',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#121212',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: '#BBBBBB',
   },
   header: {
     flexDirection: 'row',
@@ -408,17 +412,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#333333',
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   addButton: {
     padding: 8,
@@ -439,19 +443,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   sectionAction: {
     padding: 4,
   },
   tenantCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     marginHorizontal: 16,
     marginBottom: 8,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#333333',
   },
   tenantHeader: {
     flexDirection: 'row',
@@ -461,26 +465,32 @@ const styles = StyleSheet.create({
   tenantName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   tenantDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 4,
   },
   tenantMeta: {
     fontSize: 12,
-    color: '#999',
+    color: '#AAAAAA',
     marginTop: 8,
   },
   orgCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     marginHorizontal: 16,
     marginBottom: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#333333',
     overflow: 'hidden',
+  },
+  orgHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
   },
   orgInfo: {
     flexDirection: 'row',
@@ -488,7 +498,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#333333',
+  },
+  orgActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  orgActionButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#2A2A2A',
   },
   orgInfoContent: {
     flex: 1,
@@ -502,23 +522,23 @@ const styles = StyleSheet.create({
   },
   songAssignmentText: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#BB86FC',
     marginLeft: 4,
     fontWeight: '500',
   },
   orgName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   orgDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 4,
   },
   orgMeta: {
     fontSize: 12,
-    color: '#999',
+    color: '#AAAAAA',
     marginTop: 8,
   },
   emptyState: {
@@ -528,18 +548,18 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#BBBBBB',
     marginTop: 12,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: '#AAAAAA',
     marginTop: 4,
     textAlign: 'center',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#121212',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -548,20 +568,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#333333',
   },
   modalCancel: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#BB86FC',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   modalSave: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#BB86FC',
     fontWeight: '600',
   },
   modalContent: {
@@ -571,18 +591,19 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
     marginBottom: 8,
     marginTop: 16,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#333333',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
+    color: '#FFFFFF',
   },
   textArea: {
     height: 80,
