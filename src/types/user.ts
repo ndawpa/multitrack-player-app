@@ -49,3 +49,13 @@ export interface ProfileUpdateForm {
   avatar?: string;
   preferences?: Partial<UserPreferences>;
 }
+
+export interface PasswordResetForm {
+  email: string;
+}
+
+export interface PasswordResetConfirmForm {
+  code: string;
+  newPassword: string;
+  confirmPassword: string;
+}

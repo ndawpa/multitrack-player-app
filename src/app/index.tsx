@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import AuthService from '../services/authService';
 import AuthScreen from '../components/AuthScreen';
+import PasswordResetScreen from '../components/PasswordResetScreen';
+import NewPasswordScreen from '../components/NewPasswordScreen';
 import ProfileScreen from '../components/ProfileScreen';
 import SettingsScreen from '../components/SettingsScreen';
 import HomePage from './HomePage';
 import { User } from '../types/user';
 
-type AppScreen = 'auth' | 'main' | 'profile' | 'settings';
+type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('auth');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resetData, setResetData] = useState<{ code: string; email: string } | null>(null);
 
   const authService = AuthService.getInstance();
 
@@ -67,6 +70,33 @@ const App = () => {
     setCurrentScreen('profile');
   };
 
+  const handleForgotPassword = () => {
+    setCurrentScreen('passwordReset');
+  };
+
+  const handlePasswordResetSuccess = () => {
+    setCurrentScreen('auth');
+  };
+
+  const handleBackFromPasswordReset = () => {
+    setCurrentScreen('auth');
+  };
+
+  const handlePasswordResetFromLink = (code: string, email: string) => {
+    setResetData({ code, email });
+    setCurrentScreen('newPassword');
+  };
+
+  const handleNewPasswordSuccess = () => {
+    setResetData(null);
+    setCurrentScreen('auth');
+  };
+
+  const handleBackFromNewPassword = () => {
+    setResetData(null);
+    setCurrentScreen('auth');
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -78,7 +108,28 @@ const App = () => {
 
   switch (currentScreen) {
     case 'auth':
-      return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+      return <AuthScreen onAuthSuccess={handleAuthSuccess} onForgotPassword={handleForgotPassword} />;
+    
+    case 'passwordReset':
+      return (
+        <PasswordResetScreen 
+          onBack={handleBackFromPasswordReset}
+          onSuccess={handlePasswordResetSuccess}
+          onPasswordResetFromLink={handlePasswordResetFromLink}
+        />
+      );
+    
+    case 'newPassword':
+      return resetData ? (
+        <NewPasswordScreen 
+          resetCode={resetData.code}
+          email={resetData.email}
+          onBack={handleBackFromNewPassword}
+          onSuccess={handleNewPasswordSuccess}
+        />
+      ) : (
+        <AuthScreen onAuthSuccess={handleAuthSuccess} onForgotPassword={handleForgotPassword} />
+      );
     
     case 'profile':
       return (

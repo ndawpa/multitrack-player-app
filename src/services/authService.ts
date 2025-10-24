@@ -4,11 +4,14 @@ import {
   signOut, 
   onAuthStateChanged,
   updateProfile,
+  sendPasswordResetEmail,
+  confirmPasswordReset,
+  verifyPasswordResetCode,
   User as FirebaseUser
 } from 'firebase/auth';
 import { ref, set, get, onValue, off } from 'firebase/database';
 import { auth, database } from '../config/firebase';
-import { User, UserPreferences, UserStats, AuthUser, LoginForm, SignupForm, ProfileUpdateForm } from '../types/user';
+import { User, UserPreferences, UserStats, AuthUser, LoginForm, SignupForm, ProfileUpdateForm, PasswordResetForm, PasswordResetConfirmForm } from '../types/user';
 
 class AuthService {
   private static instance: AuthService;
@@ -303,6 +306,59 @@ class AuthService {
     } catch (error) {
       console.error('Error updating user stats:', error);
       throw error;
+    }
+  }
+
+  public async sendPasswordResetEmail(email: string): Promise<void> {
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      console.error('Password reset email error:', error);
+      
+      // Provide user-friendly error messages
+      if (error.code === 'auth/user-not-found') {
+        throw new Error('No account found with this email address.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('Please enter a valid email address.');
+      } else if (error.code === 'auth/too-many-requests') {
+        throw new Error('Too many requests. Please try again later.');
+      } else {
+        throw new Error(error.message || 'An error occurred while sending the reset email.');
+      }
+    }
+  }
+
+  public async verifyPasswordResetCode(code: string): Promise<string> {
+    try {
+      return await verifyPasswordResetCode(auth, code);
+    } catch (error: any) {
+      console.error('Password reset code verification error:', error);
+      
+      if (error.code === 'auth/invalid-action-code') {
+        throw new Error('Invalid or expired reset code.');
+      } else if (error.code === 'auth/expired-action-code') {
+        throw new Error('Reset code has expired. Please request a new one.');
+      } else {
+        throw new Error(error.message || 'Invalid reset code.');
+      }
+    }
+  }
+
+  public async confirmPasswordReset(code: string, newPassword: string): Promise<void> {
+    try {
+      await confirmPasswordReset(auth, code, newPassword);
+    } catch (error: any) {
+      console.error('Password reset confirmation error:', error);
+      
+      if (error.code === 'auth/invalid-action-code') {
+        throw new Error('Invalid or expired reset code.');
+      } else if (error.code === 'auth/expired-action-code') {
+        throw new Error('Reset code has expired. Please request a new one.');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('Password should be at least 6 characters.');
+      } else {
+        throw new Error(error.message || 'An error occurred while resetting the password.');
+      }
     }
   }
 }

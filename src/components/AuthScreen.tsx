@@ -18,9 +18,10 @@ import { LoginForm, SignupForm } from '../types/user';
 
 interface AuthScreenProps {
   onAuthSuccess: () => void;
+  onForgotPassword: () => void;
 }
 
-const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
+const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword }) => {
   const insets = useSafeAreaInsets();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -157,6 +158,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             </View>
           </View>
 
+          {isLogin && (
+            <TouchableOpacity style={styles.forgotPasswordButton} onPress={onForgotPassword}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={isLogin ? handleLogin : handleSignup}
@@ -273,6 +280,15 @@ const styles = StyleSheet.create({
   toggleText: {
     color: '#BB86FC',
     fontSize: 14,
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 10,
+  },
+  forgotPasswordText: {
+    color: '#BB86FC',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });
 
