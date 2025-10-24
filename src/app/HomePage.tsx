@@ -797,9 +797,33 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         ]}
         onPress={() => handleSongSelect(item)}
       >
+        {/* Content indicators - positioned in top-right corner */}
+        <View style={styles.contentIndicators}>
+          {item.tracks && item.tracks.length > 0 && (
+            <View style={styles.contentIndicator}>
+              <Ionicons name="musical-notes" size={8} color="#BB86FC" />
+            </View>
+          )}
+          {item.lyrics && item.lyrics.trim() && (
+            <View style={styles.contentIndicator}>
+              <Ionicons name="document-text" size={8} color="#BB86FC" />
+            </View>
+          )}
+          {item.scores && item.scores.length > 0 && (
+            <View style={styles.contentIndicator}>
+              <Ionicons name="musical-note" size={8} color="#BB86FC" />
+            </View>
+          )}
+          {item.resources && item.resources.length > 0 && (
+            <View style={styles.contentIndicator}>
+              <Ionicons name="link" size={8} color="#BB86FC" />
+            </View>
+          )}
+        </View>
+
         <View style={styles.songInfo}>
           <View style={styles.titleContainer}>
-            <Text style={styles.songTitle}>{item.title}</Text>
+            <Text style={styles.songTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
             {item.matchInfo?.titleMatch && (
               <View style={styles.matchBadge}>
                 <Text style={styles.matchBadgeText}>Title</Text>
@@ -807,7 +831,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
             )}
           </View>
           <View style={styles.artistContainer}>
-            <Text style={styles.songArtist}>{item.artist}</Text>
+            <Text style={styles.songArtist} numberOfLines={1} ellipsizeMode="tail">{item.artist}</Text>
             {item.matchInfo?.artistMatch && (
               <View style={styles.matchBadge}>
                 <Text style={styles.matchBadgeText}>Artist</Text>
@@ -849,6 +873,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
             </View>
           )}
         </View>
+        
         <View style={styles.songActions}>
           {isAdminMode && (
             <>
@@ -3710,12 +3735,14 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     marginBottom: 8,
+    position: 'relative',
   },
   selectedSongItem: {
     backgroundColor: '#2C2C2C',
   },
   songInfo: {
     flex: 1,
+    marginRight: 8,
   },
   songTitle: {
     fontSize: 16,
@@ -4176,6 +4203,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     marginBottom: 4,
+  },
+  contentIndicators: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    zIndex: 1,
+  },
+  contentIndicator: {
+    backgroundColor: 'rgba(42, 42, 42, 0.8)',
+    borderRadius: 4,
+    padding: 1,
+    borderWidth: 0.5,
+    borderColor: 'rgba(187, 134, 252, 0.6)',
+    width: 12,
+    height: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   songActions: {
     flexDirection: 'row',
