@@ -38,7 +38,7 @@ interface Score {
 interface Resource {
   id: string;
   name: string;
-  type: 'youtube' | 'download' | 'link' | 'document';
+  type: 'youtube' | 'download' | 'link' | 'pdf';
   url: string;
   description?: string;
 }
@@ -1661,7 +1661,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                     <View style={styles.resourceTypeContainer}>
                       <Text style={styles.resourceTypeLabel}>Type:</Text>
                       <View style={styles.resourceTypeButtons}>
-                        {['youtube', 'download', 'link', 'document'].map((type) => (
+                        {['youtube', 'download', 'link', 'pdf'].map((type) => (
                           <TouchableOpacity
                             key={type}
                             style={[
@@ -1681,7 +1681,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                               styles.resourceTypeButtonText,
                               resource.type === type && styles.resourceTypeButtonTextActive
                             ]}>
-                              {type === 'youtube' ? 'Video' : type.charAt(0).toUpperCase() + type.slice(1)}
+                              {type === 'youtube' ? 'Video' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
                             </Text>
                           </TouchableOpacity>
                         ))}
@@ -2309,7 +2309,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                   <View style={styles.resourceTypeContainer}>
                     <Text style={styles.resourceTypeLabel}>Type:</Text>
                     <View style={styles.resourceTypeButtons}>
-                      {['youtube', 'download', 'link', 'document'].map((type) => (
+                      {['youtube', 'download', 'link', 'pdf'].map((type) => (
                         <TouchableOpacity
                           key={type}
                           style={[
@@ -2328,7 +2328,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                             styles.resourceTypeButtonText,
                             resource.type === type && styles.resourceTypeButtonTextActive
                           ]}>
-                            {type === 'youtube' ? 'Video' : type.charAt(0).toUpperCase() + type.slice(1)}
+                            {type === 'youtube' ? 'Video' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -2814,7 +2814,68 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                               domStorageEnabled={true}
                             />
                           </View>
-                        ) : resource.type === 'download' || resource.type === 'document' ? (
+                        ) : resource.type === 'pdf' ? (
+                          <View style={styles.sheetMusicView}>
+                            <WebView
+                              source={{ 
+                                uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(resource.url)}`
+                              }}
+                              style={{
+                                height: 400,
+                                width: Dimensions.get('window').width - 48,
+                                backgroundColor: '#FFFFFF',
+                              }}
+                              javaScriptEnabled={true}
+                              domStorageEnabled={true}
+                              startInLoadingState={true}
+                              onError={(syntheticEvent) => {
+                                const { nativeEvent } = syntheticEvent;
+                                console.error('PDF WebView error:', nativeEvent);
+                                console.log('PDF URL:', resource.url);
+                                console.log('Full PDF.js URL:', `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(resource.url)}`);
+                                Alert.alert(
+                                  'PDF Viewing Error',
+                                  `Unable to load PDF: ${resource.url}\n\nThis might be due to CORS restrictions. You can try opening it in your browser.`,
+                                  [
+                                    {
+                                      text: 'Open in Browser',
+                                      onPress: () => {
+                                        Linking.openURL(resource.url);
+                                      }
+                                    },
+                                    {
+                                      text: 'Try Alternative',
+                                      onPress: () => {
+                                        // Try opening with Google Docs viewer as fallback
+                                        const googleDocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(resource.url)}&embedded=true`;
+                                        Linking.openURL(googleDocsUrl);
+                                      }
+                                    },
+                                    {
+                                      text: 'Cancel',
+                                      style: 'cancel'
+                                    }
+                                  ]
+                                );
+                              }}
+                              onLoadStart={() => {
+                                console.log('PDF loading started for:', resource.url);
+                              }}
+                              onLoadEnd={() => {
+                                console.log('PDF loading ended for:', resource.url);
+                              }}
+                              onMessage={(event) => {
+                                console.log('PDF WebView message:', event.nativeEvent.data);
+                              }}
+                              renderLoading={() => (
+                                <View style={styles.loadingContainer}>
+                                  <ActivityIndicator size="large" color="#BB86FC" />
+                                  <Text style={styles.loadingText}>Loading PDF...</Text>
+                                </View>
+                              )}
+                            />
+                          </View>
+                        ) : resource.type === 'download' ? (
                           <View style={styles.resourceLinkContainer}>
                             <TouchableOpacity
                               style={styles.resourceDownloadButton}
@@ -2822,7 +2883,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                             >
                               <Ionicons name="download-outline" size={24} color="#FFFFFF" />
                               <Text style={styles.resourceDownloadText}>
-                                {resource.type === 'download' ? 'Download File' : 'Open Document'}
+                                Download File
                               </Text>
                             </TouchableOpacity>
                           </View>
