@@ -35,6 +35,14 @@ interface Score {
   url: string;
 }
 
+interface Resource {
+  id: string;
+  name: string;
+  type: 'youtube' | 'download' | 'link' | 'document';
+  url: string;
+  description?: string;
+}
+
 interface Song {
   id: string;
   title: string;
@@ -42,6 +50,7 @@ interface Song {
   tracks?: Track[];  // Optional tracks field
   lyrics?: string;  // Optional lyrics field
   scores?: Score[];  // Array of scores instead of single score
+  resources?: Resource[];  // Array of resources
 }
 
 // Add new interface for song creation
@@ -55,6 +64,7 @@ interface NewSongForm {
   }[];
   lyrics: string;
   scores: Score[];
+  resources: Resource[];
 }
 
 interface EditSongForm {
@@ -69,6 +79,7 @@ interface EditSongForm {
   }[];
   lyrics?: string;
   scores: Score[];
+  resources: Resource[];
 }
 
 interface SyncState {
@@ -157,6 +168,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
   const [isSessionMenuExpanded, setIsSessionMenuExpanded] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
   const [expandedScores, setExpandedScores] = useState<{ [key: string]: boolean }>({});
+  const [expandedResources, setExpandedResources] = useState<{ [key: string]: boolean }>({});
   const [isFinished, setIsFinished] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Add playback speed state
@@ -194,7 +206,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     artist: '',
     tracks: [],
     lyrics: '',
-    scores: []
+    scores: [],
+    resources: []
   });
   const [showEditSongDialog, setShowEditSongDialog] = useState(false);
   const [editingSong, setEditingSong] = useState<EditSongForm | null>(null);
@@ -205,7 +218,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
   const [password, setPassword] = useState('');
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
   const [isLyricsExpanded, setIsLyricsExpanded] = useState(false);
-  const [activeView, setActiveView] = useState<'tracks' | 'lyrics' | 'sheetMusic' | 'score'>('tracks');
+  const [activeView, setActiveView] = useState<'tracks' | 'lyrics' | 'sheetMusic' | 'score' | 'resources'>('tracks');
   const [isLyricsEditing, setIsLyricsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState('');
   const [showArtistFilterDialog, setShowArtistFilterDialog] = useState(false);
@@ -1364,7 +1377,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         file: null
       })),
       lyrics: song.lyrics,
-      scores: song.scores || []
+      scores: song.scores || [],
+      resources: song.resources || []
     });
     setShowEditSongDialog(true);
   };
@@ -1467,7 +1481,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         artist: editingSong.artist,
         tracks: updatedTracks,
         lyrics: editingSong.lyrics || '',
-        scores: editingSong.scores || []
+        scores: editingSong.scores || [],
+        resources: editingSong.resources || []
       };
 
       // Update song in Firebase
@@ -1621,6 +1636,120 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                 }}
               >
                 <Text style={styles.uploadButtonText}>Add Score</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.lyricsSection}>
+              <Text style={styles.sectionTitle}>Links</Text>
+              <View style={styles.scoreList}>
+                {editingSong.resources.map((resource, index) => (
+                  <View key={resource.id} style={styles.resourceItemContainer}>
+                    <TextInput
+                      style={[styles.dialogInput, { flex: 1 }]}
+                      placeholder="Link Name"
+                      placeholderTextColor="#666666"
+                      value={resource.name}
+                      onChangeText={(text) => {
+                        setEditingSong(prev => {
+                          if (!prev) return null;
+                          const newResources = [...prev.resources];
+                          newResources[index] = { ...newResources[index], name: text };
+                          return { ...prev, resources: newResources };
+                        });
+                      }}
+                    />
+                    <View style={styles.resourceTypeContainer}>
+                      <Text style={styles.resourceTypeLabel}>Type:</Text>
+                      <View style={styles.resourceTypeButtons}>
+                        {['youtube', 'download', 'link', 'document'].map((type) => (
+                          <TouchableOpacity
+                            key={type}
+                            style={[
+                              styles.resourceTypeButton,
+                              resource.type === type && styles.resourceTypeButtonActive
+                            ]}
+                            onPress={() => {
+                              setEditingSong(prev => {
+                                if (!prev) return null;
+                                const newResources = [...prev.resources];
+                                newResources[index] = { ...newResources[index], type: type as any };
+                                return { ...prev, resources: newResources };
+                              });
+                            }}
+                          >
+                            <Text style={[
+                              styles.resourceTypeButtonText,
+                              resource.type === type && styles.resourceTypeButtonTextActive
+                            ]}>
+                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                    <TextInput
+                      style={[styles.dialogInput, { flex: 1 }]}
+                      placeholder="URL"
+                      placeholderTextColor="#666666"
+                      value={resource.url}
+                      onChangeText={(text) => {
+                        setEditingSong(prev => {
+                          if (!prev) return null;
+                          const newResources = [...prev.resources];
+                          newResources[index] = { ...newResources[index], url: text };
+                          return { ...prev, resources: newResources };
+                        });
+                      }}
+                    />
+                    <TextInput
+                      style={[styles.dialogInput, { flex: 1 }]}
+                      placeholder="Description (optional)"
+                      placeholderTextColor="#666666"
+                      value={resource.description || ''}
+                      onChangeText={(text) => {
+                        setEditingSong(prev => {
+                          if (!prev) return null;
+                          const newResources = [...prev.resources];
+                          newResources[index] = { ...newResources[index], description: text };
+                          return { ...prev, resources: newResources };
+                        });
+                      }}
+                    />
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => {
+                        setEditingSong(prev => {
+                          if (!prev) return null;
+                          const newResources = prev.resources.filter((_, i) => i !== index);
+                          return { ...prev, resources: newResources };
+                        });
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={() => {
+                  setEditingSong(prev => {
+                    if (!prev) return null;
+                    const newResource: Resource = {
+                      id: generateId(),
+                      name: '',
+                      type: 'link',
+                      url: '',
+                      description: ''
+                    };
+                    return {
+                      ...prev,
+                      resources: [...prev.resources, newResource]
+                    };
+                  });
+                }}
+              >
+                <Text style={styles.uploadButtonText}>Add Link</Text>
               </TouchableOpacity>
             </View>
             
@@ -1947,7 +2076,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         artist: newSong.artist,
         tracks,
         lyrics: newSong.lyrics,
-        scores: newSong.scores
+        scores: newSong.scores,
+        resources: newSong.resources
       };
 
       // Add to Firebase
@@ -1957,7 +2087,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         artist: songToAdd.artist,
         tracks: songToAdd.tracks,
         lyrics: songToAdd.lyrics,
-        scores: songToAdd.scores
+        scores: songToAdd.scores,
+        resources: songToAdd.resources
       });
 
       // Reset form and close dialog
@@ -1966,7 +2097,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         artist: '',
         tracks: [],
         lyrics: '',
-        scores: []
+        scores: [],
+        resources: []
       });
       setShowAddSongDialog(false);
     } catch (error) {
@@ -2156,6 +2288,114 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
             </TouchableOpacity>
           </View>
           
+          <View style={styles.lyricsSection}>
+            <Text style={styles.sectionTitle}>Links</Text>
+            <View style={styles.scoreList}>
+              {newSong.resources.map((resource, index) => (
+                <View key={resource.id} style={styles.resourceItemContainer}>
+                  <TextInput
+                    style={[styles.dialogInput, { flex: 1 }]}
+                    placeholder="Link Name"
+                    placeholderTextColor="#666666"
+                    value={resource.name}
+                    onChangeText={(text) => {
+                      setNewSong(prev => {
+                        const newResources = [...prev.resources];
+                        newResources[index] = { ...newResources[index], name: text };
+                        return { ...prev, resources: newResources };
+                      });
+                    }}
+                  />
+                  <View style={styles.resourceTypeContainer}>
+                    <Text style={styles.resourceTypeLabel}>Type:</Text>
+                    <View style={styles.resourceTypeButtons}>
+                      {['youtube', 'download', 'link', 'document'].map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.resourceTypeButton,
+                            resource.type === type && styles.resourceTypeButtonActive
+                          ]}
+                          onPress={() => {
+                            setNewSong(prev => {
+                              const newResources = [...prev.resources];
+                              newResources[index] = { ...newResources[index], type: type as any };
+                              return { ...prev, resources: newResources };
+                            });
+                          }}
+                        >
+                          <Text style={[
+                            styles.resourceTypeButtonText,
+                            resource.type === type && styles.resourceTypeButtonTextActive
+                          ]}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <TextInput
+                    style={[styles.dialogInput, { flex: 1 }]}
+                    placeholder="URL"
+                    placeholderTextColor="#666666"
+                    value={resource.url}
+                    onChangeText={(text) => {
+                      setNewSong(prev => {
+                        const newResources = [...prev.resources];
+                        newResources[index] = { ...newResources[index], url: text };
+                        return { ...prev, resources: newResources };
+                      });
+                    }}
+                  />
+                  <TextInput
+                    style={[styles.dialogInput, { flex: 1 }]}
+                    placeholder="Description (optional)"
+                    placeholderTextColor="#666666"
+                    value={resource.description || ''}
+                    onChangeText={(text) => {
+                      setNewSong(prev => {
+                        const newResources = [...prev.resources];
+                        newResources[index] = { ...newResources[index], description: text };
+                        return { ...prev, resources: newResources };
+                      });
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => {
+                      setNewSong(prev => {
+                        const newResources = prev.resources.filter((_, i) => i !== index);
+                        return { ...prev, resources: newResources };
+                      });
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={() => {
+                setNewSong(prev => {
+                  const newResource: Resource = {
+                    id: generateId(),
+                    name: '',
+                    type: 'link',
+                    url: '',
+                    description: ''
+                  };
+                  return {
+                    ...prev,
+                    resources: [...prev.resources, newResource]
+                  };
+                });
+              }}
+            >
+              <Text style={styles.uploadButtonText}>Add Link</Text>
+            </TouchableOpacity>
+          </View>
+          
           <View style={styles.tracksHeader}>
             <Text style={styles.tracksTitle}>Tracks</Text>
             <TouchableOpacity
@@ -2247,6 +2487,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     }));
   };
 
+  const toggleResourceExpansion = (resourceId: string) => {
+    setExpandedResources(prev => ({
+      ...prev,
+      [resourceId]: !prev[resourceId]
+    }));
+  };
+
   const renderSongView = () => {
     if (!selectedSong) return null;
 
@@ -2306,6 +2553,25 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                 styles.viewToggleText,
                 activeView === 'score' && styles.viewToggleTextActive
               ]}>Scores</Text>
+            </TouchableOpacity>
+          )}
+          {selectedSong.resources && selectedSong.resources.length > 0 && (
+            <TouchableOpacity 
+              style={[
+                styles.viewToggleButton,
+                activeView === 'resources' && styles.viewToggleButtonActive
+              ]}
+              onPress={() => setActiveView('resources')}
+            >
+              <Ionicons 
+                name="link" 
+                size={20} 
+                color={activeView === 'resources' ? '#BB86FC' : '#BBBBBB'} 
+              />
+              <Text style={[
+                styles.viewToggleText,
+                activeView === 'resources' && styles.viewToggleTextActive
+              ]}>Links</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -2439,7 +2705,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                   <Text style={styles.lyricsText}>{selectedSong.lyrics}</Text>
                 )}
               </View>
-            ) : (
+            ) : activeView === 'score' ? (
               // Scores view content
               <View style={styles.sheetMusicContainer}>
                 {selectedSong.scores?.map((score, index) => (
@@ -2507,6 +2773,71 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                           />
                         </TouchableOpacity>
                       )
+                    )}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              // Resources view content
+              <View style={styles.sheetMusicContainer}>
+                {selectedSong.resources?.map((resource, index) => (
+                  <View key={resource.id} style={styles.scoreView}>
+                    <TouchableOpacity
+                      style={styles.scoreHeader}
+                      onPress={() => toggleResourceExpansion(resource.id)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.scoreTitle}>{resource.name}</Text>
+                        {resource.description && (
+                          <Text style={styles.resourceDescription}>{resource.description}</Text>
+                        )}
+                      </View>
+                      <Ionicons
+                        name={expandedResources[resource.id] ? "chevron-up" : "chevron-down"}
+                        size={24}
+                        color="#BB86FC"
+                      />
+                    </TouchableOpacity>
+                    {expandedResources[resource.id] && (
+                      <View style={styles.resourceContent}>
+                        {resource.type === 'youtube' ? (
+                          <View style={styles.sheetMusicView}>
+                            <WebView
+                              source={{ uri: resource.url }}
+                              style={{
+                                height: 300,
+                                width: Dimensions.get('window').width - 48,
+                                backgroundColor: '#000000',
+                              }}
+                              allowsFullscreenVideo={true}
+                              javaScriptEnabled={true}
+                              domStorageEnabled={true}
+                            />
+                          </View>
+                        ) : resource.type === 'download' || resource.type === 'document' ? (
+                          <View style={styles.resourceLinkContainer}>
+                            <TouchableOpacity
+                              style={styles.resourceDownloadButton}
+                              onPress={() => Linking.openURL(resource.url)}
+                            >
+                              <Ionicons name="download-outline" size={24} color="#FFFFFF" />
+                              <Text style={styles.resourceDownloadText}>
+                                {resource.type === 'download' ? 'Download File' : 'Open Document'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <View style={styles.resourceLinkContainer}>
+                            <TouchableOpacity
+                              style={styles.resourceLinkButton}
+                              onPress={() => Linking.openURL(resource.url)}
+                            >
+                              <Ionicons name="open-outline" size={24} color="#FFFFFF" />
+                              <Text style={styles.resourceLinkText}>Open Link</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
                     )}
                   </View>
                 ))}
@@ -2842,7 +3173,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
       setRecordingName('Voice Recording');
 
       // Reload the song to include the new track
-      const updatedSong = { ...selectedSong, tracks: [...selectedSong.tracks, newTrack] };
+      const updatedSong = { ...selectedSong, tracks: [...(selectedSong.tracks || []), newTrack] };
       setSelectedSong(updatedSong);
       
       console.log('Recording saved successfully');
@@ -3734,6 +4065,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    marginTop: 8,
+  },
+  expandButtonText: {
+    color: '#BB86FC',
+    fontSize: 14,
+    marginRight: 4,
+  },
   removeTrackButton: {
     padding: 4,
   },
@@ -3957,6 +4299,85 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     flex: 1,
+  },
+  resourceDescription: {
+    fontSize: 12,
+    color: '#AAAAAA',
+    marginTop: 4,
+  },
+  resourceContent: {
+    marginTop: 8,
+  },
+  resourceLinkContainer: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  resourceDownloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#BB86FC',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  resourceDownloadText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  resourceLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#03DAC6',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  resourceLinkText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  resourceItemContainer: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 8,
+  },
+  resourceTypeContainer: {
+    marginVertical: 8,
+  },
+  resourceTypeLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  resourceTypeButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  resourceTypeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: '#444444',
+  },
+  resourceTypeButtonActive: {
+    backgroundColor: '#BB86FC',
+    borderColor: '#BB86FC',
+  },
+  resourceTypeButtonText: {
+    color: '#AAAAAA',
+    fontSize: 12,
+  },
+  resourceTypeButtonTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   dialogContainer: {
     backgroundColor: '#1E1E1E',
