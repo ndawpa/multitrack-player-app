@@ -1528,6 +1528,75 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
               onChangeText={(text) => setEditingSong(prev => prev ? { ...prev, artist: text } : null)}
             />
             
+            <View style={styles.tracksHeader}>
+              <Text style={styles.tracksTitle}>Tracks</Text>
+              <TouchableOpacity
+                style={styles.addTrackButton}
+                onPress={addMultipleTracksToSong}
+              >
+                <Ionicons name="add-circle" size={24} color="#BB86FC" />
+                <Text style={styles.addTrackButtonText}>Add Tracks</Text>
+              </TouchableOpacity>
+            </View>
+
+            {editingSong.tracks.map((track, index) => (
+              <View key={track.id} style={styles.trackUploadContainer}>
+                <View style={styles.trackHeader}>
+                  <TextInput
+                    style={[styles.trackNameInput, { flex: 1 }]}
+                    placeholder={`Track ${index + 1} Name`}
+                    placeholderTextColor="#666666"
+                    value={track.name}
+                    onChangeText={(text) => updateTrackNameInSong(track.id, text)}
+                  />
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={async () => {
+                      try {
+                        const result = await AudioStorageService.getInstance().pickAudioFile();
+                        if (result) {
+                          setEditingSong(prev => {
+                            if (!prev) return null;
+                            return {
+                              ...prev,
+                              tracks: prev.tracks.map((t) => 
+                                t.id === track.id ? { ...t, file: result } : t
+                              )
+                            };
+                          });
+                        }
+                      } catch (error) {
+                        Alert.alert('Error', 'Failed to pick audio file');
+                      }
+                    }}
+                  >
+                    <Ionicons name="cloud-upload-outline" size={24} color="#BB86FC" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => removeTrackFromSong(track.id)}
+                  >
+                    <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                  </TouchableOpacity>
+                </View>
+                {track.file ? (
+                  <View style={styles.fileNameContainer}>
+                    <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
+                      {track.file.name}
+                    </Text>
+                  </View>
+                ) : track.path ? (
+                  <View style={styles.fileNameContainer}>
+                    <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
+                      Current: {track.path.split('/').pop()}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.uploadPrompt}>Tap upload to select audio file</Text>
+                )}
+              </View>
+            ))}
+            
             <View style={styles.lyricsSection}>
               <View style={styles.lyricsHeader}>
                 <Text style={styles.sectionTitle}>Lyrics</Text>
@@ -1754,70 +1823,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                 <Text style={styles.uploadButtonText}>Add Link</Text>
               </TouchableOpacity>
             </View>
-            
-            <View style={styles.tracksHeader}>
-              <Text style={styles.tracksTitle}>Tracks</Text>
-              <TouchableOpacity
-                style={styles.addTrackButton}
-                onPress={addMultipleTracksToSong}
-              >
-                <Ionicons name="add-circle" size={24} color="#BB86FC" />
-                <Text style={styles.addTrackButtonText}>Add Tracks</Text>
-              </TouchableOpacity>
-            </View>
 
-            {editingSong.tracks.map((track, index) => (
-              <View key={track.id} style={styles.trackUploadContainer}>
-                <View style={styles.trackHeader}>
-                  <TextInput
-                    style={[styles.trackNameInput, { flex: 1 }]}
-                    placeholder={`Track ${index + 1} Name`}
-                    placeholderTextColor="#666666"
-                    value={track.name}
-                    onChangeText={(text) => updateTrackNameInSong(track.id, text)}
-                  />
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={async () => {
-                      try {
-                        const result = await AudioStorageService.getInstance().pickAudioFile();
-                        if (result) {
-                          setEditingSong(prev => {
-                            if (!prev) return null;
-                            return {
-                              ...prev,
-                              tracks: prev.tracks.map((t) => 
-                                t.id === track.id ? { ...t, file: result } : t
-                              )
-                            };
-                          });
-                        }
-                      } catch (error) {
-                        Alert.alert('Error', 'Failed to pick audio file');
-                      }
-                    }}
-                  >
-                    <Ionicons name="cloud-upload-outline" size={24} color="#BB86FC" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={() => removeTrackFromSong(track.id)}
-                  >
-                    <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                  </TouchableOpacity>
-                </View>
-                {track.file ? (
-                  <Text style={styles.fileName} numberOfLines={1}>
-                    {track.file.name}
-                  </Text>
-                ) : (
-                  <Text style={styles.fileName} numberOfLines={1}>
-                    Current: {track.path.split('/').pop()}
-                  </Text>
-                )}
-              </View>
-            ))}
-            
             {/* Rest of the dialog content */}
           </ScrollView>
           <View style={styles.dialogButtonContainer}>
@@ -2184,6 +2190,66 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
             onChangeText={(text) => setNewSong(prev => ({ ...prev, artist: text }))}
           />
           
+          <View style={styles.tracksHeader}>
+            <Text style={styles.tracksTitle}>Tracks</Text>
+            <TouchableOpacity
+              style={styles.addTrackButton}
+              onPress={addMultipleTracks}
+            >
+              <Ionicons name="add-circle" size={24} color="#BB86FC" />
+              <Text style={styles.addTrackButtonText}>Add Tracks</Text>
+            </TouchableOpacity>
+          </View>
+
+          {newSong.tracks.map((track, index) => (
+            <View key={track.id} style={styles.trackUploadContainer}>
+              <View style={styles.trackHeader}>
+                <TextInput
+                  style={[styles.trackNameInput, { flex: 1 }]}
+                  placeholder={`Track ${index + 1} Name`}
+                  placeholderTextColor="#666666"
+                  value={track.name}
+                  onChangeText={(text) => updateTrackName(track.id, text)}
+                />
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={async () => {
+                    try {
+                      const result = await AudioStorageService.getInstance().pickAudioFile();
+                      if (result) {
+                        setNewSong(prev => ({
+                          ...prev,
+                          tracks: prev.tracks.map((t) => 
+                            t.id === track.id ? { ...t, file: result } : t
+                          )
+                        }));
+                      }
+                    } catch (error) {
+                      Alert.alert('Error', 'Failed to pick audio file');
+                    }
+                  }}
+                >
+                  <Ionicons name="cloud-upload-outline" size={24} color="#BB86FC" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() => removeTrack(track.id)}
+                >
+                  <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                </TouchableOpacity>
+              </View>
+              {track.file ? (
+                <View style={styles.fileNameContainer}>
+                  <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
+                    {track.file.name}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.uploadPrompt}>Tap upload to select audio file</Text>
+              )}
+            </View>
+          ))}
+          
           <View style={styles.lyricsSection}>
             <View style={styles.lyricsHeader}>
               <Text style={styles.sectionTitle}>Lyrics</Text>
@@ -2399,44 +2465,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
               <Text style={styles.uploadButtonText}>Add Link</Text>
             </TouchableOpacity>
           </View>
-          
-          <View style={styles.tracksHeader}>
-            <Text style={styles.tracksTitle}>Tracks</Text>
-            <TouchableOpacity
-              style={styles.addTrackButton}
-              onPress={addMultipleTracks}
-            >
-              <Ionicons name="add-circle" size={24} color="#BB86FC" />
-              <Text style={styles.addTrackButtonText}>Add Tracks</Text>
-            </TouchableOpacity>
-          </View>
-
-          {newSong.tracks.map((track, index) => (
-            <View key={track.id} style={styles.trackUploadContainer}>
-              <View style={styles.trackHeader}>
-                <TextInput
-                  style={[styles.trackNameInput, { flex: 1 }]}
-                  placeholder={`Track ${index + 1} Name`}
-                  placeholderTextColor="#666666"
-                  value={track.name}
-                  onChangeText={(text) => updateTrackName(track.id, text)}
-                />
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() => removeTrack(track.id)}
-                >
-                  <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                </TouchableOpacity>
-              </View>
-              {track.file && (
-                <View style={styles.fileNameContainer}>
-                  <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
-                    {track.file.name}
-                  </Text>
-                </View>
-              )}
-            </View>
-          ))}
         </ScrollView>
         <View style={styles.dialogButtonContainer}>
           <TouchableOpacity 
