@@ -7,10 +7,11 @@ import NewPasswordScreen from '../components/NewPasswordScreen';
 import ProfileScreen from '../components/ProfileScreen';
 import SettingsScreen from '../components/SettingsScreen';
 import EmailVerificationScreen from '../components/EmailVerificationScreen';
+import TenantManagementScreen from '../components/TenantManagementScreen';
 import HomePage from './HomePage';
 import { User } from '../types/user';
 
-type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification';
+type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification' | 'tenantManagement';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('auth');
@@ -62,6 +63,10 @@ const App = () => {
 
   const handleNavigateToSettings = () => {
     setCurrentScreen('settings');
+  };
+
+  const handleNavigateToTenantManagement = () => {
+    setCurrentScreen('tenantManagement');
   };
 
   const handleBackToMain = () => {
@@ -189,11 +194,20 @@ const App = () => {
         />
       );
     
+    case 'tenantManagement':
+      return (
+        <TenantManagementScreen 
+          onBack={handleBackToMain}
+          userId={user?.id || ''}
+        />
+      );
+    
     case 'main':
     default:
       return (
         <HomePage 
           onNavigateToProfile={handleNavigateToProfile}
+          onNavigateToTenantManagement={handleNavigateToTenantManagement}
           user={user}
         />
       );

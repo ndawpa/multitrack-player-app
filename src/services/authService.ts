@@ -15,6 +15,7 @@ import {
 import { ref, set, get, onValue, off } from 'firebase/database';
 import { auth, database } from '../config/firebase';
 import { User, UserPreferences, UserStats, AuthUser, LoginForm, SignupForm, ProfileUpdateForm, PasswordResetForm, PasswordResetConfirmForm } from '../types/user';
+import TenantService from './tenantService';
 
 class AuthService {
   private static instance: AuthService;
@@ -219,6 +220,11 @@ class AuthService {
       
       if (snapshot.exists()) {
         const userData = snapshot.val();
+        
+        // Load tenant assignments
+        const tenantService = TenantService.getInstance();
+        const tenantAssignments = await tenantService.getUserTenantAssignments(uid);
+        
         this.currentUser = {
           ...userData,
           createdAt: new Date(userData.createdAt),
@@ -228,7 +234,8 @@ class AuthService {
             ...userData.stats,
             joinedDate: new Date(userData.stats.joinedDate),
             lastSessionDate: userData.stats.lastSessionDate ? new Date(userData.stats.lastSessionDate) : undefined
-          }
+          },
+          tenantAssignments
         };
         this.notifyAuthStateListeners(this.currentUser);
       } else {

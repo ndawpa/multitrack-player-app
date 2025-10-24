@@ -1,0 +1,55 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    
+    "tenants": {
+      "$tenantId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "organizations": {
+      "$orgId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "userTenantAssignments": {
+      "$assignmentId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "songs": {
+      "$songId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "songAccess": {
+      "$accessId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "tenantRoles": {
+      "$roleId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}

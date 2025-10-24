@@ -8,6 +8,10 @@ export interface User {
   createdAt: Date;
   lastActiveAt: Date;
   emailVerified: boolean;
+  // Tenant/Organization relationships
+  currentTenantId?: string;
+  currentOrganizationId?: string;
+  tenantAssignments?: UserTenantAssignment[];
 }
 
 export interface UserPreferences {
@@ -49,6 +53,8 @@ export interface ProfileUpdateForm {
   displayName?: string;
   avatar?: string;
   preferences?: Partial<UserPreferences>;
+  currentTenantId?: string;
+  currentOrganizationId?: string;
 }
 
 export interface PasswordResetForm {
@@ -60,3 +66,6 @@ export interface PasswordResetConfirmForm {
   newPassword: string;
   confirmPassword: string;
 }
+
+// Import tenant types
+import { UserTenantAssignment } from './tenant';
