@@ -1681,7 +1681,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                               styles.resourceTypeButtonText,
                               resource.type === type && styles.resourceTypeButtonTextActive
                             ]}>
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                              {type === 'youtube' ? 'Video' : type.charAt(0).toUpperCase() + type.slice(1)}
                             </Text>
                           </TouchableOpacity>
                         ))}
@@ -2328,7 +2328,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                             styles.resourceTypeButtonText,
                             resource.type === type && styles.resourceTypeButtonTextActive
                           ]}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                            {type === 'youtube' ? 'Video' : type.charAt(0).toUpperCase() + type.slice(1)}
                           </Text>
                         </TouchableOpacity>
                       ))}
