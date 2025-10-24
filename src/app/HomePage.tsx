@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image, Linking, Dimensions, Modal } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image, Linking, Dimensions, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -877,7 +877,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
   };
 
   const renderJoinDialog = () => (
-    <View style={styles.dialogOverlay}>
+    <KeyboardAvoidingView 
+      style={styles.dialogOverlay}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <View style={styles.dialog}>
         <Text style={styles.dialogTitle}>Join Session</Text>
         <TextInput
@@ -888,6 +892,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
           onChangeText={setJoinSessionInput}
           autoCapitalize="none"
           autoCorrect={false}
+          autoFocus
         />
         <View style={styles.dialogButtonContainer}>
           <TouchableOpacity 
@@ -910,7 +915,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 
   const renderSessionIdDialog = () => (
@@ -1483,7 +1488,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
     if (!editingSong) return null;
 
     return (
-      <View style={styles.dialogOverlay}>
+      <KeyboardAvoidingView 
+        style={styles.dialogOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         <View style={styles.dialogContainer}>
           <ScrollView style={styles.dialogScrollView}>
             <Text style={styles.dialogTitle}>Edit Song</Text>
@@ -1698,7 +1707,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     );
   };
 
@@ -1783,36 +1792,51 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
 
   // Add render function for password dialog
   const renderPasswordDialog = () => (
-    <View style={styles.dialogOverlay}>
-      <View style={styles.dialog}>
-        <Text style={styles.dialogTitle}>Enter Password</Text>
-        <TextInput
-          style={styles.dialogInput}
-          placeholder="Password"
-          placeholderTextColor="#666666"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <View style={styles.dialogButtonContainer}>
-          <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonSecondary]}
-            onPress={() => {
-              setShowPasswordDialog(false);
-              setPassword('');
-            }}
-          >
-            <Text style={styles.dialogButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.dialogButton, styles.dialogButtonPrimary]}
-            onPress={handlePasswordVerification}
-          >
-            <Text style={styles.dialogButtonText}>Verify</Text>
-          </TouchableOpacity>
+    <Modal
+      visible={showPasswordDialog}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => {
+        setShowPasswordDialog(false);
+        setPassword('');
+      }}
+    >
+      <KeyboardAvoidingView 
+        style={styles.passwordDialogOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <View style={styles.passwordDialog}>
+          <Text style={styles.dialogTitle}>Enter Password</Text>
+          <TextInput
+            style={styles.dialogInput}
+            placeholder="Password"
+            placeholderTextColor="#666666"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoFocus
+          />
+          <View style={styles.dialogButtonContainer}>
+            <TouchableOpacity 
+              style={[styles.dialogButton, styles.dialogButtonSecondary]}
+              onPress={() => {
+                setShowPasswordDialog(false);
+                setPassword('');
+              }}
+            >
+              <Text style={styles.dialogButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.dialogButton, styles.dialogButtonPrimary]}
+              onPress={handlePasswordVerification}
+            >
+              <Text style={styles.dialogButtonText}>Verify</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 
   // Add this function after other utility functions
@@ -2003,7 +2027,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
 
   // Modify renderAddSongDialog to use the new multiple track selection
   const renderAddSongDialog = () => (
-    <View style={styles.dialogOverlay}>
+    <KeyboardAvoidingView 
+      style={styles.dialogOverlay}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <View style={[styles.dialog, { maxHeight: '80%' }]}>
         <Text style={styles.dialogTitle}>Add New Song</Text>
         <ScrollView style={styles.addSongForm}>
@@ -2097,7 +2125,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 
   // Add this function after other utility functions
@@ -3240,6 +3268,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+    flex: 1,
   },
   dialog: {
     backgroundColor: '#1E1E1E',
@@ -4086,5 +4115,20 @@ const styles = StyleSheet.create({
   },
   clientButton: {
     backgroundColor: '#BB86FC',
+  },
+  passwordDialog: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+    maxHeight: '90%',
+    justifyContent: 'center',
+  },
+  passwordDialogOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
