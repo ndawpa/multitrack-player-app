@@ -221,6 +221,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [password, setPassword] = useState('');
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
+  
+  // Song operation password protection states
+  const [showSongPasswordDialog, setShowSongPasswordDialog] = useState(false);
+  const [songPassword, setSongPassword] = useState('');
+  const [songPasswordError, setSongPasswordError] = useState('');
+  const [pendingSongOperation, setPendingSongOperation] = useState<'admin' | null>(null);
   const [isLyricsExpanded, setIsLyricsExpanded] = useState(false);
   const [activeView, setActiveView] = useState<'tracks' | 'lyrics' | 'sheetMusic' | 'score' | 'resources'>('tracks');
   const [isLyricsEditing, setIsLyricsEditing] = useState(false);
@@ -1188,7 +1194,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
               if (isAdminMode) {
                 setIsAdminMode(false);
               } else {
-                setShowPasswordDialog(true);
+                setShowSongPasswordDialog(true);
+                setPendingSongOperation('admin');
               }
             }}
           >
@@ -1963,6 +1970,32 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
     }
   };
 
+  // Song operation password verification
+  const handleSongPasswordSubmit = () => {
+    if (songPassword === ADMIN_PASSWORD) {
+      setShowSongPasswordDialog(false);
+      setSongPassword('');
+      setSongPasswordError('');
+      
+      // Execute the pending operation
+      if (pendingSongOperation === 'admin') {
+        setIsAdminMode(true);
+      }
+      
+      setPendingSongOperation(null);
+    } else {
+      setSongPasswordError('Incorrect password. Please try again.');
+      setSongPassword('');
+    }
+  };
+
+  const handleSongPasswordCancel = () => {
+    setShowSongPasswordDialog(false);
+    setSongPassword('');
+    setSongPasswordError('');
+    setPendingSongOperation(null);
+  };
+
   // Add render function for password dialog
   const renderPasswordDialog = () => (
     <Modal
@@ -2009,6 +2042,59 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
           </View>
         </View>
       </KeyboardAvoidingView>
+    </Modal>
+  );
+
+  // Song operation password dialog (styled like Tenant Management)
+  const renderSongPasswordDialog = () => (
+    <Modal
+      visible={showSongPasswordDialog}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={handleSongPasswordCancel}
+    >
+      <View style={styles.songPasswordModalContainer}>
+        <View style={styles.songPasswordModal}>
+          <View style={styles.songPasswordHeader}>
+            <Ionicons name="lock-closed" size={32} color="#BB86FC" />
+            <Text style={styles.songPasswordTitle}>Admin Mode</Text>
+            <Text style={styles.songPasswordSubtitle}>Enter password to access</Text>
+          </View>
+          
+          <View style={styles.songPasswordContent}>
+            <TextInput
+              style={styles.songPasswordInput}
+              value={songPassword}
+              onChangeText={setSongPassword}
+              placeholder="Enter password"
+              placeholderTextColor="#666"
+              secureTextEntry
+              autoFocus
+              onSubmitEditing={handleSongPasswordSubmit}
+            />
+            
+            {songPasswordError ? (
+              <Text style={styles.songPasswordError}>{songPasswordError}</Text>
+            ) : null}
+            
+            <View style={styles.songPasswordButtons}>
+              <TouchableOpacity
+                style={styles.songPasswordCancelButton}
+                onPress={handleSongPasswordCancel}
+              >
+                <Text style={styles.songPasswordCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.songPasswordSubmitButton}
+                onPress={handleSongPasswordSubmit}
+              >
+                <Text style={styles.songPasswordSubmitText}>Enter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </View>
     </Modal>
   );
 
@@ -3591,6 +3677,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
       {showEditSongDialog && renderEditSongDialog()}
       {showDeleteConfirmDialog && renderDeleteConfirmDialog()}
       {showPasswordDialog && renderPasswordDialog()}
+      {showSongPasswordDialog && renderSongPasswordDialog()}
       {renderFullScreenImage()}
     </View>
   );
@@ -4791,5 +4878,91 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Song password dialog styles (matching Tenant Management)
+  songPasswordModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 20,
+  },
+  songPasswordModal: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  songPasswordHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  songPasswordTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  songPasswordSubtitle: {
+    fontSize: 14,
+    color: '#BBBBBB',
+    textAlign: 'center',
+  },
+  songPasswordContent: {
+    marginBottom: 8,
+  },
+  songPasswordInput: {
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#2A2A2A',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  songPasswordError: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  songPasswordButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  songPasswordCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#333333',
+    alignItems: 'center',
+  },
+  songPasswordCancelText: {
+    color: '#BBBBBB',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  songPasswordSubmitButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#BB86FC',
+    alignItems: 'center',
+  },
+  songPasswordSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

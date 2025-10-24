@@ -198,6 +198,30 @@ class TenantService {
     }
   }
 
+  public async updateOrganization(orgId: string, updates: Partial<Organization>): Promise<void> {
+    try {
+      const orgRef = ref(database, `organizations/${orgId}`);
+      const updateData = {
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+      await update(orgRef, updateData);
+    } catch (error) {
+      console.error('Error updating organization:', error);
+      throw error;
+    }
+  }
+
+  public async deleteOrganization(orgId: string): Promise<void> {
+    try {
+      const orgRef = ref(database, `organizations/${orgId}`);
+      await remove(orgRef);
+    } catch (error) {
+      console.error('Error deleting organization:', error);
+      throw error;
+    }
+  }
+
   // User Assignment Management
   public async assignUserToTenant(
     userId: string, 

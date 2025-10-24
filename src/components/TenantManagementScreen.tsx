@@ -38,6 +38,12 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
   const [editingOrganization, setEditingOrganization] = useState<Organization | null>(null);
   const [activeTab, setActiveTab] = useState<'users' | 'songs'>('users');
   
+  // Password protection states
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(true);
+  const [password, setPassword] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  
   // Form states
   const [tenantForm, setTenantForm] = useState<CreateTenantForm>({
     name: '',
@@ -56,9 +62,35 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
 
   const tenantService = TenantService.getInstance();
 
+  // Password verification function
+  const verifyPassword = (enteredPassword: string): boolean => {
+    // Use the same password as the admin mode in HomePage
+    // You can change this password to whatever you prefer
+    const adminPassword = "admin123"; // Change this to your desired password
+    return enteredPassword === adminPassword;
+  };
+
+  const handlePasswordSubmit = () => {
+    if (verifyPassword(password)) {
+      setIsAuthenticated(true);
+      setShowPasswordPrompt(false);
+      setPasswordError('');
+      loadData();
+    } else {
+      setPasswordError('Incorrect password. Please try again.');
+      setPassword('');
+    }
+  };
+
+  const handlePasswordCancel = () => {
+    onBack();
+  };
+
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
 
   const loadData = async () => {
     try {
@@ -155,7 +187,13 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
         name: tenantForm.name,
         description: tenantForm.description,
         domain: tenantForm.domain,
-        settings: tenantForm.settings
+        settings: {
+          allowUserRegistration: true,
+          requireAdminApproval: false,
+          allowedFileTypes: ['mp3', 'wav', 'm4a'],
+          maxFileSize: 50,
+          ...tenantForm.settings
+        }
       });
       Alert.alert('Success', 'Tenant updated successfully');
       setShowEditTenant(false);
@@ -221,7 +259,15 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
         name: orgForm.name,
         description: orgForm.description,
         parentId: orgForm.parentId,
-        settings: orgForm.settings
+        settings: {
+          allowSubOrganizations: true,
+          maxSubOrganizations: 10,
+          songAccessLevel: 'public',
+          canCreateSongs: true,
+          canEditSongs: true,
+          canDeleteSongs: false,
+          ...orgForm.settings
+        }
       });
       Alert.alert('Success', 'Organization updated successfully');
       setShowEditOrganization(false);
@@ -427,6 +473,56 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
               embedded={true}
             />
           )}
+        </View>
+      </View>
+    );
+  }
+
+  // Password prompt modal
+  if (showPasswordPrompt) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.passwordModalContainer}>
+          <View style={styles.passwordModal}>
+            <View style={styles.passwordHeader}>
+              <Ionicons name="lock-closed" size={32} color="#BB86FC" />
+              <Text style={styles.passwordTitle}>Tenant Management</Text>
+              <Text style={styles.passwordSubtitle}>Enter password to access</Text>
+            </View>
+            
+            <View style={styles.passwordContent}>
+              <TextInput
+                style={styles.passwordInput}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter password"
+                placeholderTextColor="#666"
+                secureTextEntry
+                autoFocus
+                onSubmitEditing={handlePasswordSubmit}
+              />
+              
+              {passwordError ? (
+                <Text style={styles.passwordError}>{passwordError}</Text>
+              ) : null}
+              
+              <View style={styles.passwordButtons}>
+                <TouchableOpacity
+                  style={styles.passwordCancelButton}
+                  onPress={handlePasswordCancel}
+                >
+                  <Text style={styles.passwordCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.passwordSubmitButton}
+                  onPress={handlePasswordSubmit}
+                >
+                  <Text style={styles.passwordSubmitText}>Enter</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </View>
       </View>
     );
@@ -744,6 +840,9 @@ const styles = StyleSheet.create({
   addButton: {
     padding: 8,
   },
+  headerSpacer: {
+    width: 40, // Same width as back button to center the title
+  },
   content: {
     flex: 1,
   },
@@ -1013,6 +1112,92 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  // Password modal styles
+  passwordModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 20,
+  },
+  passwordModal: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  passwordHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  passwordTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  passwordSubtitle: {
+    fontSize: 14,
+    color: '#BBBBBB',
+    textAlign: 'center',
+  },
+  passwordContent: {
+    marginBottom: 8,
+  },
+  passwordInput: {
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#2A2A2A',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  passwordError: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  passwordButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  passwordCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#333333',
+    alignItems: 'center',
+  },
+  passwordCancelText: {
+    color: '#BBBBBB',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  passwordSubmitButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#BB86FC',
+    alignItems: 'center',
+  },
+  passwordSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
