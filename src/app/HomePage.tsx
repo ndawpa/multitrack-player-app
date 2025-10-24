@@ -210,6 +210,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
   const [editedLyrics, setEditedLyrics] = useState('');
   const [showArtistFilterDialog, setShowArtistFilterDialog] = useState(false);
   const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
+  
+  // Screen orientation state
+  const [screenData, setScreenData] = useState(Dimensions.get('window'));
+  const isLandscape = screenData.width > screenData.height;
 
   // Favorites state
   const [favoriteSongs, setFavoriteSongs] = useState<Set<string>>(new Set());
@@ -222,6 +226,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [showRecordingControls, setShowRecordingControls] = useState(false);
   const [recordingName, setRecordingName] = useState('Voice Recording');
+
+  // Listen for orientation changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenData(window);
+    });
+    return () => subscription?.remove();
+  }, []);
 
   // Load songs from Firebase
   useEffect(() => {
@@ -2198,11 +2210,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
           >
             {activeView === 'tracks' ? (
               // Tracks view content
-              <View>
+              <View style={isLandscape ? styles.tracksLandscapeContainer : styles.tracksPortraitContainer}>
                 {selectedSong.tracks.map(track => (
                   <TouchableOpacity 
                     key={track.id} 
-                    style={styles.trackContainer}
+                    style={[
+                      styles.trackContainer,
+                      isLandscape && styles.trackContainerLandscape
+                    ]}
                     onPress={() => toggleTrack(track.id)}
                     activeOpacity={0.7}
                   >
@@ -2920,8 +2935,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
         {!selectedSong ? renderSongList() : (
           // Track Player View
           <>
-            <View style={styles.header}>
-              <View style={styles.headerTop}>
+            <View style={[styles.header, isLandscape && styles.headerLandscape]}>
+              <View style={[styles.headerTop, isLandscape && styles.headerTopLandscape]}>
                 <TouchableOpacity 
                   style={styles.backButton}
                   onPress={() => setSelectedSong(null)}
@@ -3036,11 +3051,18 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  headerLandscape: {
+    padding: 8,
+    paddingTop: 12,
+  },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
     position: 'relative',
+  },
+  headerTopLandscape: {
+    marginBottom: 8,
   },
   songHeader: {
     flexDirection: 'row',
@@ -3289,6 +3311,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 2,
+  },
+  tracksPortraitContainer: {
+    flex: 1,
+  },
+  tracksLandscapeContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
+  trackContainerLandscape: {
+    width: '48%',
+    marginBottom: 8,
+    minHeight: 120,
   },
   trackInfo: {
     flexDirection: 'row',
