@@ -2323,19 +2323,17 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
               <View style={styles.sheetMusicContainer}>
                 {selectedSong.scores?.map((score, index) => (
                   <View key={score.id} style={styles.scoreView}>
-                    <View style={styles.scoreHeader}>
+                    <TouchableOpacity
+                      style={styles.scoreHeader}
+                      onPress={() => toggleScoreExpansion(score.id)}
+                    >
                       <Text style={styles.scoreTitle}>{score.name}</Text>
-                      <TouchableOpacity
-                        style={styles.expandButton}
-                        onPress={() => toggleScoreExpansion(score.id)}
-                      >
-                        <Ionicons
-                          name={expandedScores[score.id] ? "chevron-up" : "chevron-down"}
-                          size={24}
-                          color="#BB86FC"
-                        />
-                      </TouchableOpacity>
-                    </View>
+                      <Ionicons
+                        name={expandedScores[score.id] ? "chevron-up" : "chevron-down"}
+                        size={24}
+                        color="#BB86FC"
+                      />
+                    </TouchableOpacity>
                     {expandedScores[score.id] && (
                       score.url.endsWith('.pdf') ? (
                         <View style={styles.sheetMusicView}>
@@ -3810,7 +3808,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 4,
+    flex: 1,
   },
   dialogContainer: {
     backgroundColor: '#1E1E1E',
@@ -3831,22 +3829,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-    marginTop: 8,
-    gap: 4,
+    padding: 12,
     backgroundColor: '#2C2C2C',
-    borderRadius: 4,
-  },
-  expandButtonText: {
-    color: '#BB86FC',
-    fontSize: 12,
-    fontWeight: '500',
+    borderRadius: 8,
+    marginBottom: 8,
   },
   playbackControlsContainer: {
     width: '100%',
