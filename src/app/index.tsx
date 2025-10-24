@@ -6,16 +6,18 @@ import PasswordResetScreen from '../components/PasswordResetScreen';
 import NewPasswordScreen from '../components/NewPasswordScreen';
 import ProfileScreen from '../components/ProfileScreen';
 import SettingsScreen from '../components/SettingsScreen';
+import EmailVerificationScreen from '../components/EmailVerificationScreen';
 import HomePage from './HomePage';
 import { User } from '../types/user';
 
-type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword';
+type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('auth');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [resetData, setResetData] = useState<{ code: string; email: string } | null>(null);
+  const [verificationUser, setVerificationUser] = useState<User | null>(null);
 
   const authService = AuthService.getInstance();
 
@@ -97,6 +99,21 @@ const App = () => {
     setCurrentScreen('auth');
   };
 
+  const handleEmailVerificationNeeded = (user: User) => {
+    setVerificationUser(user);
+    setCurrentScreen('emailVerification');
+  };
+
+  const handleEmailVerificationComplete = () => {
+    setVerificationUser(null);
+    setCurrentScreen('auth');
+  };
+
+  const handleBackFromEmailVerification = () => {
+    setVerificationUser(null);
+    setCurrentScreen('auth');
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -108,7 +125,13 @@ const App = () => {
 
   switch (currentScreen) {
     case 'auth':
-      return <AuthScreen onAuthSuccess={handleAuthSuccess} onForgotPassword={handleForgotPassword} />;
+      return (
+        <AuthScreen 
+          onAuthSuccess={handleAuthSuccess} 
+          onForgotPassword={handleForgotPassword}
+          onEmailVerificationNeeded={handleEmailVerificationNeeded}
+        />
+      );
     
     case 'passwordReset':
       return (
@@ -128,7 +151,26 @@ const App = () => {
           onSuccess={handleNewPasswordSuccess}
         />
       ) : (
-        <AuthScreen onAuthSuccess={handleAuthSuccess} onForgotPassword={handleForgotPassword} />
+        <AuthScreen 
+          onAuthSuccess={handleAuthSuccess} 
+          onForgotPassword={handleForgotPassword}
+          onEmailVerificationNeeded={handleEmailVerificationNeeded}
+        />
+      );
+    
+    case 'emailVerification':
+      return verificationUser ? (
+        <EmailVerificationScreen
+          user={verificationUser}
+          onVerificationComplete={handleEmailVerificationComplete}
+          onBackToAuth={handleBackFromEmailVerification}
+        />
+      ) : (
+        <AuthScreen 
+          onAuthSuccess={handleAuthSuccess} 
+          onForgotPassword={handleForgotPassword}
+          onEmailVerificationNeeded={handleEmailVerificationNeeded}
+        />
       );
     
     case 'profile':

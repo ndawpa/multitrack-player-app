@@ -19,9 +19,10 @@ import { LoginForm, SignupForm } from '../types/user';
 interface AuthScreenProps {
   onAuthSuccess: () => void;
   onForgotPassword: () => void;
+  onEmailVerificationNeeded: (user: any) => void;
 }
 
-const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword }) => {
+const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword, onEmailVerificationNeeded }) => {
   const insets = useSafeAreaInsets();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -70,8 +71,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
 
     setLoading(true);
     try {
-      await authService.signUp(signupForm);
-      onAuthSuccess();
+      const result = await authService.signUp(signupForm);
+      if (result.needsVerification) {
+        onEmailVerificationNeeded(result.user);
+      } else {
+        onAuthSuccess();
+      }
     } catch (error: any) {
       Alert.alert('Signup Failed', error.message || 'An error occurred during signup');
     } finally {

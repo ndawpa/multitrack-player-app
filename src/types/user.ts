@@ -7,6 +7,7 @@ export interface User {
   stats: UserStats;
   createdAt: Date;
   lastActiveAt: Date;
+  emailVerified: boolean;
 }
 
 export interface UserPreferences {

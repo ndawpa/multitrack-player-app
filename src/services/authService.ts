@@ -7,6 +7,9 @@ import {
   sendPasswordResetEmail,
   confirmPasswordReset,
   verifyPasswordResetCode,
+  sendEmailVerification,
+  applyActionCode,
+  checkActionCode,
   User as FirebaseUser
 } from 'firebase/auth';
 import { ref, set, get, onValue, off } from 'firebase/database';
@@ -22,9 +25,18 @@ class AuthService {
     console.log('AuthService: Initializing');
     // Listen to auth state changes
     onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('AuthService: Firebase auth state changed', { uid: firebaseUser?.uid });
+      console.log('AuthService: Firebase auth state changed', { uid: firebaseUser?.uid, emailVerified: firebaseUser?.emailVerified });
       if (firebaseUser) {
-        await this.loadUserProfile(firebaseUser.uid);
+        // Only load user profile if email is verified
+        if (firebaseUser.emailVerified) {
+          await this.loadUserProfile(firebaseUser.uid);
+        } else {
+          // If email is not verified, sign out the user and clear current user
+          console.log('AuthService: Email not verified, signing out user');
+          await signOut(auth);
+          this.currentUser = null;
+          this.notifyAuthStateListeners(null);
+        }
       } else {
         this.currentUser = null;
         this.notifyAuthStateListeners(null);
@@ -85,6 +97,12 @@ class AuthService {
         credentials.password
       );
       
+      // Check if email is verified
+      if (!userCredential.user.emailVerified) {
+        await signOut(auth);
+        throw new Error('Please verify your email address before signing in. Check your inbox for a verification link.');
+      }
+      
       await this.loadUserProfile(userCredential.user.uid);
       
       if (!this.currentUser) {
@@ -112,7 +130,7 @@ class AuthService {
     }
   }
 
-  public async signUp(userData: SignupForm): Promise<User> {
+  public async signUp(userData: SignupForm): Promise<{ user: User; needsVerification: boolean }> {
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
@@ -124,6 +142,9 @@ class AuthService {
       await updateProfile(userCredential.user, {
         displayName: userData.displayName
       });
+
+      // Send email verification
+      await sendEmailVerification(userCredential.user);
 
       // Create user profile in database
       const defaultPreferences: UserPreferences = {
@@ -150,17 +171,18 @@ class AuthService {
         preferences: defaultPreferences,
         stats: defaultStats,
         createdAt: new Date(),
-        lastActiveAt: new Date()
+        lastActiveAt: new Date(),
+        emailVerified: false
       };
 
       // Save to database
       const userRef = ref(database, `users/${userCredential.user.uid}`);
       await set(userRef, this.cleanUserDataForFirebase(userProfile));
 
-      this.currentUser = userProfile;
-      this.notifyAuthStateListeners(userProfile);
+      // Sign out the user immediately after signup to prevent automatic login
+      await signOut(auth);
       
-      return userProfile;
+      return { user: userProfile, needsVerification: true };
     } catch (error: any) {
       console.error('Sign up error:', error);
       
@@ -201,6 +223,7 @@ class AuthService {
           ...userData,
           createdAt: new Date(userData.createdAt),
           lastActiveAt: new Date(userData.lastActiveAt),
+          emailVerified: auth.currentUser?.emailVerified || false,
           stats: {
             ...userData.stats,
             joinedDate: new Date(userData.stats.joinedDate),
@@ -235,7 +258,8 @@ class AuthService {
           preferences: defaultPreferences,
           stats: defaultStats,
           createdAt: new Date(),
-          lastActiveAt: new Date()
+          lastActiveAt: new Date(),
+          emailVerified: auth.currentUser?.emailVerified || false
         };
 
         // Save default profile to database
@@ -359,6 +383,63 @@ class AuthService {
       } else {
         throw new Error(error.message || 'An error occurred while resetting the password.');
       }
+    }
+  }
+
+  public async sendEmailVerification(): Promise<void> {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('No user is currently signed in.');
+      }
+      await sendEmailVerification(user);
+    } catch (error: any) {
+      console.error('Send email verification error:', error);
+      throw new Error(error.message || 'An error occurred while sending verification email.');
+    }
+  }
+
+  public async verifyEmail(code: string): Promise<void> {
+    try {
+      await applyActionCode(auth, code);
+    } catch (error: any) {
+      console.error('Email verification error:', error);
+      
+      if (error.code === 'auth/invalid-action-code') {
+        throw new Error('Invalid or expired verification code.');
+      } else if (error.code === 'auth/expired-action-code') {
+        throw new Error('Verification code has expired. Please request a new one.');
+      } else {
+        throw new Error(error.message || 'An error occurred while verifying the email.');
+      }
+    }
+  }
+
+  public async checkEmailVerificationStatus(): Promise<boolean> {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        return false;
+      }
+      await user.reload();
+      return user.emailVerified;
+    } catch (error: any) {
+      console.error('Check email verification status error:', error);
+      return false;
+    }
+  }
+
+  public async handleUnverifiedUser(): Promise<void> {
+    try {
+      const user = auth.currentUser;
+      if (user && !user.emailVerified) {
+        console.log('AuthService: User email not verified, signing out');
+        await signOut(auth);
+        this.currentUser = null;
+        this.notifyAuthStateListeners(null);
+      }
+    } catch (error: any) {
+      console.error('Handle unverified user error:', error);
     }
   }
 }
