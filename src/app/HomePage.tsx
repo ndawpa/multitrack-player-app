@@ -908,11 +908,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
               color={favoriteSongs.has(item.id) ? "#BB86FC" : "#BBBBBB"} 
             />
           </TouchableOpacity>
-          <Ionicons 
-            name="chevron-forward" 
-            size={24} 
-            color="#BBBBBB" 
-          />
         </View>
       </TouchableOpacity>
     );
