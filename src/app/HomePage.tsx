@@ -2344,7 +2344,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                               uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(score.url)}`
                             }}
                             style={{
-                              flex: 1,
+                              height: 400,
                               width: Dimensions.get('window').width - 48,
                               backgroundColor: '#FFFFFF',
                             }}
@@ -3733,20 +3733,18 @@ const styles = StyleSheet.create({
   sheetMusicContainer: {
     backgroundColor: '#1E1E1E',
     borderRadius: 8,
-    padding: 12,
+    padding: 8,
     flex: 1,
-    minHeight: 600,
+    minHeight: 300,
   },
   sheetMusicView: {
-    flex: 1,
     backgroundColor: '#1E1E1E',
     borderRadius: 8,
-    padding: 12,
-    minHeight: 600,
+    padding: 8,
   },
   sheetMusicImage: {
     width: '100%',
-    height: 800,
+    height: 400,
   },
   lyricsInput: {
     minHeight: 120,
@@ -3803,16 +3801,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   scoreView: {
-    marginBottom: 24,
+    marginBottom: 8,
     backgroundColor: '#1E1E1E',
     borderRadius: 8,
-    padding: 12,
+    padding: 4,
   },
   scoreTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   dialogContainer: {
     backgroundColor: '#1E1E1E',
