@@ -28,10 +28,14 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
   const [loading, setLoading] = useState(true);
   const [showCreateTenant, setShowCreateTenant] = useState(false);
   const [showCreateOrganization, setShowCreateOrganization] = useState(false);
+  const [showEditTenant, setShowEditTenant] = useState(false);
+  const [showEditOrganization, setShowEditOrganization] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showSongAssignment, setShowSongAssignment] = useState(false);
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
+  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [editingOrganization, setEditingOrganization] = useState<Organization | null>(null);
   
   // Form states
   const [tenantForm, setTenantForm] = useState<CreateTenantForm>({
@@ -128,22 +132,170 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
     }
   };
 
+  const handleEditTenant = (tenant: Tenant) => {
+    setEditingTenant(tenant);
+    setTenantForm({
+      name: tenant.name,
+      description: tenant.description || '',
+      domain: tenant.domain || '',
+      settings: tenant.settings || {}
+    });
+    setShowEditTenant(true);
+  };
+
+  const handleUpdateTenant = async () => {
+    try {
+      if (!tenantForm.name.trim() || !editingTenant) {
+        Alert.alert('Error', 'Please fill in all required fields');
+        return;
+      }
+
+      await tenantService.updateTenant(editingTenant.id, {
+        name: tenantForm.name,
+        description: tenantForm.description,
+        domain: tenantForm.domain,
+        settings: tenantForm.settings
+      });
+      Alert.alert('Success', 'Tenant updated successfully');
+      setShowEditTenant(false);
+      setEditingTenant(null);
+      setTenantForm({
+        name: '',
+        description: '',
+        domain: '',
+        settings: {}
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error updating tenant:', error);
+      Alert.alert('Error', 'Failed to update tenant');
+    }
+  };
+
+  const handleDeleteTenant = async (tenant: Tenant) => {
+    Alert.alert(
+      'Delete Tenant',
+      `Are you sure you want to delete "${tenant.name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await tenantService.deleteTenant(tenant.id);
+              Alert.alert('Success', 'Tenant deleted successfully');
+              loadData();
+            } catch (error) {
+              console.error('Error deleting tenant:', error);
+              Alert.alert('Error', 'Failed to delete tenant');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleEditOrganization = (organization: Organization) => {
+    setEditingOrganization(organization);
+    setOrgForm({
+      tenantId: organization.tenantId,
+      name: organization.name,
+      description: organization.description || '',
+      parentId: organization.parentId,
+      settings: organization.settings || {}
+    });
+    setShowEditOrganization(true);
+  };
+
+  const handleUpdateOrganization = async () => {
+    try {
+      if (!orgForm.name.trim() || !editingOrganization) {
+        Alert.alert('Error', 'Please fill in all required fields');
+        return;
+      }
+
+      await tenantService.updateOrganization(editingOrganization.id, {
+        tenantId: orgForm.tenantId,
+        name: orgForm.name,
+        description: orgForm.description,
+        parentId: orgForm.parentId,
+        settings: orgForm.settings
+      });
+      Alert.alert('Success', 'Organization updated successfully');
+      setShowEditOrganization(false);
+      setEditingOrganization(null);
+      setOrgForm({
+        tenantId: '',
+        name: '',
+        description: '',
+        parentId: undefined,
+        settings: {}
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error updating organization:', error);
+      Alert.alert('Error', 'Failed to update organization');
+    }
+  };
+
+  const handleDeleteOrganization = async (organization: Organization) => {
+    Alert.alert(
+      'Delete Organization',
+      `Are you sure you want to delete "${organization.name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await tenantService.deleteOrganization(organization.id);
+              Alert.alert('Success', 'Organization deleted successfully');
+              loadData();
+            } catch (error) {
+              console.error('Error deleting organization:', error);
+              Alert.alert('Error', 'Failed to delete organization');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderTenant = ({ item }: { item: Tenant }) => (
+    <View style={styles.tenantCard}>
     <TouchableOpacity
-      style={styles.tenantCard}
+        style={styles.tenantContent}
       onPress={() => setSelectedTenant(item)}
     >
-      <View style={styles.tenantHeader}>
+        <View style={styles.tenantInfo}>
         <Text style={styles.tenantName}>{item.name}</Text>
-        <Ionicons name="chevron-forward" size={20} color="#BBBBBB" />
-      </View>
       {item.description && (
         <Text style={styles.tenantDescription}>{item.description}</Text>
       )}
       <Text style={styles.tenantMeta}>
         Created: {new Date(item.createdAt).toLocaleDateString()}
       </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#BBBBBB" />
+      </TouchableOpacity>
+      
+      <View style={styles.tenantActions}>
+        <TouchableOpacity
+          style={styles.tenantActionButton}
+          onPress={() => handleEditTenant(item)}
+        >
+          <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tenantActionButton}
+          onPress={() => handleDeleteTenant(item)}
+        >
+          <Ionicons name="trash-outline" size={18} color="#FF6B6B" />
     </TouchableOpacity>
+      </View>
+    </View>
   );
 
   const renderOrganization = ({ item }: { item: Organization }) => (
@@ -168,18 +320,33 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
             }}
           >
             <Ionicons name="people" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
+      </TouchableOpacity>
+      
+      <TouchableOpacity
             style={styles.orgActionButton}
-            onPress={() => {
-              setSelectedOrganization(item);
-              setShowSongAssignment(true);
-            }}
-          >
+        onPress={() => {
+          setSelectedOrganization(item);
+          setShowSongAssignment(true);
+        }}
+      >
             <Ionicons name="musical-notes" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
+      </View>
+      
+      <View style={styles.orgEditActions}>
+        <TouchableOpacity
+          style={styles.orgEditActionButton}
+          onPress={() => handleEditOrganization(item)}
+        >
+          <Ionicons name="create-outline" size={16} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.orgEditActionButton}
+          onPress={() => handleDeleteOrganization(item)}
+        >
+          <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+      </TouchableOpacity>
       </View>
     </View>
   );
@@ -386,6 +553,103 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Edit Tenant Modal */}
+      <Modal
+        visible={showEditTenant}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                setShowEditTenant(false);
+                setEditingTenant(null);
+                setTenantForm({ name: '', description: '', domain: '', settings: {} });
+              }}
+            >
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Tenant</Text>
+            <TouchableOpacity onPress={handleUpdateTenant}>
+              <Text style={styles.modalSave}>Save</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.inputLabel}>Name *</Text>
+            <TextInput
+              style={styles.input}
+              value={tenantForm.name}
+              onChangeText={(text) => setTenantForm(prev => ({ ...prev, name: text }))}
+              placeholder="Enter tenant name"
+              placeholderTextColor="#666"
+            />
+            
+            <Text style={styles.inputLabel}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={tenantForm.description}
+              onChangeText={(text) => setTenantForm(prev => ({ ...prev, description: text }))}
+              placeholder="Enter tenant description"
+              placeholderTextColor="#666"
+              multiline
+            />
+            
+            <Text style={styles.inputLabel}>Domain</Text>
+            <TextInput
+              style={styles.input}
+              value={tenantForm.domain}
+              onChangeText={(text) => setTenantForm(prev => ({ ...prev, domain: text }))}
+              placeholder="Enter tenant domain"
+              placeholderTextColor="#666"
+            />
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Edit Organization Modal */}
+      <Modal
+        visible={showEditOrganization}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                setShowEditOrganization(false);
+                setEditingOrganization(null);
+                setOrgForm({ tenantId: '', name: '', description: '', parentId: undefined, settings: {} });
+              }}
+            >
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Organization</Text>
+            <TouchableOpacity onPress={handleUpdateOrganization}>
+              <Text style={styles.modalSave}>Save</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.inputLabel}>Name *</Text>
+            <TextInput
+              style={styles.input}
+              value={orgForm.name}
+              onChangeText={(text) => setOrgForm(prev => ({ ...prev, name: text }))}
+              placeholder="Enter organization name"
+              placeholderTextColor="#666"
+            />
+            
+            <Text style={styles.inputLabel}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={orgForm.description}
+              onChangeText={(text) => setOrgForm(prev => ({ ...prev, description: text }))}
+              placeholder="Enter organization description"
+              placeholderTextColor="#666"
+              multiline
+            />
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -452,10 +716,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E1E1E',
     marginHorizontal: 16,
     marginBottom: 8,
-    padding: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#333333',
+    overflow: 'hidden',
+  },
+  tenantContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  tenantInfo: {
+    flex: 1,
+  },
+  tenantActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  tenantActionButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#2A2A2A',
   },
   tenantHeader: {
     flexDirection: 'row',
@@ -508,6 +793,21 @@ const styles = StyleSheet.create({
   orgActionButton: {
     padding: 8,
     borderRadius: 6,
+    backgroundColor: '#2A2A2A',
+  },
+  orgEditActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#333333',
+  },
+  orgEditActionButton: {
+    padding: 6,
+    borderRadius: 4,
     backgroundColor: '#2A2A2A',
   },
   orgInfoContent: {
