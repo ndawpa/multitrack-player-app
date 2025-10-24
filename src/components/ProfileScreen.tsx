@@ -136,7 +136,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Stats Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Your Stats</Text>
+          <Text style={styles.sectionTitle}>Your Stats</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{user.stats.totalSessions || 0}</Text>
@@ -159,7 +159,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Account Info */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ℹ️ Account Info</Text>
+          <Text style={styles.sectionTitle}>Account Info</Text>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Member since</Text>
             <Text style={styles.infoValue}>{user.stats.joinedDate ? formatDate(user.stats.joinedDate) : 'Unknown'}</Text>
@@ -174,7 +174,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
           <TouchableOpacity style={styles.actionButton} onPress={onNavigateToSettings}>
             <Ionicons name="settings" size={20} color="#BB86FC" />
             <Text style={styles.actionText}>Settings</Text>
@@ -276,6 +276,11 @@ const styles = StyleSheet.create({
   section: {
     marginHorizontal: 20,
     marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,

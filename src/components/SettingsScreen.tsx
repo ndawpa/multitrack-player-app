@@ -9,11 +9,23 @@ import {
   Switch,
   Alert,
   TextInput,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { User, UserPreferences } from '../types/user';
+
+/**
+ * SettingsScreen - Enhanced with improved error handling
+ * 
+ * Features:
+ * - Persistent error banners for non-blocking error messages
+ * - Real-time validation for display name input
+ * - Better error messages with specific Firebase error codes
+ * - Loading states and visual feedback
+ * - Animated error banners that can be dismissed
+ */
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -27,8 +39,50 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const [saving, setSaving] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState('');
+  const [errorBanner, setErrorBanner] = useState<{
+    visible: boolean;
+    message: string;
+    type: 'displayName' | 'preferences';
+  }>({ visible: false, message: '', type: 'displayName' });
+  const [displayNameError, setDisplayNameError] = useState<string>('');
 
   const authService = AuthService.getInstance();
+  const bannerAnimation = new Animated.Value(0);
+
+  // Show error banner with animation
+  const showErrorBanner = (message: string, type: 'displayName' | 'preferences') => {
+    setErrorBanner({ visible: true, message, type });
+    Animated.timing(bannerAnimation, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Hide error banner with animation
+  const hideErrorBanner = () => {
+    Animated.timing(bannerAnimation, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setErrorBanner({ visible: false, message: '', type: 'displayName' });
+    });
+  };
+
+  // Validate display name
+  const validateDisplayName = (name: string): string => {
+    if (!name.trim()) {
+      return 'Display name cannot be empty';
+    }
+    if (name.trim().length < 2) {
+      return 'Display name must be at least 2 characters';
+    }
+    if (name.trim().length > 50) {
+      return 'Display name must be less than 50 characters';
+    }
+    return '';
+  };
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -51,26 +105,70 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     if (!user || !preferences) return;
 
     setSaving(true);
+    // Hide any existing error banner
+    if (errorBanner.visible && errorBanner.type === 'preferences') {
+      hideErrorBanner();
+    }
+    
     try {
       const updatedPreferences = { ...preferences, [key]: value };
       await authService.updateProfile({ preferences: updatedPreferences });
       setPreferences(updatedPreferences);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update preferences');
+    } catch (error: any) {
+      console.error('Error updating preferences:', error);
+      let errorMessage = 'Failed to update preferences';
+      
+      // Provide more specific error messages
+      if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showErrorBanner(`Error updating profile: ${errorMessage}`, 'preferences');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDisplayNameSave = async () => {
-    if (!user || !newDisplayName.trim()) return;
+    if (!user) return;
+
+    // Clear previous errors
+    setDisplayNameError('');
+    if (errorBanner.visible && errorBanner.type === 'displayName') {
+      hideErrorBanner();
+    }
+
+    // Validate display name
+    const validationError = validateDisplayName(newDisplayName);
+    if (validationError) {
+      setDisplayNameError(validationError);
+      return;
+    }
 
     setSaving(true);
     try {
       await authService.updateProfile({ displayName: newDisplayName.trim() });
       setEditingName(false);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update display name');
+    } catch (error: any) {
+      console.error('Error updating display name:', error);
+      let errorMessage = 'Failed to update display name';
+      
+      // Provide more specific error messages
+      if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later.';
+      } else if (error.code === 'auth/invalid-display-name') {
+        errorMessage = 'Invalid display name format.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setSaving(false);
     }
@@ -123,27 +221,47 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           <View style={styles.settingItem}>
             <Text style={styles.settingLabel}>Display Name</Text>
             {editingName ? (
-              <View style={styles.editContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  value={newDisplayName}
-                  onChangeText={setNewDisplayName}
-                  placeholder="Enter display name"
-                  placeholderTextColor="#666"
-                />
-                <TouchableOpacity 
-                  style={styles.saveButton} 
-                  onPress={handleDisplayNameSave}
-                  disabled={saving}
-                >
-                  <Ionicons name="checkmark" size={20} color="#BB86FC" />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.cancelButton} 
-                  onPress={handleDisplayNameCancel}
-                >
-                  <Ionicons name="close" size={20} color="#FF6B6B" />
-                </TouchableOpacity>
+              <View>
+                <View style={styles.editContainer}>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      displayNameError && styles.textInputError
+                    ]}
+                    value={newDisplayName}
+                    onChangeText={(text) => {
+                      setNewDisplayName(text);
+                      if (displayNameError) {
+                        setDisplayNameError('');
+                      }
+                    }}
+                    placeholder="Enter display name"
+                    placeholderTextColor="#666"
+                  />
+                  <TouchableOpacity 
+                    style={[
+                      styles.saveButton,
+                      saving && styles.saveButtonDisabled
+                    ]} 
+                    onPress={handleDisplayNameSave}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <Ionicons name="hourglass" size={20} color="#BB86FC" />
+                    ) : (
+                      <Ionicons name="checkmark" size={20} color="#BB86FC" />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.cancelButton} 
+                    onPress={handleDisplayNameCancel}
+                  >
+                    <Ionicons name="close" size={20} color="#FF6B6B" />
+                  </TouchableOpacity>
+                </View>
+                {displayNameError ? (
+                  <Text style={styles.errorText}>{displayNameError}</Text>
+                ) : null}
               </View>
             ) : (
               <TouchableOpacity 
@@ -227,6 +345,30 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                 thumbColor={preferences.autoPlay ? '#FFFFFF' : '#BBBBBB'}
               />
             </View>
+            {errorBanner.visible && errorBanner.type === 'preferences' && (
+              <Animated.View 
+                style={[
+                  styles.errorBanner,
+                  {
+                    opacity: bannerAnimation,
+                    transform: [{
+                      translateY: bannerAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-50, 0]
+                      })
+                    }]
+                  }
+                ]}
+              >
+                <View style={styles.errorBannerContent}>
+                  <Ionicons name="alert-circle" size={16} color="#FF6B6B" />
+                  <Text style={styles.errorBannerText}>{errorBanner.message}</Text>
+                  <TouchableOpacity onPress={hideErrorBanner} style={styles.errorBannerClose}>
+                    <Ionicons name="close" size={16} color="#FF6B6B" />
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            )}
           </View>
         </View>
 
@@ -309,7 +451,36 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF6B6B',
-    fontSize: 16,
+    fontSize: 14,
+    marginTop: 8,
+  },
+  textInputError: {
+    borderColor: '#FF6B6B',
+    borderWidth: 1,
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  errorBanner: {
+    marginTop: 12,
+    backgroundColor: '#2D1B1B',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF6B6B',
+  },
+  errorBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  errorBannerText: {
+    flex: 1,
+    color: '#FF6B6B',
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  errorBannerClose: {
+    padding: 4,
   },
   header: {
     flexDirection: 'row',
