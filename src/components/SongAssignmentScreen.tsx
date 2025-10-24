@@ -21,13 +21,15 @@ interface SongAssignmentScreenProps {
   tenantId: string;
   organizationId?: string;
   userId: string;
+  embedded?: boolean;
 }
 
 const SongAssignmentScreen: React.FC<SongAssignmentScreenProps> = ({ 
   onBack, 
   tenantId, 
   organizationId, 
-  userId 
+  userId,
+  embedded = false
 }) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -173,14 +175,16 @@ const SongAssignmentScreen: React.FC<SongAssignmentScreenProps> = ({
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Song Assignment</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <View style={embedded ? styles.embeddedContainer : styles.container}>
+      {!embedded && (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Song Assignment</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+      )}
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
@@ -328,6 +332,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
+  },
+  embeddedContainer: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,

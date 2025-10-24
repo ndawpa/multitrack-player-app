@@ -20,6 +20,7 @@ interface UserManagementScreenProps {
   tenantId: string;
   organizationId?: string;
   userId: string;
+  embedded?: boolean;
 }
 
 interface User {
@@ -32,7 +33,8 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
   onBack, 
   tenantId, 
   organizationId, 
-  userId 
+  userId,
+  embedded = false
 }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
@@ -220,24 +222,40 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#BB86FC" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {organization ? organization.name : tenant?.name} - Users
-        </Text>
-        <TouchableOpacity
-          onPress={() => {
-            loadAvailableUsers();
-            setShowAddUser(true);
-          }}
-          style={styles.addButton}
-        >
-          <Ionicons name="person-add" size={24} color="#BB86FC" />
-        </TouchableOpacity>
-      </View>
+    <View style={embedded ? styles.embeddedContainer : styles.container}>
+      {!embedded && (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#BB86FC" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            {organization ? organization.name : tenant?.name} - Users
+          </Text>
+          <TouchableOpacity
+            onPress={() => {
+              loadAvailableUsers();
+              setShowAddUser(true);
+            }}
+            style={styles.addButton}
+          >
+            <Ionicons name="person-add" size={24} color="#BB86FC" />
+          </TouchableOpacity>
+        </View>
+      )}
+      
+      {embedded && (
+        <View style={styles.embeddedHeader}>
+          <TouchableOpacity
+            onPress={() => {
+              loadAvailableUsers();
+              setShowAddUser(true);
+            }}
+            style={styles.addButton}
+          >
+            <Ionicons name="person-add" size={24} color="#BB86FC" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
@@ -363,6 +381,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
+  },
+  embeddedContainer: {
+    flex: 1,
+  },
+  embeddedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#1E1E1E',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
   },
   loadingContainer: {
     flex: 1,

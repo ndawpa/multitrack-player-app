@@ -36,6 +36,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [editingOrganization, setEditingOrganization] = useState<Organization | null>(null);
+  const [activeTab, setActiveTab] = useState<'users' | 'songs'>('users');
   
   // Form states
   const [tenantForm, setTenantForm] = useState<CreateTenantForm>({
@@ -286,13 +287,13 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
           style={styles.tenantActionButton}
           onPress={() => handleEditTenant(item)}
         >
-          <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+          <Ionicons name="create" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.tenantActionButton}
           onPress={() => handleDeleteTenant(item)}
         >
-          <Ionicons name="trash-outline" size={18} color="#FF6B6B" />
+          <Ionicons name="trash" size={20} color="#FF6B6B" />
     </TouchableOpacity>
       </View>
     </View>
@@ -311,27 +312,12 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
           </Text>
         </View>
         
-        <View style={styles.orgActions}>
-          <TouchableOpacity
-            style={styles.orgActionButton}
-            onPress={() => {
-              setSelectedOrganization(item);
-              setShowUserManagement(true);
-            }}
-          >
-            <Ionicons name="people" size={20} color="#FFFFFF" />
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-            style={styles.orgActionButton}
-        onPress={() => {
-          setSelectedOrganization(item);
-          setShowSongAssignment(true);
-        }}
-      >
-            <Ionicons name="musical-notes" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.orgActionButton}
+          onPress={() => setSelectedOrganization(item)}
+        >
+          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
       
       <View style={styles.orgEditActions}>
@@ -339,13 +325,13 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
           style={styles.orgEditActionButton}
           onPress={() => handleEditOrganization(item)}
         >
-          <Ionicons name="create-outline" size={16} color="#FFFFFF" />
+          <Ionicons name="create" size={18} color="#FFFFFF" />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.orgEditActionButton}
           onPress={() => handleDeleteOrganization(item)}
         >
-          <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+          <Ionicons name="trash" size={18} color="#FF6B6B" />
       </TouchableOpacity>
       </View>
     </View>
@@ -376,6 +362,73 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
         organizationId={selectedOrganization?.id}
         userId={userId}
       />
+    );
+  }
+
+  // Organization Detail View with Tabs
+  if (selectedOrganization) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => setSelectedOrganization(null)} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{selectedOrganization.name}</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        {/* Tab Navigation */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'users' && styles.activeTab]}
+            onPress={() => setActiveTab('users')}
+          >
+            <Ionicons 
+              name="people" 
+              size={20} 
+              color={activeTab === 'users' ? '#FFFFFF' : '#BBBBBB'} 
+            />
+            <Text style={[styles.tabText, activeTab === 'users' && styles.activeTabText]}>
+              Users
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'songs' && styles.activeTab]}
+            onPress={() => setActiveTab('songs')}
+          >
+            <Ionicons 
+              name="musical-notes" 
+              size={20} 
+              color={activeTab === 'songs' ? '#FFFFFF' : '#BBBBBB'} 
+            />
+            <Text style={[styles.tabText, activeTab === 'songs' && styles.activeTabText]}>
+              Songs
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tab Content */}
+        <View style={styles.tabContent}>
+          {activeTab === 'users' ? (
+            <UserManagementScreen
+              onBack={() => setSelectedOrganization(null)}
+              tenantId={selectedTenant?.id || ''}
+              organizationId={selectedOrganization.id}
+              userId={userId}
+              embedded={true}
+            />
+          ) : (
+            <SongAssignmentScreen
+              onBack={() => setSelectedOrganization(null)}
+              tenantId={selectedTenant?.id || ''}
+              organizationId={selectedOrganization.id}
+              userId={userId}
+              embedded={true}
+            />
+          )}
+        </View>
+      </View>
     );
   }
 
@@ -733,14 +786,26 @@ const styles = StyleSheet.create({
   tenantActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'flex-end',
+    gap: 12,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#333333',
   },
   tenantActionButton: {
-    padding: 8,
-    borderRadius: 6,
+    padding: 12,
+    borderRadius: 8,
     backgroundColor: '#2A2A2A',
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   tenantHeader: {
     flexDirection: 'row',
@@ -799,16 +864,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 8,
+    gap: 12,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#333333',
   },
   orgEditActionButton: {
-    padding: 6,
-    borderRadius: 4,
+    padding: 10,
+    borderRadius: 6,
     backgroundColor: '#2A2A2A',
+    minWidth: 40,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1E1E1E',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  activeTab: {
+    backgroundColor: '#2A2A2A',
+    borderBottomWidth: 2,
+    borderBottomColor: '#BB86FC',
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#BBBBBB',
+  },
+  activeTabText: {
+    color: '#FFFFFF',
+  },
+  tabContent: {
+    flex: 1,
   },
   orgInfoContent: {
     flex: 1,
