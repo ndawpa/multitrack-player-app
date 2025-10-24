@@ -216,7 +216,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       >
         {/* Profile Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👤 Profile</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="person-outline" size={20} color="#BB86FC" />
+            <Text style={styles.sectionTitle}>Profile</Text>
+          </View>
           
           <View style={styles.settingItem}>
             <Text style={styles.settingLabel}>Display Name</Text>
@@ -247,16 +250,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                     disabled={saving}
                   >
                     {saving ? (
-                      <Ionicons name="hourglass" size={20} color="#BB86FC" />
+                      <Ionicons name="time-outline" size={20} color="#BB86FC" />
                     ) : (
-                      <Ionicons name="checkmark" size={20} color="#BB86FC" />
+                      <Ionicons name="checkmark-outline" size={20} color="#BB86FC" />
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.cancelButton} 
                     onPress={handleDisplayNameCancel}
                   >
-                    <Ionicons name="close" size={20} color="#FF6B6B" />
+                    <Ionicons name="close-outline" size={20} color="#FF6B6B" />
                   </TouchableOpacity>
                 </View>
                 {displayNameError ? (
@@ -269,7 +272,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                 onPress={() => setEditingName(true)}
               >
                 <Text style={styles.settingValue}>{user.displayName}</Text>
-                <Ionicons name="pencil" size={16} color="#BB86FC" />
+                <Ionicons name="create-outline" size={16} color="#BB86FC" />
               </TouchableOpacity>
             )}
           </View>
@@ -277,7 +280,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
         {/* Appearance Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎨 Appearance</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="color-palette-outline" size={20} color="#BB86FC" />
+            <Text style={styles.sectionTitle}>Appearance</Text>
+          </View>
           
           <View style={styles.settingItem}>
             <Text style={styles.settingLabel}>Theme</Text>
@@ -305,7 +311,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
         {/* Audio Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔊 Audio</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="volume-high-outline" size={20} color="#BB86FC" />
+            <Text style={styles.sectionTitle}>Audio</Text>
+          </View>
           
           <View style={styles.settingItem}>
             <Text style={styles.settingLabel}>Default Playback Speed</Text>
@@ -361,10 +370,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                 ]}
               >
                 <View style={styles.errorBannerContent}>
-                  <Ionicons name="alert-circle" size={16} color="#FF6B6B" />
+                  <Ionicons name="warning-outline" size={16} color="#FF6B6B" />
                   <Text style={styles.errorBannerText}>{errorBanner.message}</Text>
                   <TouchableOpacity onPress={hideErrorBanner} style={styles.errorBannerClose}>
-                    <Ionicons name="close" size={16} color="#FF6B6B" />
+                    <Ionicons name="close-outline" size={16} color="#FF6B6B" />
                   </TouchableOpacity>
                 </View>
               </Animated.View>
@@ -374,7 +383,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
         {/* Notifications Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔔 Notifications</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="notifications-outline" size={20} color="#BB86FC" />
+            <Text style={styles.sectionTitle}>Notifications</Text>
+          </View>
           
           <View style={styles.settingItem}>
             <View style={styles.switchContainer}>
@@ -396,7 +408,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
         {/* Language Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🌐 Language</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="language-outline" size={20} color="#BB86FC" />
+            <Text style={styles.sectionTitle}>Language</Text>
+          </View>
           
           <View style={styles.settingItem}>
             <Text style={styles.settingLabel}>Language</Text>
@@ -509,11 +524,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginVertical: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 16,
+    marginLeft: 8,
   },
   settingItem: {
     backgroundColor: '#1E1E1E',

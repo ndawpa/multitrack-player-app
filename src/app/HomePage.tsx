@@ -2862,7 +2862,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
                             <WebView
                               source={{ uri: resource.url }}
                               style={{
-                                height: 300,
+                                height: 450,
                                 width: Dimensions.get('window').width - 48,
                                 backgroundColor: '#000000',
                               }}
