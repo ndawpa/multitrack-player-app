@@ -2076,7 +2076,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, user }) => {
             <Text style={styles.tracksTitle}>Tracks</Text>
             <TouchableOpacity
               style={styles.addTrackButton}
-              onPress={addMultipleTracksToSong}
+              onPress={addMultipleTracks}
             >
               <Ionicons name="add-circle" size={24} color="#BB86FC" />
               <Text style={styles.addTrackButtonText}>Add Tracks</Text>
