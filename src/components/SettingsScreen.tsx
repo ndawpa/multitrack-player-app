@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#333333',
   },
@@ -522,12 +522,12 @@ const styles = StyleSheet.create({
   },
   section: {
     marginHorizontal: 20,
-    marginVertical: 16,
+    marginVertical: 12,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E1E1E',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   settingLabel: {
     fontSize: 16,
