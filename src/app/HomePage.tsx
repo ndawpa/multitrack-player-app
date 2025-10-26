@@ -177,6 +177,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
   const [isRepeat, setIsRepeat] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Add playback speed state
   
+  // Track click detection state
+  const [trackClickTimers, setTrackClickTimers] = useState<{ [key: string]: ReturnType<typeof setTimeout> | null }>({});
+  
   // Full-screen image state
   const [fullScreenImage, setFullScreenImage] = useState<{ url: string; name: string } | null>(null);
   const [imageScale, setImageScale] = useState(1);
@@ -1067,6 +1070,35 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
         const volume = trackVolumes[trackId] || 1;
         await player.setVolumeAsync(volume);
       }
+    }
+  };
+
+  const handleTrackClick = (trackId: string) => {
+    const existingTimer = trackClickTimers[trackId];
+    
+    if (existingTimer) {
+      // This is a double click - clear the timer and mute the track
+      clearTimeout(existingTimer);
+      setTrackClickTimers(prev => ({
+        ...prev,
+        [trackId]: null
+      }));
+      toggleTrack(trackId); // Mute/unmute
+    } else {
+      // This is a single click - set a timer and solo the track
+      const timer = setTimeout(() => {
+        // Single click timeout - solo the track
+        toggleSolo(trackId);
+        setTrackClickTimers(prev => ({
+          ...prev,
+          [trackId]: null
+        }));
+      }, 300); // 300ms delay to detect double clicks
+      
+      setTrackClickTimers(prev => ({
+        ...prev,
+        [trackId]: timer
+      }));
     }
   };
 
@@ -2736,7 +2768,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
                       styles.trackContainer,
                       isLandscape && styles.trackContainerLandscape
                     ]}
-                    onPress={() => toggleTrack(track.id)}
+                    onPress={() => handleTrackClick(track.id)}
                     activeOpacity={0.7}
                   >
                     <View style={styles.trackInfo}>
@@ -2761,17 +2793,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
                                 soloedTrackIds.includes(track.id) && styles.soloActiveText
                               ]}>S</Text>
                             </TouchableOpacity>
-                            <View 
+                            <TouchableOpacity 
                               style={[
                                 styles.trackToggleButton,
                                 !activeTrackIds.includes(track.id) && styles.muteActiveButton
                               ]} 
+                              onPress={() => toggleTrack(track.id)}
                             >
                               <Text style={[
                                 styles.trackButtonText,
                                 !activeTrackIds.includes(track.id) && styles.muteActiveText
                               ]}>M</Text>
-                            </View>
+                            </TouchableOpacity>
                           </>
                         )}
                       </View>
@@ -4017,16 +4050,16 @@ const styles = StyleSheet.create({
     color: '#BB86FC',
   },
   soloActiveButton: {
-    backgroundColor: '#BB86FC',
+    backgroundColor: '#4CAF50',
   },
   soloActiveText: {
-    color: '#4CAF50',
+    color: '#FFFFFF',
   },
   muteActiveButton: {
-    backgroundColor: '#3D0C11',
+    backgroundColor: '#FF5252',
   },
   muteActiveText: {
-    color: '#FF5252',
+    color: '#FFFFFF',
   },
   volumeContainer: {
     flexDirection: 'row',
