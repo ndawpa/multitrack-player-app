@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import SongAccessService from '../services/songAccessService';
@@ -255,7 +257,11 @@ const SongAssignmentScreen: React.FC<SongAssignmentScreenProps> = ({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView 
+          style={styles.modalContainer} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowAssignSong(false)}>
               <Text style={styles.modalCancel}>Cancel</Text>
@@ -322,7 +328,7 @@ const SongAssignmentScreen: React.FC<SongAssignmentScreenProps> = ({
               {selectedAccessLevel === 'restricted' && 'Limited access based on user permissions'}
             </Text>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

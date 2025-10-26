@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TenantService from '../services/tenantService';
@@ -481,7 +483,11 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
   // Password prompt modal
   if (showPasswordPrompt) {
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         <View style={styles.passwordModalContainer}>
           <View style={styles.passwordModal}>
             <View style={styles.passwordHeader}>
@@ -524,7 +530,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
             </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -623,7 +629,11 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView 
+          style={styles.modalContainer} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCreateTenant(false)}>
               <Text style={styles.modalCancel}>Cancel</Text>
@@ -661,7 +671,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
               placeholder="e.g., mycompany.com"
             />
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Create Organization Modal */}
@@ -670,7 +680,11 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView 
+          style={styles.modalContainer} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCreateOrganization(false)}>
               <Text style={styles.modalCancel}>Cancel</Text>
@@ -700,7 +714,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
               numberOfLines={3}
             />
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit Tenant Modal */}
@@ -708,7 +722,11 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
         visible={showEditTenant}
         animationType="slide"
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView 
+          style={styles.modalContainer} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.modalHeader}>
             <TouchableOpacity
               onPress={() => {
@@ -753,7 +771,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
               placeholderTextColor="#666"
             />
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit Organization Modal */}
@@ -761,7 +779,11 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
         visible={showEditOrganization}
         animationType="slide"
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView 
+          style={styles.modalContainer} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.modalHeader}>
             <TouchableOpacity
               onPress={() => {
@@ -797,7 +819,7 @@ const TenantManagementScreen: React.FC<TenantManagementScreenProps> = ({ onBack,
               multiline
             />
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -1120,6 +1142,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingHorizontal: 20,
+    paddingVertical: 40,
   },
   passwordModal: {
     backgroundColor: '#1E1E1E',

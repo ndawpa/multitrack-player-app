@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TenantService from '../services/tenantService';
@@ -286,7 +288,11 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView 
+          style={styles.modalContainer} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowAddUser(false)}>
               <Text style={styles.modalCancel}>Cancel</Text>
@@ -371,7 +377,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
               {selectedRole === 'viewer' && 'Can only view songs'}
             </Text>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
