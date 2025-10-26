@@ -1202,7 +1202,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
             <Ionicons 
               name="create-outline" 
               size={24} 
-              color={isAdminMode ? "#03DAC6" : "#BB86FC"} 
+              color="#BB86FC" 
             />
           </TouchableOpacity>
           <TouchableOpacity
@@ -1335,14 +1335,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
               color={selectedArtists.size > 0 ? "#BB86FC" : "#BBBBBB"} 
             />
           </TouchableOpacity>
-          {selectedArtists.size > 0 && (
-            <TouchableOpacity 
-              style={styles.clearFilterButton}
-              onPress={() => setSelectedArtists(new Set())}
-            >
-              <Ionicons name="close-circle" size={20} color="#BBBBBB" />
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
             style={styles.sortButton}
             onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
@@ -1350,7 +1342,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
             <Ionicons 
               name={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
               size={20} 
-              color="#BBBBBB" 
+              color={sortOrder === 'desc' ? "#BB86FC" : "#BBBBBB"} 
             />
           </TouchableOpacity>
         </View>
@@ -3939,7 +3931,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3D0C11',
   },
   dialogButtonJoin: {
-    backgroundColor: '#1B4332',
+    backgroundColor: '#BB86FC',
   },
   dialogButtonText: {
     color: '#FFFFFF',
@@ -4025,7 +4017,7 @@ const styles = StyleSheet.create({
     color: '#BB86FC',
   },
   soloActiveButton: {
-    backgroundColor: '#1B4332',
+    backgroundColor: '#BB86FC',
   },
   soloActiveText: {
     color: '#4CAF50',
@@ -4101,7 +4093,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   joinButton: {
-    backgroundColor: '#1B4332',
+    backgroundColor: '#BB86FC',
   },
   deleteButton: {
     backgroundColor: '#3D0C11',
@@ -4173,7 +4165,7 @@ const styles = StyleSheet.create({
   adminBadge: {
     fontSize: 10,
     color: '#4CAF50',
-    backgroundColor: '#1B4332',
+    backgroundColor: '#BB86FC',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -4352,7 +4344,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#2C2C2C',
   },
   dialogButtonPrimary: {
-    backgroundColor: '#1B4332',
+    backgroundColor: '#BB86FC',
   },
   dialogButtonSecondary: {
     backgroundColor: '#2C2C2C',
@@ -4394,7 +4386,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#BB86FC',
   },
   menuButtonSecondary: {
-    backgroundColor: '#03DAC6',
+    backgroundColor: '#BB86FC',
   },
   menuButtonDelete: {
     backgroundColor: '#CF6679',
@@ -4495,7 +4487,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C2C2C',
   },
   saveButton: {
-    backgroundColor: '#1B4332',
+    backgroundColor: '#BB86FC',
   },
   lyricsEditButtonText: {
     color: '#FFFFFF',
@@ -4572,7 +4564,7 @@ const styles = StyleSheet.create({
   resourceLinkButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#03DAC6',
+    backgroundColor: '#BB86FC',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
@@ -4807,9 +4799,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
   },
-  clearFilterButton: {
-    padding: 4,
-  },
   sortButton: {
     width: 32,
     height: 32,
@@ -4859,7 +4848,7 @@ const styles = StyleSheet.create({
     height: Dimensions.get('window').height,
   },
   adminButton: {
-    backgroundColor: '#03DAC6',
+    backgroundColor: '#BB86FC',
   },
   clientButton: {
     backgroundColor: '#BB86FC',
