@@ -1229,10 +1229,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
     }
   }, [playlistToPlay, onPlaylistPlayed]);
 
-  // Auto-start playback when players are initialized in playlist mode
+  // Auto-start playback when players are initialized in playlist mode (only for new songs)
+  const [lastAutoStartedSong, setLastAutoStartedSong] = useState<string | null>(null);
+  
   useEffect(() => {
-    if (isInitialized && isPlaylistMode && selectedSong && !isPlaying) {
-      console.log('Auto-starting playlist playback:', { isInitialized, isPlaylistMode, selectedSong: selectedSong.title, isPlaying });
+    if (isInitialized && isPlaylistMode && selectedSong && !isPlaying && selectedSong.id !== lastAutoStartedSong) {
+      console.log('Auto-starting playlist playback for new song:', { isInitialized, isPlaylistMode, selectedSong: selectedSong.title, isPlaying });
+      setLastAutoStartedSong(selectedSong.id);
+      
       const startPlayback = async () => {
         try {
           console.log('Calling startLocalPlayback...');
@@ -1246,7 +1250,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
       // Small delay to ensure everything is ready
       setTimeout(startPlayback, 200);
     }
-  }, [isInitialized, isPlaylistMode, selectedSong, isPlaying]);
+  }, [isInitialized, isPlaylistMode, selectedSong, isPlaying, lastAutoStartedSong]);
 
   const deleteSession = async (sessionIdToDelete: string) => {
     try {
@@ -3787,6 +3791,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
           setIsPlaying(false);
           // Reset initialization state for new song
           setIsInitialized(false);
+          setLastAutoStartedSong(null); // Reset auto-start tracking for new song
           // Small delay to ensure proper cleanup before loading new song
           setTimeout(() => {
             handleSongSelect(previousSong);
@@ -3813,6 +3818,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
           setIsPlaying(false);
           // Reset initialization state for new song
           setIsInitialized(false);
+          setLastAutoStartedSong(null); // Reset auto-start tracking for new song
           // Small delay to ensure proper cleanup before loading new song
           setTimeout(() => {
             handleSongSelect(nextSong);
@@ -3822,6 +3828,51 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
         console.error('Error going to next song:', error);
         Alert.alert('Error', 'Failed to go to next song');
       }
+    }
+  };
+
+  const handleRestartPlaylist = async () => {
+    if (!currentPlaylist || playlistSongs.length === 0) {
+      Alert.alert('Info', 'No playlist active to restart.');
+      return;
+    }
+
+    console.log('Restarting playlist:', currentPlaylist.name);
+    try {
+      // Stop current playback first to ensure a clean restart
+      console.log('Stopping current playback...');
+      await stopLocalPlayback();
+
+      // Reset to the first song in the playlist
+      const firstSong = playlistSongs[0];
+      console.log('Restarting with first song:', firstSong.title);
+      setCurrentPlaylistIndex(0);
+      setSelectedSong(firstSong);
+      setIsFinished(false);
+      setIsPlaying(false);
+      setIsInitialized(false);
+      setLastAutoStartedSong(null); // Reset auto-start tracking
+
+      // Small delay to ensure proper cleanup before loading new song
+      setTimeout(async () => {
+        console.log('Loading first song...');
+        handleSongSelect(firstSong);
+        // Auto-start playback after a short delay to ensure players are loaded
+        setTimeout(async () => {
+          try {
+            console.log('Auto-starting playback...');
+            await startLocalPlayback();
+            console.log('Playback started successfully');
+          } catch (error) {
+            console.error('Error auto-starting playlist restart playback:', error);
+          }
+        }, 500);
+      }, 100);
+
+      Alert.alert('Playlist Restarted', 'Playing from the beginning.');
+    } catch (error) {
+      console.error('Error restarting playlist:', error);
+      Alert.alert('Error', 'Failed to restart playlist');
     }
   };
 
@@ -3837,8 +3888,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
       setCurrentPlaylistIndex(0);
       setSelectedSong(null);
       setIsPlaying(false);
+      setLastAutoStartedSong(null); // Reset auto-start tracking
       
-      Alert.alert('Playlist Stopped', 'Playlist playback has been stopped');
+      // Navigate back to playlists view
+      if (onNavigateToPlaylists) {
+        onNavigateToPlaylists(songs);
+      }
     } catch (error) {
       console.error('Error stopping playlist:', error);
       Alert.alert('Error', 'Failed to stop playlist');
@@ -3899,15 +3954,68 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
                 
                 
                 <View style={styles.songHeaderText}>
+                  {/* Dedicated Playlist Section */}
                   {isPlaylistMode && currentPlaylist && (
-                    <View style={styles.playlistInfo}>
-                      <Ionicons name="musical-notes" size={16} color="#BB86FC" />
-                      <Text style={styles.playlistName} numberOfLines={1}>
-                        {currentPlaylist.name}
-                      </Text>
-                      <Text style={styles.playlistTrackInfo}>
-                        {currentPlaylistIndex + 1} of {playlistSongs.length}
-                      </Text>
+                    <View style={styles.playlistSection}>
+                      <View style={styles.playlistHeader}>
+                        <Ionicons name="musical-notes" size={18} color="#BB86FC" />
+                        <Text style={styles.playlistTitle} numberOfLines={1}>
+                          {currentPlaylist.name}
+                        </Text>
+                        <Text style={styles.playlistTrackCount}>
+                          {currentPlaylistIndex + 1} of {playlistSongs.length}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.playlistControls}>
+                        <TouchableOpacity
+                          style={[styles.playlistControlBtn, styles.playlistPrevBtn]}
+                          onPress={handlePreviousSong}
+                        >
+                          <Ionicons name="play-skip-back" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.playlistControlBtn, styles.playlistPauseBtn]}
+                          onPress={async () => {
+                            console.log('Playlist pause/resume pressed, isPlaying:', isPlaying);
+                            if (isPlaying) {
+                              console.log('Stopping playback...');
+                              await stopLocalPlayback();
+                            } else {
+                              console.log('Starting playback...');
+                              await startLocalPlayback();
+                            }
+                          }}
+                        >
+                          <Ionicons 
+                            name={isPlaying ? 'pause' : 'play'} 
+                            size={18} 
+                            color="#FFFFFF" 
+                          />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.playlistControlBtn, styles.playlistNextBtn]}
+                          onPress={handleNextSong}
+                        >
+                          <Ionicons name="play-skip-forward" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.playlistControlBtn, styles.playlistRestartBtn]}
+                          onPress={handleRestartPlaylist}
+                        >
+                          <Ionicons name="refresh" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.playlistControlBtn, styles.playlistStopBtn]}
+                          onPress={handleStopPlaylist}
+                        >
+                          <Ionicons name="stop" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   )}
                   <MarqueeText 
@@ -3978,41 +4086,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
               )}
 
               {/* Playlist Controls - Always visible when in playlist mode */}
-              {isPlaylistMode && currentPlaylist && (
-                <View style={styles.playlistControlsContainer}>
-                  <View style={styles.playlistControlsHeader}>
-                    <Text style={styles.playlistControlsTitle}>Playlist Controls</Text>
-                    <Text style={styles.playlistControlsSubtitle}>
-                      {currentPlaylist.name} • {currentPlaylistIndex + 1} of {playlistSongs.length}
-                    </Text>
-                  </View>
-                  <View style={styles.playlistControlsButtons}>
-                    <TouchableOpacity
-                      style={[styles.playlistControlButton, styles.previousButton]}
-                      onPress={handlePreviousSong}
-                    >
-                      <Ionicons name="play-skip-back" size={24} color="#FFFFFF" />
-                      <Text style={styles.playlistControlButtonText}>Previous</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.playlistControlButton, styles.nextButton]}
-                      onPress={handleNextSong}
-                    >
-                      <Ionicons name="play-skip-forward" size={24} color="#FFFFFF" />
-                      <Text style={styles.playlistControlButtonText}>Next</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.playlistControlButton, styles.playlistStopButton]}
-                      onPress={handleStopPlaylist}
-                    >
-                      <Ionicons name="stop" size={24} color="#FFFFFF" />
-                      <Text style={styles.playlistControlButtonText}>Stop Playlist</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
             </View>
             
             <View style={[styles.mainContent, { paddingBottom: insets.bottom }]}>
@@ -5462,5 +5535,72 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
+  },
+  // Dedicated Playlist Section Styles
+  playlistSection: {
+    backgroundColor: 'rgba(187, 134, 252, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(187, 134, 252, 0.2)',
+  },
+  playlistHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  playlistTitle: {
+    color: '#BB86FC',
+    fontSize: 18,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  playlistTrackCount: {
+    color: '#BBBBBB',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  playlistControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  playlistControlBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  playlistPrevBtn: {
+    backgroundColor: '#BB86FC',
+    borderColor: 'rgba(187, 134, 252, 0.3)',
+  },
+  playlistPauseBtn: {
+    backgroundColor: '#4CAF50',
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  playlistNextBtn: {
+    backgroundColor: '#BB86FC',
+    borderColor: 'rgba(187, 134, 252, 0.3)',
+  },
+  playlistRestartBtn: {
+    backgroundColor: '#FF9800',
+    borderColor: 'rgba(255, 152, 0, 0.3)',
+  },
+  playlistStopBtn: {
+    backgroundColor: '#FF6B6B',
+    borderColor: 'rgba(255, 107, 107, 0.3)',
   },
 });
