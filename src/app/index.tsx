@@ -8,10 +8,13 @@ import ProfileScreen from '../components/ProfileScreen';
 import SettingsScreen from '../components/SettingsScreen';
 import EmailVerificationScreen from '../components/EmailVerificationScreen';
 import TenantManagementScreen from '../components/TenantManagementScreen';
+import PlaylistScreen from '../components/PlaylistScreen';
 import HomePage from './HomePage';
 import { User } from '../types/user';
+import { Song } from '../types/song';
+import { Playlist } from '../types/playlist';
 
-type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification' | 'tenantManagement';
+type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification' | 'tenantManagement' | 'playlists';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('auth');
@@ -19,6 +22,8 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [resetData, setResetData] = useState<{ code: string; email: string } | null>(null);
   const [verificationUser, setVerificationUser] = useState<User | null>(null);
+  const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
+  const [playlistToPlay, setPlaylistToPlay] = useState<{playlist: Playlist, songs: Song[]} | null>(null);
 
   const authService = AuthService.getInstance();
 
@@ -67,6 +72,11 @@ const App = () => {
 
   const handleNavigateToTenantManagement = () => {
     setCurrentScreen('tenantManagement');
+  };
+
+  const handleNavigateToPlaylists = (songs: Song[]) => {
+    setAvailableSongs(songs);
+    setCurrentScreen('playlists');
   };
 
   const handleBackToMain = () => {
@@ -202,13 +212,30 @@ const App = () => {
         />
       );
     
+    case 'playlists':
+      return (
+        <PlaylistScreen 
+          onBack={handleBackToMain}
+          onPlayPlaylist={(playlist, songs) => {
+            // Store playlist data and navigate back to main
+            setPlaylistToPlay({playlist, songs});
+            setCurrentScreen('main');
+          }}
+          user={user}
+          availableSongs={availableSongs}
+        />
+      );
+    
     case 'main':
     default:
       return (
         <HomePage 
           onNavigateToProfile={handleNavigateToProfile}
           onNavigateToTenantManagement={handleNavigateToTenantManagement}
+          onNavigateToPlaylists={handleNavigateToPlaylists}
           user={user}
+          playlistToPlay={playlistToPlay}
+          onPlaylistPlayed={() => setPlaylistToPlay(null)}
         />
       );
   }
