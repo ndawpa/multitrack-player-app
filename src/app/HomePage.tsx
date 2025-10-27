@@ -3969,6 +3969,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
                       
                       <View style={styles.playlistControls}>
                         <TouchableOpacity
+                          style={[styles.playlistControlBtn, styles.playlistStopBtn]}
+                          onPress={handleStopPlaylist}
+                        >
+                          <Ionicons name="arrow-back" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                           style={[styles.playlistControlBtn, styles.playlistPrevBtn]}
                           onPress={handlePreviousSong}
                         >
@@ -4007,13 +4014,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
                           onPress={handleRestartPlaylist}
                         >
                           <Ionicons name="refresh" size={18} color="#FFFFFF" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.playlistControlBtn, styles.playlistStopBtn]}
-                          onPress={handleStopPlaylist}
-                        >
-                          <Ionicons name="stop" size={18} color="#FFFFFF" />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -5600,7 +5600,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 152, 0, 0.3)',
   },
   playlistStopBtn: {
-    backgroundColor: '#FF6B6B',
-    borderColor: 'rgba(255, 107, 107, 0.3)',
+    backgroundColor: '#6B7280',
+    borderColor: 'rgba(107, 114, 128, 0.3)',
   },
 });
