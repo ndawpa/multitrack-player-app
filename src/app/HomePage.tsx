@@ -540,10 +540,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
             handleRestart();
           } else if (isPlaylistMode && currentPlaylist && playlistSongs.length > 0) {
             // Auto-advance to next song in playlist
-            const nextIndex = currentPlaylistIndex < playlistSongs.length - 1 ? currentPlaylistIndex + 1 : 0;
+            const nextIndex = currentPlaylistIndex + 1;
             const nextSong = playlistSongs[nextIndex];
             
-            if (nextSong) {
+            if (nextIndex < playlistSongs.length) {
+              // Go to next song
+              const nextSong = playlistSongs[nextIndex];
               setCurrentPlaylistIndex(nextIndex);
               setSelectedSong(nextSong);
               // Reset finished state and initialize players for the new song
@@ -555,6 +557,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
               // Small delay to ensure proper cleanup before loading new song
               setTimeout(() => {
                 handleSongSelect(nextSong);
+              }, 100);
+            } else if (isPlaylistRepeating) {
+              // Restart playlist from beginning
+              const firstSong = playlistSongs[0];
+              setCurrentPlaylistIndex(0);
+              setSelectedSong(firstSong);
+              setIsFinished(false);
+              setIsPlaying(false);
+              setIsInitialized(false);
+              setLastAutoStartedSong(null);
+              
+              setTimeout(() => {
+                handleSongSelect(firstSong);
               }, 100);
             } else {
               // Playlist finished
@@ -1231,6 +1246,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
 
   // Auto-start playback when players are initialized in playlist mode (only for new songs)
   const [lastAutoStartedSong, setLastAutoStartedSong] = useState<string | null>(null);
+  const [isPlaylistRepeating, setIsPlaylistRepeating] = useState(false);
   
   useEffect(() => {
     if (isInitialized && isPlaylistMode && selectedSong && !isPlaying && selectedSong.id !== lastAutoStartedSong) {
@@ -3831,6 +3847,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
     }
   };
 
+  const handleTogglePlaylistRepeat = () => {
+    setIsPlaylistRepeating(!isPlaylistRepeating);
+  };
+
   const handleRestartPlaylist = async () => {
     if (!currentPlaylist || playlistSongs.length === 0) {
       Alert.alert('Info', 'No playlist active to restart.');
@@ -3889,6 +3909,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
       setSelectedSong(null);
       setIsPlaying(false);
       setLastAutoStartedSong(null); // Reset auto-start tracking
+      setIsPlaylistRepeating(false); // Reset repeat state
       
       // Navigate back to playlists view
       if (onNavigateToPlaylists) {
@@ -3945,12 +3966,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
           <>
             <View style={[styles.header, isLandscape && styles.headerLandscape]}>
               <View style={[styles.headerTop, isLandscape && styles.headerTopLandscape]}>
-                <TouchableOpacity 
-                  style={styles.backButton}
-                  onPress={() => setSelectedSong(null)}
-                >
-                  <Ionicons name="chevron-back" size={24} color="#BB86FC" />
-                </TouchableOpacity>
+                {!isPlaylistMode && (
+                  <TouchableOpacity 
+                    style={styles.backButton}
+                    onPress={() => setSelectedSong(null)}
+                  >
+                    <Ionicons name="chevron-back" size={24} color="#BB86FC" />
+                  </TouchableOpacity>
+                )}
                 
                 
                 <View style={styles.songHeaderText}>
@@ -4010,10 +4033,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          style={[styles.playlistControlBtn, styles.playlistRestartBtn]}
-                          onPress={handleRestartPlaylist}
+                          style={[styles.playlistControlBtn, styles.playlistRestartBtn, isPlaylistRepeating && styles.playlistRepeatActive]}
+                          onPress={handleTogglePlaylistRepeat}
                         >
-                          <Ionicons name="refresh" size={18} color="#FFFFFF" />
+                          <Ionicons name="repeat" size={18} color="#FFFFFF" />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -5540,24 +5563,30 @@ const styles = StyleSheet.create({
   playlistSection: {
     backgroundColor: 'rgba(187, 134, 252, 0.1)',
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
+    marginHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(187, 134, 252, 0.2)',
+    alignSelf: 'center',
+    width: '100%',
   },
   playlistHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
-    gap: 8,
+    position: 'relative',
   },
   playlistTitle: {
     color: '#BB86FC',
     fontSize: 18,
     fontWeight: 'bold',
-    flex: 1,
     textAlign: 'center',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
   playlistTrackCount: {
     color: '#BBBBBB',
@@ -5566,14 +5595,14 @@ const styles = StyleSheet.create({
   },
   playlistControls: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 16,
+    gap: 20,
   },
   playlistControlBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -5588,19 +5617,23 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(187, 134, 252, 0.3)',
   },
   playlistPauseBtn: {
-    backgroundColor: '#4CAF50',
-    borderColor: 'rgba(76, 175, 80, 0.3)',
+    backgroundColor: '#BB86FC',
+    borderColor: 'rgba(187, 134, 252, 0.3)',
   },
   playlistNextBtn: {
     backgroundColor: '#BB86FC',
     borderColor: 'rgba(187, 134, 252, 0.3)',
   },
   playlistRestartBtn: {
-    backgroundColor: '#FF9800',
-    borderColor: 'rgba(255, 152, 0, 0.3)',
+    backgroundColor: '#6B7280',
+    borderColor: 'rgba(107, 114, 128, 0.3)',
   },
   playlistStopBtn: {
     backgroundColor: '#6B7280',
     borderColor: 'rgba(107, 114, 128, 0.3)',
+  },
+  playlistRepeatActive: {
+    backgroundColor: '#BB86FC',
+    borderColor: 'rgba(187, 134, 252, 0.3)',
   },
 });

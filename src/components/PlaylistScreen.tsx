@@ -184,7 +184,10 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
   };
 
   const renderPlaylistItem = ({ item }: { item: Playlist }) => (
-    <View style={styles.playlistItem}>
+    <TouchableOpacity 
+      style={styles.playlistItem}
+      onPress={() => handlePlayPlaylist(item)}
+    >
       <View style={styles.playlistInfo}>
         <Text style={styles.playlistName}>{item.name}</Text>
         <Text style={styles.playlistMeta}>
@@ -201,26 +204,25 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
       <View style={styles.playlistActions}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => handlePlayPlaylist(item)}
-        >
-          <Ionicons name="play" size={20} color="#BB86FC" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleViewPlaylistDetails(item)}
+          onPress={(e) => {
+            e.stopPropagation(); // Prevent triggering the tile click
+            handleViewPlaylistDetails(item);
+          }}
         >
           <Ionicons name="list" size={20} color="#BB86FC" />
         </TouchableOpacity>
         
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => handleDeletePlaylist(item)}
+          onPress={(e) => {
+            e.stopPropagation(); // Prevent triggering the tile click
+            handleDeletePlaylist(item.id);
+          }}
         >
           <Ionicons name="trash" size={20} color="#FF6B6B" />
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
@@ -498,6 +500,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#2C2C2C',
+    // Add subtle visual feedback for clickable tile
+    opacity: 1,
   },
   playlistInfo: {
     flex: 1,
