@@ -16,6 +16,7 @@ import * as FileSystem from 'expo-file-system';
 import { User } from '../types/user';
 import FavoritesService from '../services/favoritesService';
 import PlaylistPlayerService from '../services/playlistPlayerService';
+import PlaylistService from '../services/playlistService';
 import { Playlist } from '../types/playlist';
 
 // Custom ID generator
@@ -188,6 +189,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
   const [currentPlaylistIndex, setCurrentPlaylistIndex] = useState(0);
   const [isPlaylistMode, setIsPlaylistMode] = useState(false);
   // Playlist player removed - using main audio system
+  
+  // Add to playlist state
+  const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
+  const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  const [playlistService] = useState(() => PlaylistService.getInstance());
   
   // Track click detection state
   const [trackClickTimers, setTrackClickTimers] = useState<{ [key: string]: ReturnType<typeof setTimeout> | null }>({});
@@ -3590,13 +3596,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
       <View style={styles.playbackControls}>
         <TouchableOpacity 
           style={[styles.controlButton, styles.smallButton]} 
-          onPress={() => {
-            // Placeholder for future functionality
-            console.log('Placeholder button pressed');
-          }}
+          onPress={handleShowAddToPlaylist}
         >
           <Ionicons 
-            name="ellipsis-horizontal-circle" 
+            name="add-circle" 
             size={20} 
             color="#BB86FC" 
           />
@@ -3675,6 +3678,63 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
         {/* Playlist Controls */}
       </View>
       {renderRecordingControls()}
+      
+      {/* Add to Playlist Modal */}
+      <Modal
+        visible={showAddToPlaylistModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAddToPlaylistModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add to Playlist</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowAddToPlaylistModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalSubtitle}>
+              Add "{selectedSong?.title}" to a playlist
+            </Text>
+            
+            <FlatList
+              data={userPlaylists}
+              keyExtractor={(item) => `playlist-${item.id}`}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.playlistItem}
+                  onPress={() => handleAddToPlaylist(item)}
+                >
+                  <View style={styles.playlistItemContent}>
+                    <Ionicons name="musical-notes" size={20} color="#BB86FC" />
+                    <View style={styles.playlistItemText}>
+                      <Text style={styles.playlistItemName}>{item.name}</Text>
+                      <Text style={styles.playlistItemInfo}>
+                        {item.songs.length} song{item.songs.length !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#BBBBBB" />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyPlaylists}>
+                  <Ionicons name="musical-notes" size={48} color="#BBBBBB" />
+                  <Text style={styles.emptyPlaylistsText}>No playlists found</Text>
+                  <Text style={styles.emptyPlaylistsSubtext}>
+                    Create a playlist first to add songs
+                  </Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 
@@ -3783,6 +3843,41 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
       console.error('Error stopping playlist:', error);
       Alert.alert('Error', 'Failed to stop playlist');
     }
+  };
+
+  // Add to playlist functions
+  const loadUserPlaylists = async () => {
+    if (!user) return;
+    
+    try {
+      const playlists = await playlistService.getUserPlaylists(user.id);
+      setUserPlaylists(playlists);
+    } catch (error) {
+      console.error('Error loading playlists:', error);
+      Alert.alert('Error', 'Failed to load playlists');
+    }
+  };
+
+  const handleAddToPlaylist = async (playlist: Playlist) => {
+    if (!selectedSong || !user) return;
+
+    try {
+      await playlistService.addSongToPlaylist(playlist.id, {
+        songId: selectedSong.id
+      }, selectedSong as any);
+      
+      setShowAddToPlaylistModal(false);
+      Alert.alert('Success', `Song added to "${playlist.name}"`);
+    } catch (error) {
+      console.error('Error adding song to playlist:', error);
+      Alert.alert('Error', 'Failed to add song to playlist');
+    }
+  };
+
+  const handleShowAddToPlaylist = () => {
+    if (!selectedSong) return;
+    loadUserPlaylists();
+    setShowAddToPlaylistModal(true);
   };
 
   return (
@@ -5288,5 +5383,84 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,
+  },
+  // Add to Playlist Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalSubtitle: {
+    color: '#BBBBBB',
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  playlistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  playlistItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  playlistItemText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  playlistItemName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  playlistItemInfo: {
+    color: '#BBBBBB',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  emptyPlaylists: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyPlaylistsText: {
+    color: '#BBBBBB',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptyPlaylistsSubtext: {
+    color: '#888888',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
