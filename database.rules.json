@@ -58,6 +58,13 @@
         ".write": "auth != null"
       },
       ".indexOn": ["userId"]
+    },
+    
+    "sessions": {
+      "$sessionId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     }
   }
 }

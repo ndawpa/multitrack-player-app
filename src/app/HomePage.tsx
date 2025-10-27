@@ -17,6 +17,7 @@ import { User } from '../types/user';
 import FavoritesService from '../services/favoritesService';
 import PlaylistPlayerService from '../services/playlistPlayerService';
 import PlaylistService from '../services/playlistService';
+import TrackStateService, { TrackState, SongTrackStates } from '../services/trackStateService';
 import { Playlist } from '../types/playlist';
 
 // Custom ID generator
@@ -195,6 +196,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
   const [playlistService] = useState(() => PlaylistService.getInstance());
   
+  // Track state persistence
+  const [trackStateService] = useState(() => TrackStateService.getInstance());
+  const [persistedTrackStates, setPersistedTrackStates] = useState<SongTrackStates>({});
+  const [isLoadingTrackStates, setIsLoadingTrackStates] = useState(false);
+  
   // Track click detection state
   const [trackClickTimers, setTrackClickTimers] = useState<{ [key: string]: ReturnType<typeof setTimeout> | null }>({});
   
@@ -318,6 +324,76 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
 
     return () => unsubscribe();
   }, [user]);
+
+  // Set current user in TrackStateService
+  useEffect(() => {
+    trackStateService.setCurrentUser(user?.id || null);
+  }, [user, trackStateService]);
+
+  // Apply persisted track states when they change
+  useEffect(() => {
+    if (Object.keys(persistedTrackStates).length > 0 && selectedSong && isInitialized) {
+      console.log('Applying persisted track states:', persistedTrackStates);
+      
+      // Apply volume states
+      const newVolumes: { [key: string]: number } = {};
+      const newSoloedTracks: string[] = [];
+      const newActiveTracks: string[] = [];
+      
+      Object.entries(persistedTrackStates).forEach(([trackId, trackState]) => {
+        newVolumes[trackId] = trackState.volume;
+        if (trackState.solo) {
+          newSoloedTracks.push(trackId);
+        }
+        if (!trackState.mute) {
+          newActiveTracks.push(trackId);
+        }
+      });
+      
+      setTrackVolumes(newVolumes);
+      setSoloedTrackIds(newSoloedTracks);
+      setActiveTrackIds(newActiveTracks);
+      
+      // Apply volume to players
+      players.forEach((player, index) => {
+        const track = selectedSong.tracks?.[index];
+        if (track && persistedTrackStates[track.id]) {
+          const trackState = persistedTrackStates[track.id];
+          if (trackState.solo || newSoloedTracks.length === 0) {
+            player.setVolumeAsync(trackState.volume);
+          }
+        }
+      });
+    }
+  }, [persistedTrackStates, selectedSong, isInitialized, players]);
+
+  // Real-time sync for track states
+  useEffect(() => {
+    if (!user || !selectedSong) return;
+
+    console.log('Setting up real-time listener for track states:', selectedSong.id);
+    const unsubscribe = trackStateService.listenToSongTrackStates(
+      selectedSong.id,
+      (trackStates) => {
+        if (trackStates) {
+          console.log('Received real-time track state update:', trackStates);
+          setPersistedTrackStates(trackStates);
+        }
+      }
+    );
+
+    return () => {
+      console.log('Cleaning up real-time listener for track states');
+      unsubscribe();
+    };
+  }, [user, selectedSong, trackStateService]);
+
+  // Cleanup TrackStateService on unmount
+  useEffect(() => {
+    return () => {
+      trackStateService.cleanup();
+    };
+  }, [trackStateService]);
 
   // Initialize sync session
   const initializeSyncSession = async () => {
@@ -718,9 +794,32 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
     };
   }, [selectedSong]);
 
-  const handleSongSelect = (song: Song) => {
+  const handleSongSelect = async (song: Song) => {
     setIsPlaying(false);
     setSelectedSong(song);
+    
+    // Load persisted track states for this song
+    if (user) {
+      setIsLoadingTrackStates(true);
+      try {
+        const trackStates = await trackStateService.loadSongTrackStates(song.id);
+        if (trackStates) {
+          setPersistedTrackStates(trackStates);
+          console.log('Loaded track states for song:', song.id, trackStates);
+        } else {
+          // Initialize with default states if none exist
+          const trackIds = song.tracks?.map(track => track.id) || [];
+          const defaultStates = await trackStateService.initializeSongTrackStates(song.id, trackIds);
+          setPersistedTrackStates(defaultStates);
+          console.log('Initialized default track states for song:', song.id);
+        }
+      } catch (error) {
+        console.error('Error loading track states:', error);
+        setPersistedTrackStates({});
+      } finally {
+        setIsLoadingTrackStates(false);
+      }
+    }
   };
 
   const handleToggleFavorite = async (songId: string, event: any) => {
@@ -1094,6 +1193,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
         );
       }
     });
+
+    // Persist the solo state
+    if (user) {
+      try {
+        const currentTrackState = persistedTrackStates[trackId] || trackStateService.getDefaultTrackState();
+        const updatedTrackState = { ...currentTrackState, solo: !isSoloed };
+        await trackStateService.saveTrackState(selectedSong.id, trackId, updatedTrackState);
+        
+        // Update local persisted state
+        setPersistedTrackStates(prev => ({
+          ...prev,
+          [trackId]: updatedTrackState
+        }));
+      } catch (error) {
+        console.error('Error saving solo state:', error);
+      }
+    }
   };
 
   const handleVolumeChange = async (trackId: string, value: number) => {
@@ -1112,6 +1228,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
 
     if (soloedTrackIds.includes(trackId) || soloedTrackIds.length === 0) {
       await player.setVolumeAsync(value);
+    }
+
+    // Persist the volume state
+    if (user) {
+      try {
+        const currentTrackState = persistedTrackStates[trackId] || trackStateService.getDefaultTrackState();
+        const updatedTrackState = { ...currentTrackState, volume: value };
+        await trackStateService.saveTrackState(selectedSong.id, trackId, updatedTrackState);
+        
+        // Update local persisted state
+        setPersistedTrackStates(prev => ({
+          ...prev,
+          [trackId]: updatedTrackState
+        }));
+      } catch (error) {
+        console.error('Error saving volume state:', error);
+      }
     }
   };
 
@@ -1136,6 +1269,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
       if (soloedTrackIds.length === 0 || soloedTrackIds.includes(trackId)) {
         const volume = trackVolumes[trackId] || 1;
         await player.setVolumeAsync(volume);
+      }
+    }
+
+    // Persist the mute state
+    if (user) {
+      try {
+        const currentTrackState = persistedTrackStates[trackId] || trackStateService.getDefaultTrackState();
+        const updatedTrackState = { ...currentTrackState, mute: isActive };
+        await trackStateService.saveTrackState(selectedSong.id, trackId, updatedTrackState);
+        
+        // Update local persisted state
+        setPersistedTrackStates(prev => ({
+          ...prev,
+          [trackId]: updatedTrackState
+        }));
+      } catch (error) {
+        console.error('Error saving mute state:', error);
       }
     }
   };
