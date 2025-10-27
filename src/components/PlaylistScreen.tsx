@@ -39,6 +39,8 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
   const [showAddSongModal, setShowAddSongModal] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
+  const [playlistItems, setPlaylistItems] = useState<PlaylistItem[]>([]);
+  
   const [showPlaylistDetails, setShowPlaylistDetails] = useState(false);
   
   // Create playlist form
@@ -130,9 +132,16 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
 
   const handleViewPlaylistDetails = async (playlist: Playlist) => {
     try {
-      const { songs } = await playlistService.getPlaylistSongs(playlist.id);
-      setSelectedPlaylist(playlist);
+      const { playlist: freshPlaylist, songs } = await playlistService.getPlaylistSongs(playlist.id);
+      
+      console.log('Playlist details loaded:', {
+        playlistItems: freshPlaylist.songs?.length || 0,
+        songs: songs.length
+      });
+      
+      setSelectedPlaylist(freshPlaylist);
       setPlaylistSongs(songs);
+      setPlaylistItems(freshPlaylist.songs || []);
       setShowPlaylistDetails(true);
     } catch (error) {
       console.error('Error loading playlist details:', error);
@@ -165,9 +174,15 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
   const handleRemoveSongFromPlaylist = async (songId: string) => {
     if (!selectedPlaylist) return;
 
+    console.log('Removing song from playlist:', { songId, playlistId: selectedPlaylist.id });
+
     try {
       await playlistService.removeSongFromPlaylist(selectedPlaylist.id, songId);
-      handleViewPlaylistDetails(selectedPlaylist); // Refresh details
+      // Refresh the playlist details to get updated data
+      const { playlist: updatedPlaylist, songs } = await playlistService.getPlaylistSongs(selectedPlaylist.id);
+      setPlaylistSongs(songs);
+      setPlaylistItems(updatedPlaylist.songs || []);
+      setSelectedPlaylist(updatedPlaylist);
       Alert.alert('Success', 'Song removed from playlist');
     } catch (error) {
       console.error('Error removing song from playlist:', error);
@@ -225,24 +240,36 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
     </TouchableOpacity>
   );
 
-  const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
-    <View style={styles.songItem}>
-      <View style={styles.songInfo}>
-        <Text style={styles.songNumber}>{index + 1}</Text>
-        <View style={styles.songDetails}>
-          <Text style={styles.songTitle}>{item.title}</Text>
-          <Text style={styles.songArtist}>{item.artist}</Text>
+  const renderSongItem = ({ item, index }: { item: Song; index: number }) => {
+    // Find the corresponding PlaylistItem for this Song
+    const playlistItem = playlistItems.find(pi => pi.songId === item.id);
+    const songId = playlistItem?.songId || item.id; // Fallback to item.id if not found
+    
+    // Ensure we have a valid songId before rendering the remove button
+    if (!songId) {
+      console.error('No valid songId found for song:', item);
+      return null;
+    }
+    
+    return (
+      <View style={styles.songItem}>
+        <View style={styles.songInfo}>
+          <Text style={styles.songNumber}>{index + 1}</Text>
+          <View style={styles.songDetails}>
+            <Text style={styles.songTitle}>{item.title}</Text>
+            <Text style={styles.songArtist}>{item.artist}</Text>
+          </View>
         </View>
+        
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={() => handleRemoveSongFromPlaylist(songId)}
+        >
+          <Ionicons name="close-circle" size={24} color="#FF6B6B" />
+        </TouchableOpacity>
       </View>
-      
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => handleRemoveSongFromPlaylist(item.id)}
-      >
-        <Ionicons name="close-circle" size={24} color="#FF6B6B" />
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   const renderAvailableSongItem = ({ item }: { item: Song }) => (
     <TouchableOpacity

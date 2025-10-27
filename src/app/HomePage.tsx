@@ -332,7 +332,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
 
   // Apply persisted track states when they change
   useEffect(() => {
-    if (Object.keys(persistedTrackStates).length > 0 && selectedSong && isInitialized) {
+    console.log('Track state effect triggered:', {
+      hasPersistedStates: Object.keys(persistedTrackStates).length > 0,
+      hasSelectedSong: !!selectedSong,
+      isInitialized,
+      playersLength: players.length,
+      persistedTrackStates
+    });
+    
+    if (Object.keys(persistedTrackStates).length > 0 && selectedSong && isInitialized && players.length > 0) {
       console.log('Applying persisted track states:', persistedTrackStates);
       
       // Apply volume states
@@ -354,16 +362,46 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
       setSoloedTrackIds(newSoloedTracks);
       setActiveTrackIds(newActiveTracks);
       
-      // Apply volume to players
-      players.forEach((player, index) => {
-        const track = selectedSong.tracks?.[index];
-        if (track && persistedTrackStates[track.id]) {
-          const trackState = persistedTrackStates[track.id];
-          if (trackState.solo || newSoloedTracks.length === 0) {
-            player.setVolumeAsync(trackState.volume);
+      // Apply volume to players with proper solo/mute logic
+      const applyTrackStates = async () => {
+        for (let index = 0; index < players.length; index++) {
+          const player = players[index];
+          const track = selectedSong.tracks?.[index];
+          
+          if (track && persistedTrackStates[track.id]) {
+            const trackState = persistedTrackStates[track.id];
+            const isTrackSoloed = trackState.solo;
+            const isTrackMuted = trackState.mute;
+            
+            // Determine if this track should play
+            let shouldPlay = false;
+            let volumeToSet = 0;
+            
+            if (newSoloedTracks.length === 0) {
+              // No solo tracks - play all non-muted tracks
+              shouldPlay = !isTrackMuted;
+              volumeToSet = shouldPlay ? trackState.volume : 0;
+            } else {
+              // Some tracks are soloed - only play soloed tracks
+              shouldPlay = isTrackSoloed && !isTrackMuted;
+              volumeToSet = shouldPlay ? trackState.volume : 0;
+            }
+            
+            console.log(`Applying state to track ${track.id}:`, {
+              solo: isTrackSoloed,
+              mute: isTrackMuted,
+              volume: trackState.volume,
+              shouldPlay,
+              volumeToSet
+            });
+            
+            await player.setVolumeAsync(volumeToSet);
           }
         }
-      });
+      };
+      
+      // Apply states with a small delay to ensure players are ready
+      setTimeout(applyTrackStates, 100);
     }
   }, [persistedTrackStates, selectedSong, isInitialized, players]);
 
@@ -756,12 +794,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
         setIsInitialized(true);
         setSeekPosition(0);
 
-        // Initialize volumes
+        // Initialize volumes with default values (will be overridden by persisted states if available)
         const initialVolumes = (selectedSong.tracks || []).reduce((acc, track) => ({
           ...acc,
           [track.id]: 1
         }), {});
         setTrackVolumes(initialVolumes);
+        
+        // Set all tracks as active by default (will be overridden by persisted states if available)
+        const initialActiveTracks = (selectedSong.tracks || []).map(track => track.id);
+        setActiveTrackIds(initialActiveTracks);
 
         // Get durations
         loadedPlayers.forEach(async (player, index) => {
@@ -797,6 +839,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
   const handleSongSelect = async (song: Song) => {
     setIsPlaying(false);
     setSelectedSong(song);
+    
+    // Reset track states for new song
+    setPersistedTrackStates({});
+    setSoloedTrackIds([]);
+    setActiveTrackIds([]);
+    setTrackVolumes({});
     
     // Load persisted track states for this song
     if (user) {
@@ -3044,6 +3092,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
             {activeView === 'tracks' ? (
               // Tracks view content
               <View style={isLandscape ? styles.tracksLandscapeContainer : styles.tracksPortraitContainer}>
+                {isLoadingTrackStates && (
+                  <View style={styles.trackStateLoadingContainer}>
+                    <ActivityIndicator size="small" color="#BB86FC" />
+                    <Text style={styles.trackStateLoadingText}>Loading track states...</Text>
+                  </View>
+                )}
                 {(selectedSong.tracks || []).map(track => (
                   <TouchableOpacity 
                     key={track.id} 
@@ -5966,5 +6020,19 @@ const styles = StyleSheet.create({
   playlistSongArtist: {
     color: '#BBBBBB',
     fontSize: 14,
+  },
+  trackStateLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  trackStateLoadingText: {
+    color: '#BB86FC',
+    fontSize: 14,
+    marginLeft: 8,
   },
 });

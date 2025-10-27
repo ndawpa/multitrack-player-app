@@ -187,6 +187,7 @@ class PlaylistService {
       }
 
       const songIndex = playlist.songs.findIndex(item => item.songId === songId);
+      
       if (songIndex === -1) {
         throw new Error('Song not found in playlist');
       }
@@ -207,7 +208,7 @@ class PlaylistService {
       await set(playlistRef, this.cleanPlaylistDataForFirebase(playlist));
     } catch (error) {
       console.error('Error removing song from playlist:', error);
-      throw new Error('Failed to remove song from playlist');
+      throw error;
     }
   }
 
@@ -336,7 +337,12 @@ class PlaylistService {
           const songRef = ref(database, `songs/${item.songId}`);
           const songSnapshot = await get(songRef);
           if (songSnapshot.exists()) {
-            songs.push(songSnapshot.val() as Song);
+            const songData = songSnapshot.val();
+            // Add the song ID to the song data
+            songs.push({
+              ...songData,
+              id: item.songId
+            } as Song);
           }
         } catch (error) {
           console.warn(`Failed to load song ${item.songId}:`, error);
