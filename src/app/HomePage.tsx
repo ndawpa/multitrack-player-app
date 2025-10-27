@@ -1247,6 +1247,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
   // Auto-start playback when players are initialized in playlist mode (only for new songs)
   const [lastAutoStartedSong, setLastAutoStartedSong] = useState<string | null>(null);
   const [isPlaylistRepeating, setIsPlaylistRepeating] = useState(false);
+  const [showPlaylistSongsModal, setShowPlaylistSongsModal] = useState(false);
   
   useEffect(() => {
     if (isInitialized && isPlaylistMode && selectedSong && !isPlaying && selectedSong.id !== lastAutoStartedSong) {
@@ -3851,6 +3852,39 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
     setIsPlaylistRepeating(!isPlaylistRepeating);
   };
 
+  const handleJumpToSong = async (songIndex: number) => {
+    if (!currentPlaylist || !playlistSongs || songIndex < 0 || songIndex >= playlistSongs.length) {
+      return;
+    }
+
+    try {
+      const targetSong = playlistSongs[songIndex];
+      console.log('Jumping to song:', targetSong.title, 'at index:', songIndex);
+      
+      // Stop current playback
+      await stopLocalPlayback();
+      
+      // Update playlist state
+      setCurrentPlaylistIndex(songIndex);
+      setSelectedSong(targetSong);
+      setIsFinished(false);
+      setIsPlaying(false);
+      setIsInitialized(false);
+      setLastAutoStartedSong(null);
+      
+      // Close modal
+      setShowPlaylistSongsModal(false);
+      
+      // Small delay to ensure proper cleanup before loading new song
+      setTimeout(() => {
+        handleSongSelect(targetSong);
+      }, 100);
+    } catch (error) {
+      console.error('Error jumping to song:', error);
+      Alert.alert('Error', 'Failed to jump to song');
+    }
+  };
+
   const handleRestartPlaylist = async () => {
     if (!currentPlaylist || playlistSongs.length === 0) {
       Alert.alert('Info', 'No playlist active to restart.');
@@ -3988,13 +4022,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
                   {isPlaylistMode && currentPlaylist && (
                     <View style={styles.playlistSection}>
                       <View style={styles.playlistHeader}>
-                        <Ionicons name="musical-notes" size={18} color="#BB86FC" />
-                        <Text style={styles.playlistTitle} numberOfLines={1}>
-                          {currentPlaylist.name}
-                        </Text>
                         <Text style={styles.playlistTrackCount}>
                           {currentPlaylistIndex + 1} of {playlistSongs.length}
                         </Text>
+                        <Text style={styles.playlistTitle} numberOfLines={1}>
+                          {currentPlaylist.name}
+                        </Text>
+                        <TouchableOpacity 
+                          onPress={() => setShowPlaylistSongsModal(true)}
+                          style={styles.playlistTrackCountContainer}
+                        >
+                          <Ionicons name="list" size={16} color="#BB86FC" />
+                        </TouchableOpacity>
                       </View>
                       
                       <View style={styles.playlistControls}>
@@ -4133,6 +4172,63 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
       {showPasswordDialog && renderPasswordDialog()}
       {showSongPasswordDialog && renderSongPasswordDialog()}
       {renderFullScreenImage()}
+      
+      {/* Playlist Songs Modal */}
+      <Modal
+        visible={showPlaylistSongsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.playlistModalContainer}>
+          <View style={styles.playlistModalHeader}>
+            <TouchableOpacity onPress={() => setShowPlaylistSongsModal(false)}>
+              <Text style={styles.playlistModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.playlistModalTitle}>Playlist Songs</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          
+          <View style={styles.playlistModalContent}>
+            <FlatList
+              data={playlistSongs}
+              renderItem={({ item, index }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.playlistSongItem,
+                    index === currentPlaylistIndex && styles.playlistSongItemActive
+                  ]}
+                  onPress={() => handleJumpToSong(index)}
+                >
+                  <View style={styles.playlistSongInfo}>
+                    <Text style={[
+                      styles.playlistSongNumber,
+                      index === currentPlaylistIndex && styles.playlistSongNumberActive
+                    ]}>
+                      {index + 1}
+                    </Text>
+                    <View style={styles.playlistSongDetails}>
+                      <Text style={[
+                        styles.playlistSongTitle,
+                        index === currentPlaylistIndex && styles.playlistSongTitleActive
+                      ]}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.playlistSongArtist}>
+                        {item.artist}
+                      </Text>
+                    </View>
+                  </View>
+                  {index === currentPlaylistIndex && (
+                    <Ionicons name="play" size={20} color="#BB86FC" />
+                  )}
+                </TouchableOpacity>
+              )}
+              keyExtractor={(item, index) => `playlist-song-${item.id}-${index}`}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 };
@@ -5583,22 +5679,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
-    position: 'relative',
+  },
+  playlistTrackCount: {
+    color: '#BBBBBB',
+    fontSize: 14,
+    fontWeight: '500',
   },
   playlistTitle: {
     color: '#BB86FC',
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 1,
-  },
-  playlistTrackCount: {
-    color: '#BBBBBB',
-    fontSize: 14,
-    fontWeight: '500',
+    flex: 1,
   },
   playlistControls: {
     flexDirection: 'row',
@@ -5636,11 +5728,93 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(107, 114, 128, 0.3)',
   },
   playlistStopBtn: {
-    backgroundColor: '#6B7280',
-    borderColor: 'rgba(107, 114, 128, 0.3)',
+    backgroundColor: '#BB86FC',
+    borderColor: 'rgba(187, 134, 252, 0.3)',
   },
   playlistRepeatActive: {
     backgroundColor: '#BB86FC',
     borderColor: 'rgba(187, 134, 252, 0.3)',
+  },
+  playlistTrackCountContainer: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(187, 134, 252, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(187, 134, 252, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playlistModalContainer: {
+    flex: 1,
+    backgroundColor: '#121212',
+  },
+  playlistModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  playlistModalCancelText: {
+    color: '#BB86FC',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  playlistModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  playlistModalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  playlistSongItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  playlistSongItemActive: {
+    backgroundColor: 'rgba(187, 134, 252, 0.1)',
+    borderColor: '#BB86FC',
+  },
+  playlistSongInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  playlistSongNumber: {
+    color: '#BBBBBB',
+    fontSize: 16,
+    fontWeight: 'bold',
+    width: 30,
+    textAlign: 'center',
+  },
+  playlistSongNumberActive: {
+    color: '#BB86FC',
+  },
+  playlistSongDetails: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  playlistSongTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  playlistSongTitleActive: {
+    color: '#BB86FC',
+  },
+  playlistSongArtist: {
+    color: '#BBBBBB',
+    fontSize: 14,
   },
 });
