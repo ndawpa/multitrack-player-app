@@ -3896,6 +3896,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
     }
   };
 
+  const handleBackToPlaylists = () => {
+    // Navigate directly to playlists view without stopping the playlist
+    if (onNavigateToPlaylists) {
+      onNavigateToPlaylists(songs);
+    }
+  };
+
   const handleStopPlaylist = async () => {
     try {
       // Stop current playback
@@ -3993,7 +4000,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
                       <View style={styles.playlistControls}>
                         <TouchableOpacity
                           style={[styles.playlistControlBtn, styles.playlistStopBtn]}
-                          onPress={handleStopPlaylist}
+                          onPress={handleBackToPlaylists}
                         >
                           <Ionicons name="arrow-back" size={18} color="#FFFFFF" />
                         </TouchableOpacity>
