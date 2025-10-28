@@ -17,6 +17,7 @@ import AuthService from '../services/authService';
 import { User, UserPreferences } from '../types/user';
 import Header from './Header';
 import Button from './Button';
+import { commonStyles, spacingStyles } from '../theme/layout';
 
 /**
  * SettingsScreen - Enhanced with improved error handling
@@ -183,8 +184,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
+      <SafeAreaView style={commonStyles.container}>
+        <View style={commonStyles.loadingContainer}>
           <Text style={styles.loadingText}>Loading settings...</Text>
         </View>
       </SafeAreaView>
@@ -193,8 +194,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
   if (!user || !preferences) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
+      <SafeAreaView style={commonStyles.container}>
+        <View style={commonStyles.errorContainer}>
           <Text style={styles.errorText}>Failed to load settings</Text>
         </View>
       </SafeAreaView>
@@ -202,7 +203,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={commonStyles.container}>
       <Header title="Settings" onBack={onBack} />
 
       <ScrollView 
@@ -210,10 +211,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 20, 40) }}
       >
         {/* Profile Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+        <View style={commonStyles.section}>
+          <View style={commonStyles.sectionHeader}>
             <Ionicons name="person-outline" size={20} color="#BB86FC" />
-            <Text style={styles.sectionTitle}>Profile</Text>
+            <Text style={commonStyles.sectionTitle}>Profile</Text>
           </View>
           
           <View style={styles.settingItem}>
@@ -271,10 +272,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         </View>
 
         {/* Appearance Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+        <View style={commonStyles.section}>
+          <View style={commonStyles.sectionHeader}>
             <Ionicons name="color-palette-outline" size={20} color="#BB86FC" />
-            <Text style={styles.sectionTitle}>Appearance</Text>
+            <Text style={commonStyles.sectionTitle}>Appearance</Text>
           </View>
           
           <View style={styles.settingItem}>
@@ -302,10 +303,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         </View>
 
         {/* Audio Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+        <View style={commonStyles.section}>
+          <View style={commonStyles.sectionHeader}>
             <Ionicons name="volume-high-outline" size={20} color="#BB86FC" />
-            <Text style={styles.sectionTitle}>Audio</Text>
+            <Text style={commonStyles.sectionTitle}>Audio</Text>
           </View>
           
           <View style={styles.settingItem}>
@@ -374,10 +375,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         </View>
 
         {/* Notifications Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+        <View style={commonStyles.section}>
+          <View style={commonStyles.sectionHeader}>
             <Ionicons name="notifications-outline" size={20} color="#BB86FC" />
-            <Text style={styles.sectionTitle}>Notifications</Text>
+            <Text style={commonStyles.sectionTitle}>Notifications</Text>
           </View>
           
           <View style={styles.settingItem}>
@@ -399,10 +400,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         </View>
 
         {/* Language Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+        <View style={commonStyles.section}>
+          <View style={commonStyles.sectionHeader}>
             <Ionicons name="language-outline" size={20} color="#BB86FC" />
-            <Text style={styles.sectionTitle}>Language</Text>
+            <Text style={commonStyles.sectionTitle}>Language</Text>
           </View>
           
           <View style={styles.settingItem}>
@@ -438,23 +439,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   loadingText: {
     color: '#BBBBBB',
     fontSize: 16,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   errorText: {
     color: '#FF6B6B',
@@ -494,21 +481,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  section: {
-    marginHorizontal: 20,
-    marginVertical: 12,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginLeft: 8,
   },
   settingItem: {
     backgroundColor: '#1E1E1E',

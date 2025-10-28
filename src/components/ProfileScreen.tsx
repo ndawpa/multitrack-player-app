@@ -16,6 +16,7 @@ import AuthService from '../services/authService';
 import { User } from '../types/user';
 import Header from './Header';
 import Button from './Button';
+import { commonStyles, spacingStyles } from '../theme/layout';
 
 interface ProfileScreenProps {
   onNavigateToSettings: () => void;
@@ -125,8 +126,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
+      <SafeAreaView style={commonStyles.container}>
+        <View style={commonStyles.loadingContainer}>
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </SafeAreaView>
@@ -135,8 +136,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   if (!user || !user.stats) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
+      <SafeAreaView style={commonStyles.container}>
+        <View style={commonStyles.errorContainer}>
           <Text style={styles.errorText}>Failed to load profile</Text>
         </View>
       </SafeAreaView>
@@ -144,7 +145,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={commonStyles.container}>
       <Header title="Profile" onBack={onBack} />
       
       <ScrollView 
@@ -152,7 +153,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 20, 40) }}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[commonStyles.section, styles.header]}>
           <View style={styles.avatarContainer}>
             {user.avatar && user.avatar !== null ? (
               <Image source={{ uri: user.avatar }} style={styles.avatar} />
@@ -167,8 +168,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </View>
 
         {/* Stats Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Stats</Text>
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Your Stats</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{user.stats.totalSessions || 0}</Text>
@@ -190,8 +191,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </View>
 
         {/* Account Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account Info</Text>
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Account Info</Text>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Member since</Text>
             <Text style={styles.infoValue}>{user.stats.joinedDate ? formatDate(user.stats.joinedDate) : 'Unknown'}</Text>
@@ -205,8 +206,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </View>
 
         {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Quick Actions</Text>
           
           <TouchableOpacity style={styles.actionButton} onPress={handleAdminModeToggle}>
             <Ionicons 
@@ -288,26 +289,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
   scrollView: {
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   loadingText: {
     color: '#BBBBBB',
     fontSize: 16,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   errorText: {
     color: '#FF6B6B',
@@ -316,7 +303,6 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     paddingVertical: 30,
-    paddingHorizontal: 20,
   },
   avatarContainer: {
     marginBottom: 16,
@@ -345,21 +331,6 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 16,
     color: '#BBBBBB',
-  },
-  section: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 16,
   },
   statsGrid: {
     flexDirection: 'row',

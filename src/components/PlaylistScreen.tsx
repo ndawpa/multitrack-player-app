@@ -20,6 +20,7 @@ import { Song } from '../types/song';
 import { User } from '../types/user';
 import Header from './Header';
 import Button from './Button';
+import { commonStyles, spacingStyles } from '../theme/layout';
 
 interface PlaylistScreenProps {
   onBack: () => void;
@@ -290,8 +291,8 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
+      <SafeAreaView style={commonStyles.container}>
+        <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#BB86FC" />
           <Text style={styles.loadingText}>Loading playlists...</Text>
         </View>
@@ -300,7 +301,7 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={commonStyles.container}>
       <Header 
         title="My Playlists" 
         onBack={onBack}
@@ -317,10 +318,10 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
       {/* Playlists List */}
       <View style={styles.content}>
         {playlists.length === 0 ? (
-          <View style={styles.emptyState}>
+          <View style={commonStyles.emptyState}>
             <Ionicons name="musical-notes" size={64} color="#666666" />
-            <Text style={styles.emptyTitle}>No Playlists Yet</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={commonStyles.emptyTitle}>No Playlists Yet</Text>
+            <Text style={commonStyles.emptySubtitle}>
               Create your first playlist to organize your favorite songs
             </Text>
             <Button
@@ -348,8 +349,8 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView style={commonStyles.modalContainer}>
+          <View style={commonStyles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCreateModal(false)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -362,9 +363,9 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
             />
           </View>
 
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Name *</Text>
+          <ScrollView style={commonStyles.modalContent}>
+            <View style={commonStyles.inputGroup}>
+              <Text style={commonStyles.inputLabel}>Name *</Text>
               <TextInput
                 style={styles.textInput}
                 value={newPlaylist.name}
@@ -374,8 +375,8 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
               />
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Description</Text>
+            <View style={commonStyles.inputGroup}>
+              <Text style={commonStyles.inputLabel}>Description</Text>
               <TextInput
                 style={[styles.textInput, styles.textArea]}
                 value={newPlaylist.description}
@@ -387,7 +388,7 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
               />
             </View>
 
-            <View style={styles.inputGroup}>
+            <View style={commonStyles.inputGroup}>
               <TouchableOpacity
                 style={styles.checkboxRow}
                 onPress={() => setNewPlaylist({ ...newPlaylist, isPublic: !newPlaylist.isPublic })}
@@ -410,8 +411,8 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView style={commonStyles.modalContainer}>
+          <View style={commonStyles.modalHeader}>
             <TouchableOpacity onPress={() => setShowPlaylistDetails(false)}>
               <Text style={styles.modalCancelText}>Back</Text>
             </TouchableOpacity>
@@ -426,7 +427,7 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
             />
           </View>
 
-          <View style={styles.modalContent}>
+          <View style={commonStyles.modalContent}>
             {playlistSongs.length === 0 ? (
               <View style={styles.emptyPlaylist}>
                 <Ionicons name="musical-notes" size={48} color="#666666" />
@@ -457,8 +458,8 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView style={commonStyles.modalContainer}>
+          <View style={commonStyles.modalHeader}>
             <TouchableOpacity onPress={() => setShowAddSongModal(false)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -466,7 +467,7 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
             <View style={{ width: 60 }} />
           </View>
 
-          <View style={styles.modalContent}>
+          <View style={commonStyles.modalContent}>
             <FlatList
               data={availableSongs}
               renderItem={renderAvailableSongItem}
@@ -481,15 +482,6 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   loadingText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -541,39 +533,8 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 8,
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#BBBBBB',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
   createFirstButton: {
     marginTop: 24,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2C',
   },
   modalTitle: {
     fontSize: 18,
@@ -585,24 +546,6 @@ const styles = StyleSheet.create({
   modalCancelText: {
     color: '#BB86FC',
     fontSize: 16,
-  },
-  modalSaveText: {
-    color: '#BB86FC',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  modalContent: {
-    flex: 1,
-    padding: 16,
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
   },
   textInput: {
     backgroundColor: '#1E1E1E',
