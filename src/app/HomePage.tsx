@@ -274,6 +274,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [favoriteSongs, setFavoriteSongs] = useState<Set<string>>(new Set());
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [favoritesService] = useState(() => FavoritesService.getInstance());
+  
+  // Content filter states
+  const [showContentFilterDialog, setShowContentFilterDialog] = useState(false);
+  const [hasTracks, setHasTracks] = useState(false);
+  const [hasLyrics, setHasLyrics] = useState(false);
+  const [hasScores, setHasScores] = useState(false);
+  const [hasLinks, setHasLinks] = useState(false);
 
   // Recording state
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -909,6 +916,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       filtered = filtered.filter(song => favoriteSongs.has(song.id));
     }
     
+    // Apply content filters
+    if (hasTracks) {
+      filtered = filtered.filter(song => song.tracks && song.tracks.length > 0);
+    }
+    
+    if (hasLyrics) {
+      filtered = filtered.filter(song => song.lyrics && song.lyrics.trim().length > 0);
+    }
+    
+    if (hasScores) {
+      filtered = filtered.filter(song => song.scores && song.scores.length > 0);
+    }
+    
+    if (hasLinks) {
+      filtered = filtered.filter(song => song.resources && song.resources.length > 0);
+    }
+    
     // Apply search query if present
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
@@ -949,7 +973,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     
     console.log('Filtered songs:', filtered);
     return filtered;
-  }, [searchQuery, selectedArtists, songs, sortOrder, showFavoritesOnly, favoriteSongs]);
+  }, [searchQuery, selectedArtists, songs, sortOrder, showFavoritesOnly, favoriteSongs, hasTracks, hasLyrics, hasScores, hasLinks]);
 
   // Get unique artists for the filter dropdown
   const uniqueArtists = useMemo(() => {
@@ -967,6 +991,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       }
       return newSet;
     });
+  };
+
+  // Content filter helper functions
+  const clearContentFilters = () => {
+    setHasTracks(false);
+    setHasLyrics(false);
+    setHasScores(false);
+    setHasLinks(false);
+  };
+
+  const hasActiveContentFilters = () => {
+    return hasTracks || hasLyrics || hasScores || hasLinks;
+  };
+
+  // Artist filter helper functions
+  const clearArtistFilters = () => {
+    setSelectedArtists(new Set());
   };
 
   const renderSongItem = ({ item }: { item: Song & { matchInfo?: { titleMatch: boolean; artistMatch: boolean; lyricsMatch: boolean } } }) => {
@@ -1628,6 +1669,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               />
             </TouchableOpacity>
             <TouchableOpacity
+              style={[styles.integratedActionButton, hasActiveContentFilters() && styles.integratedActiveButton]}
+              onPress={() => {
+                setShowContentFilterDialog(true);
+              }}
+            >
+              <Ionicons 
+                name="layers-outline" 
+                size={16} 
+                color={hasActiveContentFilters() ? "#FFFFFF" : "#BBBBBB"} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.integratedActionButton, sortOrder === 'desc' && styles.integratedActiveButton]}
               onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
             >
@@ -1681,10 +1734,111 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <View style={[styles.dialogButtonContainer, { justifyContent: 'center' }]}>
+            <View style={[styles.dialogButtonContainer, { justifyContent: 'space-between' }]}>
+              <TouchableOpacity 
+                style={[styles.dialogButton, styles.dialogButtonSecondary]}
+                onPress={clearArtistFilters}
+              >
+                <Text style={styles.dialogButtonText}>Clear All</Text>
+              </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.dialogButton, styles.dialogButtonSecondary]}
                 onPress={() => setShowArtistFilterDialog(false)}
+              >
+                <Text style={styles.dialogButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+      
+      {showContentFilterDialog && (
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogContainer}>
+            <Text style={styles.dialogTitle}>Filter by Content</Text>
+            <ScrollView style={styles.dialogScrollView}>
+              <TouchableOpacity
+                style={styles.artistFilterOption}
+                onPress={() => setHasTracks(!hasTracks)}
+              >
+                <View style={styles.artistFilterOptionContent}>
+                  <Ionicons 
+                    name={hasTracks ? "checkbox" : "square-outline"} 
+                    size={24} 
+                    color={hasTracks ? "#BB86FC" : "#BBBBBB"} 
+                  />
+                  <Ionicons name="musical-notes-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
+                  <Text style={[
+                    styles.artistFilterOptionText,
+                    hasTracks && styles.artistFilterOptionTextSelected
+                  ]}>Tracks</Text>
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.artistFilterOption}
+                onPress={() => setHasLyrics(!hasLyrics)}
+              >
+                <View style={styles.artistFilterOptionContent}>
+                  <Ionicons 
+                    name={hasLyrics ? "checkbox" : "square-outline"} 
+                    size={24} 
+                    color={hasLyrics ? "#BB86FC" : "#BBBBBB"} 
+                  />
+                  <Ionicons name="text-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
+                  <Text style={[
+                    styles.artistFilterOptionText,
+                    hasLyrics && styles.artistFilterOptionTextSelected
+                  ]}>Lyrics</Text>
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.artistFilterOption}
+                onPress={() => setHasScores(!hasScores)}
+              >
+                <View style={styles.artistFilterOptionContent}>
+                  <Ionicons 
+                    name={hasScores ? "checkbox" : "square-outline"} 
+                    size={24} 
+                    color={hasScores ? "#BB86FC" : "#BBBBBB"} 
+                  />
+                  <Ionicons name="musical-note-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
+                  <Text style={[
+                    styles.artistFilterOptionText,
+                    hasScores && styles.artistFilterOptionTextSelected
+                  ]}>Scores</Text>
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.artistFilterOption}
+                onPress={() => setHasLinks(!hasLinks)}
+              >
+                <View style={styles.artistFilterOptionContent}>
+                  <Ionicons 
+                    name={hasLinks ? "checkbox" : "square-outline"} 
+                    size={24} 
+                    color={hasLinks ? "#BB86FC" : "#BBBBBB"} 
+                  />
+                  <Ionicons name="link-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
+                  <Text style={[
+                    styles.artistFilterOptionText,
+                    hasLinks && styles.artistFilterOptionTextSelected
+                  ]}>Links</Text>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+            <View style={[styles.dialogButtonContainer, { justifyContent: 'space-between' }]}>
+              <TouchableOpacity 
+                style={[styles.dialogButton, styles.dialogButtonSecondary]}
+                onPress={clearContentFilters}
+              >
+                <Text style={styles.dialogButtonText}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.dialogButton, styles.dialogButtonSecondary]}
+                onPress={() => setShowContentFilterDialog(false)}
               >
                 <Text style={styles.dialogButtonText}>Done</Text>
               </TouchableOpacity>
