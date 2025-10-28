@@ -1583,6 +1583,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
   const renderSongList = () => (
     <View style={styles.songListContainer}>
+      {/* App Title Header */}
+      <View style={styles.appTitleContainer}>
+        <Text style={styles.appTitle}>Kit de Voz</Text>
+        <Text style={styles.appSubtitle}>Multitrack Player</Text>
+      </View>
+      
       {isSessionMenuExpanded && (
         <View style={styles.sessionMenuContent}>
           {sessionId ? (
@@ -4738,6 +4744,28 @@ const styles = StyleSheet.create({
   songListContainer: {
     flex: 1,
     padding: 16,
+  },
+  appTitleContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    alignItems: 'center',
+    backgroundColor: '#121212',
+    marginHorizontal: -16, // Offset the container padding
+    marginTop: -16, // Offset the container padding
+  },
+  appTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  appSubtitle: {
+    fontSize: 16,
+    color: '#BB86FC',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   songList: {
     flex: 1,
