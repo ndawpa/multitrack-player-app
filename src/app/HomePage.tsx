@@ -1586,7 +1586,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       {/* App Title Header */}
       <View style={styles.appTitleContainer}>
         <Text style={styles.appTitle}>Kit de Voz</Text>
-        <Text style={styles.appSubtitle}>Multitrack Player</Text>
       </View>
       
       {isSessionMenuExpanded && (
