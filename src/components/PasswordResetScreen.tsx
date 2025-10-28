@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { PasswordResetForm } from '../types/user';
 import Header from './Header';
+import Button from './Button';
 
 interface PasswordResetScreenProps {
   onBack: () => void;
@@ -127,17 +128,14 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
                   />
                 </View>
 
-                <TouchableOpacity
-                  style={[styles.button, loading && styles.buttonDisabled]}
+                <Button
+                  title="Send Reset Link"
                   onPress={handleSendResetEmail}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.buttonText}>Send Reset Link</Text>
-                  )}
-                </TouchableOpacity>
+                  loading={loading}
+                  variant="primary"
+                  size="large"
+                  style={styles.resetButton}
+                />
               </>
             ) : (
               <>
@@ -219,34 +217,8 @@ const styles = StyleSheet.create({
   eyeButtonText: {
     fontSize: 18,
   },
-  button: {
-    backgroundColor: '#BB86FC',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
+  resetButton: {
     marginTop: 10,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 15,
-    borderWidth: 1,
-    borderColor: '#BB86FC',
-  },
-  secondaryButtonText: {
-    color: '#BB86FC',
-    fontSize: 16,
-    fontWeight: '500',
   },
   successContainer: {
     alignItems: 'center',

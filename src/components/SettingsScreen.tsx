@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { User, UserPreferences } from '../types/user';
 import Header from './Header';
+import Button from './Button';
 
 /**
  * SettingsScreen - Enhanced with improved error handling
@@ -235,26 +236,23 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                     placeholder="Enter display name"
                     placeholderTextColor="#666"
                   />
-                  <TouchableOpacity 
-                    style={[
-                      styles.saveButton,
-                      saving && styles.saveButtonDisabled
-                    ]} 
+                  <Button
+                    title=""
                     onPress={handleDisplayNameSave}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <Ionicons name="time-outline" size={24} color="#FFFFFF" />
-                    ) : (
-                      <Ionicons name="checkmark" size={24} color="#FFFFFF" />
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.cancelButton} 
+                    loading={saving}
+                    variant="primary"
+                    size="small"
+                    icon={saving ? undefined : <Ionicons name="checkmark" size={24} color="#FFFFFF" />}
+                    style={saving ? styles.saveButtonDisabled : styles.saveButton}
+                  />
+                  <Button
+                    title=""
                     onPress={handleDisplayNameCancel}
-                  >
-                    <Ionicons name="close" size={24} color="#FFFFFF" />
-                  </TouchableOpacity>
+                    variant="danger"
+                    size="small"
+                    icon={<Ionicons name="close" size={24} color="#FFFFFF" />}
+                    style={styles.cancelButton}
+                  />
                 </View>
                 {displayNameError ? (
                   <Text style={styles.errorText}>{displayNameError}</Text>
@@ -468,6 +466,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   saveButtonDisabled: {
+    marginRight: 8,
+    minWidth: 36,
+    minHeight: 36,
     opacity: 0.5,
   },
   errorBanner: {
@@ -549,23 +550,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   saveButton: {
-    backgroundColor: '#BB86FC',
-    borderRadius: 6,
-    padding: 10,
     marginRight: 8,
     minWidth: 36,
     minHeight: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 6,
-    padding: 10,
     minWidth: 36,
     minHeight: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   switchContainer: {
     flexDirection: 'row',

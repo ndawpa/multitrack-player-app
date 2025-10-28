@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { LoginForm, SignupForm } from '../types/user';
+import Button from './Button';
 
 interface AuthScreenProps {
   onAuthSuccess: () => void;
@@ -164,33 +165,34 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
           </View>
 
           {isLogin && (
-            <TouchableOpacity style={styles.forgotPasswordButton} onPress={onForgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            <Button
+              title="Forgot Password?"
+              onPress={onForgotPassword}
+              variant="tertiary"
+              size="small"
+              style={styles.forgotPasswordButton}
+            />
           )}
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+          <Button
+            title={isLogin ? 'Sign In' : 'Sign Up'}
             onPress={isLogin ? handleLogin : handleSignup}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {isLogin ? 'Sign In' : 'Sign Up'}
-              </Text>
-            )}
-          </TouchableOpacity>
+            loading={loading}
+            variant="primary"
+            size="large"
+            style={styles.primaryButton}
+          />
 
-          <TouchableOpacity style={styles.toggleButton} onPress={toggleAuthMode}>
-            <Text style={styles.toggleText}>
-              {isLogin 
-                ? "Don't have an account? Sign up" 
-                : "Already have an account? Sign in"
-              }
-            </Text>
-          </TouchableOpacity>
+          <Button
+            title={isLogin 
+              ? "Don't have an account? Sign up" 
+              : "Already have an account? Sign in"
+            }
+            onPress={toggleAuthMode}
+            variant="tertiary"
+            size="medium"
+            style={styles.toggleButton}
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -263,37 +265,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  button: {
-    backgroundColor: '#BB86FC',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
+  primaryButton: {
     marginTop: 20,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   toggleButton: {
-    alignItems: 'center',
     marginTop: 20,
-  },
-  toggleText: {
-    color: '#BB86FC',
-    fontSize: 14,
   },
   forgotPasswordButton: {
     alignSelf: 'flex-end',
     marginBottom: 10,
-  },
-  forgotPasswordText: {
-    color: '#BB86FC',
-    fontSize: 14,
-    textDecorationLine: 'underline',
   },
 });
 

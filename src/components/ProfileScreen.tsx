@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { User } from '../types/user';
 import Header from './Header';
+import Button from './Button';
 
 interface ProfileScreenProps {
   onNavigateToSettings: () => void;
@@ -225,11 +226,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionButton} onPress={handleSignOut}>
-            <Ionicons name="log-out" size={20} color="#BB86FC" />
-            <Text style={styles.actionText}>Sign Out</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
-          </TouchableOpacity>
+          <Button
+            title="Sign Out"
+            onPress={handleSignOut}
+            variant="danger"
+            size="medium"
+            icon={<Ionicons name="log-out" size={20} color="#FFFFFF" />}
+            iconPosition="left"
+            style={styles.signOutButton}
+          />
         </View>
       </ScrollView>
 
@@ -260,18 +265,20 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </View>
             
             <View style={styles.passwordDialogButtons}>
-              <TouchableOpacity 
-                style={styles.passwordDialogCancelButton} 
+              <Button
+                title="Cancel"
                 onPress={handlePasswordDialogCancel}
-              >
-                <Text style={styles.passwordDialogCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.passwordDialogSubmitButton} 
+                variant="secondary"
+                size="medium"
+                style={styles.passwordDialogCancelButton}
+              />
+              <Button
+                title="Enter"
                 onPress={handlePasswordVerification}
-              >
-                <Text style={styles.passwordDialogSubmitText}>Enter</Text>
-              </TouchableOpacity>
+                variant="primary"
+                size="medium"
+                style={styles.passwordDialogSubmitButton}
+              />
             </View>
           </View>
         </View>
@@ -473,31 +480,12 @@ const styles = StyleSheet.create({
   },
   passwordDialogCancelButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: '#333333',
-    alignItems: 'center',
-  },
-  passwordDialogCancelText: {
-    color: '#BBBBBB',
-    fontSize: 16,
-    fontWeight: '500',
   },
   passwordDialogSubmitButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: '#BB86FC',
-    alignItems: 'center',
   },
-  passwordDialogSubmitText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  signOutButton: {
+    marginTop: 8,
   },
 });
 

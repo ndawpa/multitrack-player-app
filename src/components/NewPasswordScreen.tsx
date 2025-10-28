@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import Header from './Header';
+import Button from './Button';
 
 interface NewPasswordScreenProps {
   resetCode: string;
@@ -131,17 +132,14 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
               </View>
             </View>
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+            <Button
+              title="Reset Password"
               onPress={handleResetPassword}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buttonText}>Reset Password</Text>
-              )}
-            </TouchableOpacity>
+              loading={loading}
+              variant="primary"
+              size="large"
+              style={styles.resetButton}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -219,20 +217,8 @@ const styles = StyleSheet.create({
   eyeButtonText: {
     fontSize: 18,
   },
-  button: {
-    backgroundColor: '#BB86FC',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
+  resetButton: {
     marginTop: 10,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 

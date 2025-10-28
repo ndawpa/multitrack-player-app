@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { User } from '../types/user';
 import Header from './Header';
+import Button from './Button';
 
 interface EmailVerificationScreenProps {
   user: User;
@@ -128,31 +129,24 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
         </Text>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.secondaryButton,
-              (resendLoading || resendCooldown > 0) && styles.disabledButton
-            ]}
+          <Button
+            title={resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Verification Email'}
             onPress={handleResendVerification}
             disabled={resendLoading || resendCooldown > 0}
-          >
-            {resendLoading ? (
-              <ActivityIndicator size="small" color="#BB86FC" />
-            ) : (
-              <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Verification Email'}
-              </Text>
-            )}
-          </TouchableOpacity>
+            loading={resendLoading}
+            variant="secondary"
+            size="large"
+            style={styles.resendButton}
+          />
 
-          <TouchableOpacity
-            style={[styles.button, styles.tertiaryButton]}
+          <Button
+            title="Back to Sign In"
             onPress={onBackToAuth}
             disabled={loading}
-          >
-            <Text style={[styles.buttonText, styles.tertiaryButtonText]}>Back to Sign In</Text>
-          </TouchableOpacity>
+            variant="tertiary"
+            size="large"
+            style={styles.backButton}
+          />
         </View>
 
         {loading && (
@@ -215,35 +209,11 @@ const styles = StyleSheet.create({
   buttonContainer: {
     gap: 12,
   },
-  button: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 52,
+  resendButton: {
+    marginBottom: 12,
   },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#BB86FC',
-  },
-  tertiaryButton: {
-    backgroundColor: 'transparent',
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  secondaryButtonText: {
-    color: '#BB86FC',
-  },
-  tertiaryButtonText: {
-    color: '#BBBBBB',
+  backButton: {
+    marginTop: 0,
   },
   loadingContainer: {
     alignItems: 'center',

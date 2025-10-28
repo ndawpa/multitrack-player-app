@@ -19,6 +19,7 @@ import { Playlist, CreatePlaylistForm, PlaylistItem } from '../types/playlist';
 import { Song } from '../types/song';
 import { User } from '../types/user';
 import Header from './Header';
+import Button from './Button';
 
 interface PlaylistScreenProps {
   onBack: () => void;
@@ -322,12 +323,13 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
             <Text style={styles.emptySubtitle}>
               Create your first playlist to organize your favorite songs
             </Text>
-            <TouchableOpacity
-              style={styles.createFirstButton}
+            <Button
+              title="Create Playlist"
               onPress={() => setShowCreateModal(true)}
-            >
-              <Text style={styles.createFirstButtonText}>Create Playlist</Text>
-            </TouchableOpacity>
+              variant="primary"
+              size="large"
+              style={styles.createFirstButton}
+            />
           </View>
         ) : (
           <FlatList
@@ -352,9 +354,12 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>New Playlist</Text>
-            <TouchableOpacity onPress={handleCreatePlaylist}>
-              <Text style={styles.modalSaveText}>Save</Text>
-            </TouchableOpacity>
+            <Button
+              title="Save"
+              onPress={handleCreatePlaylist}
+              variant="primary"
+              size="medium"
+            />
           </View>
 
           <ScrollView style={styles.modalContent}>
@@ -413,9 +418,12 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
             <Text style={styles.modalTitle} numberOfLines={1}>
               {selectedPlaylist?.name}
             </Text>
-            <TouchableOpacity onPress={() => setShowAddSongModal(true)}>
-              <Text style={styles.modalSaveText}>Add Songs</Text>
-            </TouchableOpacity>
+            <Button
+              title="Add Songs"
+              onPress={() => setShowAddSongModal(true)}
+              variant="primary"
+              size="medium"
+            />
           </View>
 
           <View style={styles.modalContent}>
@@ -423,12 +431,13 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
               <View style={styles.emptyPlaylist}>
                 <Ionicons name="musical-notes" size={48} color="#666666" />
                 <Text style={styles.emptyPlaylistText}>No songs in this playlist</Text>
-                <TouchableOpacity
-                  style={styles.addSongsButton}
+                <Button
+                  title="Add Songs"
                   onPress={() => setShowAddSongModal(true)}
-                >
-                  <Text style={styles.addSongsButtonText}>Add Songs</Text>
-                </TouchableOpacity>
+                  variant="primary"
+                  size="large"
+                  style={styles.addSongsButton}
+                />
               </View>
             ) : (
               <FlatList
@@ -552,15 +561,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   createFirstButton: {
-    backgroundColor: '#BB86FC',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  createFirstButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    marginTop: 24,
   },
   modalContainer: {
     flex: 1,
@@ -683,15 +684,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   addSongsButton: {
-    backgroundColor: '#BB86FC',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  addSongsButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    marginTop: 24,
   },
 });
 
