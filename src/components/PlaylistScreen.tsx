@@ -45,6 +45,8 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
   const [playlistItems, setPlaylistItems] = useState<PlaylistItem[]>([]);
   
   const [showPlaylistDetails, setShowPlaylistDetails] = useState(false);
+  const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
+  const [selectedPlaylistForMenu, setSelectedPlaylistForMenu] = useState<Playlist | null>(null);
   
   // Create playlist form
   const [newPlaylist, setNewPlaylist] = useState<CreatePlaylistForm>({
@@ -193,6 +195,23 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
     }
   };
 
+  const handlePlaylistMenuPress = (playlist: Playlist) => {
+    setSelectedPlaylistForMenu(playlist);
+    setShowPlaylistMenu(true);
+  };
+
+  const handleMenuAction = (action: 'edit' | 'delete') => {
+    if (!selectedPlaylistForMenu) return;
+    
+    setShowPlaylistMenu(false);
+    
+    if (action === 'edit') {
+      handleViewPlaylistDetails(selectedPlaylistForMenu);
+    } else if (action === 'delete') {
+      handleDeletePlaylist(selectedPlaylistForMenu);
+    }
+  };
+
 
   const renderPlaylistItem = ({ item }: { item: Playlist }) => (
     <TouchableOpacity 
@@ -211,27 +230,15 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
         )}
       </View>
       
-      <View style={styles.playlistActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={(e) => {
-            e.stopPropagation(); // Prevent triggering the tile click
-            handleViewPlaylistDetails(item);
-          }}
-        >
-          <Ionicons name="list" size={20} color="#BB86FC" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={(e) => {
-            e.stopPropagation(); // Prevent triggering the tile click
-            handleDeletePlaylist(item.id);
-          }}
-        >
-          <Ionicons name="trash" size={20} color="#FF6B6B" />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={styles.menuButton}
+        onPress={(e) => {
+          e.stopPropagation(); // Prevent triggering the tile click
+          handlePlaylistMenuPress(item);
+        }}
+      >
+        <Ionicons name="ellipsis-vertical" size={20} color="#BBBBBB" />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -469,6 +476,38 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* Playlist Menu Modal */}
+      <Modal
+        visible={showPlaylistMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPlaylistMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPlaylistMenu(false)}
+        >
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuAction('edit')}
+            >
+              <Text style={styles.menuItemText}>Edit</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.menuSeparator} />
+            
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuAction('delete')}
+            >
+              <Text style={[styles.menuItemText, styles.deleteText]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -518,11 +557,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999999',
   },
-  playlistActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
+  menuButton: {
     padding: 8,
   },
   createFirstButton: {
@@ -620,6 +655,46 @@ const styles = StyleSheet.create({
   },
   addSongsButton: {
     marginTop: 24,
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 100,
+    paddingRight: 20,
+  },
+  menuContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    minWidth: 120,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  menuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  menuSeparator: {
+    height: 1,
+    backgroundColor: '#2C2C2C',
+    marginHorizontal: 8,
+  },
+  deleteText: {
+    color: '#FF6B6B',
   },
 });
 
