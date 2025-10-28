@@ -77,16 +77,29 @@ class AuthService {
   }
 
   private cleanUserDataForFirebase(user: User): any {
-    return {
+    const cleanedData: any = {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
-      avatar: user.avatar,
+      avatar: user.avatar || null,
       preferences: user.preferences,
-      stats: user.stats,
+      stats: {
+        totalSessions: user.stats.totalSessions,
+        totalPlayTime: user.stats.totalPlayTime,
+        joinedDate: user.stats.joinedDate.toISOString(),
+        favoriteArtists: user.stats.favoriteArtists || [],
+        favoriteSongs: user.stats.favoriteSongs || []
+      },
       createdAt: user.createdAt.toISOString(),
       lastActiveAt: user.lastActiveAt.toISOString()
     };
+
+    // Only include lastSessionDate if it exists
+    if (user.stats.lastSessionDate) {
+      cleanedData.stats.lastSessionDate = user.stats.lastSessionDate.toISOString();
+    }
+
+    return cleanedData;
   }
 
   public async signIn(credentials: LoginForm): Promise<User> {
@@ -220,17 +233,57 @@ class AuthService {
       if (snapshot.exists()) {
         const userData = snapshot.val();
         
+        // Debug logging for date values
+        console.log('Raw user data dates:', {
+          createdAt: userData.createdAt,
+          lastActiveAt: userData.lastActiveAt,
+          joinedDate: userData.stats?.joinedDate,
+          lastSessionDate: userData.stats?.lastSessionDate
+        });
+        
+        // Helper function to safely parse dates
+        const safeParseDate = (dateString: string, fallback: Date = new Date()): Date => {
+          try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+              console.warn('Invalid date string, using fallback:', dateString);
+              return fallback;
+            }
+            return date;
+          } catch (error) {
+            console.warn('Error parsing date, using fallback:', dateString, error);
+            return fallback;
+          }
+        };
+
         this.currentUser = {
           ...userData,
-          createdAt: new Date(userData.createdAt),
-          lastActiveAt: new Date(userData.lastActiveAt),
+          avatar: userData.avatar || null,
+          createdAt: safeParseDate(userData.createdAt),
+          lastActiveAt: safeParseDate(userData.lastActiveAt),
           emailVerified: auth.currentUser?.emailVerified || false,
           stats: {
             ...userData.stats,
-            joinedDate: new Date(userData.stats.joinedDate),
-            lastSessionDate: userData.stats.lastSessionDate ? new Date(userData.stats.lastSessionDate) : undefined
+            joinedDate: safeParseDate(userData.stats.joinedDate),
+            lastSessionDate: userData.stats.lastSessionDate ? safeParseDate(userData.stats.lastSessionDate) : undefined
           }
         };
+
+        // Debug logging
+        console.log('Loaded user profile from database:', {
+          id: this.currentUser.id,
+          displayName: this.currentUser.displayName,
+          avatar: this.currentUser.avatar,
+          avatarType: typeof this.currentUser.avatar,
+          rawAvatar: userData.avatar
+        });
+
+        // Clean up undefined values if they exist in the database
+        if (userData.avatar === undefined || userData.stats?.lastSessionDate === undefined) {
+          console.log('Found undefined values in database, cleaning up...');
+          await this.cleanupUserData();
+        }
+
         this.notifyAuthStateListeners(this.currentUser);
       } else {
         console.log('User profile not found, creating default profile');
@@ -270,8 +323,45 @@ class AuthService {
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
-      this.currentUser = null;
-      this.notifyAuthStateListeners(null);
+      // If there's an error loading the profile, create a default one
+      try {
+        console.log('Creating fallback user profile due to error');
+        const userRef = ref(database, `users/${uid}`);
+        const defaultPreferences: UserPreferences = {
+          theme: 'auto',
+          defaultPlaybackSpeed: 1.0,
+          autoPlay: false,
+          notifications: true,
+          language: 'en'
+        };
+
+        const defaultStats: UserStats = {
+          totalSessions: 0,
+          totalPlayTime: 0,
+          joinedDate: new Date(),
+          favoriteArtists: [],
+          favoriteSongs: []
+        };
+
+        const fallbackUser: User = {
+          id: uid,
+          email: auth.currentUser?.email || '',
+          displayName: auth.currentUser?.displayName || 'User',
+          avatar: null,
+          preferences: defaultPreferences,
+          stats: defaultStats,
+          createdAt: new Date(),
+          lastActiveAt: new Date(),
+          emailVerified: auth.currentUser?.emailVerified || false
+        };
+
+        await set(userRef, this.cleanUserDataForFirebase(fallbackUser));
+        this.currentUser = fallbackUser;
+        this.notifyAuthStateListeners(fallbackUser);
+      } catch (fallbackError) {
+        console.error('Error creating fallback user profile:', fallbackError);
+        throw new Error('Failed to load user profile');
+      }
     }
   }
 
@@ -287,11 +377,25 @@ class AuthService {
       this.currentUser = {
         ...this.currentUser,
         ...updates,
+        avatar: updates.avatar !== undefined ? (updates.avatar || null) : (this.currentUser.avatar || null),
         preferences: {
           ...this.currentUser.preferences,
           ...updates.preferences
         }
       };
+
+      // Ensure avatar is never undefined before saving
+      if (this.currentUser.avatar === undefined) {
+        this.currentUser.avatar = null;
+      }
+
+      // Debug logging
+      console.log('Updating profile with user data:', {
+        id: this.currentUser.id,
+        displayName: this.currentUser.displayName,
+        avatar: this.currentUser.avatar,
+        avatarType: typeof this.currentUser.avatar
+      });
 
       // Update in database
       await set(userRef, this.cleanUserDataForFirebase(this.currentUser));
@@ -441,6 +545,61 @@ class AuthService {
       }
     } catch (error: any) {
       console.error('Handle unverified user error:', error);
+    }
+  }
+
+  /**
+   * Clean up any undefined values in the database
+   */
+  public async cleanupUserData(): Promise<void> {
+    if (!this.currentUser) {
+      throw new Error('No user logged in');
+    }
+
+    try {
+      const userRef = ref(database, `users/${this.currentUser.id}`);
+      const snapshot = await get(userRef);
+      
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        let needsCleanup = false;
+        
+        // Check for undefined values that need cleanup
+        if (userData.avatar === undefined || 
+            userData.stats?.lastSessionDate === undefined) {
+          console.log('Cleaning up undefined values in database');
+          needsCleanup = true;
+        }
+        
+        if (needsCleanup) {
+          // Ensure all undefined values are properly handled
+          const cleanedUser = {
+            ...this.currentUser,
+            avatar: this.currentUser.avatar || null,
+            stats: {
+              ...this.currentUser.stats,
+              lastSessionDate: this.currentUser.stats.lastSessionDate || undefined
+            }
+          };
+          
+          // Use current timestamp for any invalid dates
+          const now = new Date();
+          if (isNaN(cleanedUser.createdAt.getTime())) {
+            cleanedUser.createdAt = now;
+          }
+          if (isNaN(cleanedUser.lastActiveAt.getTime())) {
+            cleanedUser.lastActiveAt = now;
+          }
+          if (isNaN(cleanedUser.stats.joinedDate.getTime())) {
+            cleanedUser.stats.joinedDate = now;
+          }
+          
+          await set(userRef, this.cleanUserDataForFirebase(cleanedUser));
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning up user data:', error);
+      throw error;
     }
   }
 }

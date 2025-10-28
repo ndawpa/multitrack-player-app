@@ -250,16 +250,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                     disabled={saving}
                   >
                     {saving ? (
-                      <Ionicons name="time-outline" size={20} color="#BB86FC" />
+                      <Ionicons name="time-outline" size={24} color="#FFFFFF" />
                     ) : (
-                      <Ionicons name="checkmark-outline" size={20} color="#BB86FC" />
+                      <Ionicons name="checkmark" size={24} color="#FFFFFF" />
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.cancelButton} 
                     onPress={handleDisplayNameCancel}
                   >
-                    <Ionicons name="close-outline" size={20} color="#FF6B6B" />
+                    <Ionicons name="close" size={24} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
                 {displayNameError ? (
@@ -577,13 +577,21 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: '#BB86FC',
     borderRadius: 6,
-    padding: 8,
+    padding: 10,
     marginRight: 8,
+    minWidth: 36,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cancelButton: {
     backgroundColor: '#FF6B6B',
     borderRadius: 6,
-    padding: 8,
+    padding: 10,
+    minWidth: 36,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   switchContainer: {
     flexDirection: 'row',
