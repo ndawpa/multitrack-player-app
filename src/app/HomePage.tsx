@@ -6262,9 +6262,8 @@ const styles = StyleSheet.create({
   // New styles for playlist header
   playlistControlsSection: {
     backgroundColor: 'rgba(187, 134, 252, 0.1)',
-    borderRadius: 12,
+    borderRadius: 0,
     padding: 16,
-    marginHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(187, 134, 252, 0.2)',
