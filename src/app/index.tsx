@@ -7,14 +7,13 @@ import NewPasswordScreen from '../components/NewPasswordScreen';
 import ProfileScreen from '../components/ProfileScreen';
 import SettingsScreen from '../components/SettingsScreen';
 import EmailVerificationScreen from '../components/EmailVerificationScreen';
-import TenantManagementScreen from '../components/TenantManagementScreen';
 import PlaylistScreen from '../components/PlaylistScreen';
 import HomePage from './HomePage';
 import { User } from '../types/user';
 import { Song } from '../types/song';
 import { Playlist } from '../types/playlist';
 
-type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification' | 'tenantManagement' | 'playlists';
+type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification' | 'playlists';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('auth');
@@ -70,9 +69,6 @@ const App = () => {
     setCurrentScreen('settings');
   };
 
-  const handleNavigateToTenantManagement = () => {
-    setCurrentScreen('tenantManagement');
-  };
 
   const handleNavigateToPlaylists = (songs: Song[]) => {
     setAvailableSongs(songs);
@@ -204,13 +200,6 @@ const App = () => {
         />
       );
     
-    case 'tenantManagement':
-      return (
-        <TenantManagementScreen 
-          onBack={handleBackToMain}
-          userId={user?.id || ''}
-        />
-      );
     
     case 'playlists':
       return (
@@ -231,7 +220,6 @@ const App = () => {
       return (
         <HomePage 
           onNavigateToProfile={handleNavigateToProfile}
-          onNavigateToTenantManagement={handleNavigateToTenantManagement}
           onNavigateToPlaylists={handleNavigateToPlaylists}
           user={user}
           playlistToPlay={playlistToPlay}

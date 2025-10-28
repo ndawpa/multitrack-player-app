@@ -55,9 +55,6 @@ interface Song {
   lyrics?: string;  // Optional lyrics field
   scores?: Score[];  // Array of scores instead of single score
   resources?: Resource[];  // Array of resources
-  tenantId?: string;  // Tenant that owns this song
-  organizationId?: string;  // Organization that has access to this song
-  accessLevel?: 'public' | 'private' | 'restricted';  // Access level for the song
 }
 
 // Add new interface for song creation
@@ -153,14 +150,13 @@ const MarqueeText = ({ text, style }: { text: string; style: any }) => {
 
 interface HomePageProps {
   onNavigateToProfile: () => void;
-  onNavigateToTenantManagement?: () => void;
   onNavigateToPlaylists?: (songs: Song[]) => void;
   user: User | null;
   playlistToPlay?: {playlist: Playlist, songs: Song[]} | null;
   onPlaylistPlayed?: () => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTenantManagement, onNavigateToPlaylists, user, playlistToPlay, onPlaylistPlayed }) => {
+const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPlaylists, user, playlistToPlay, onPlaylistPlayed }) => {
   const insets = useSafeAreaInsets();
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [players, setPlayers] = useState<Audio.Sound[]>([]);
@@ -1588,18 +1584,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
               />
             </TouchableOpacity>
           )}
-          {onNavigateToTenantManagement && (
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={onNavigateToTenantManagement}
-            >
-              <Ionicons 
-                name="business" 
-                size={24} 
-                color="#BB86FC" 
-              />
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={onNavigateToProfile}
@@ -2400,7 +2384,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToTe
     </Modal>
   );
 
-  // Song operation password dialog (styled like Tenant Management)
+  // Song operation password dialog
   const renderSongPasswordDialog = () => (
     <Modal
       visible={showSongPasswordDialog}
@@ -5630,7 +5614,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Song password dialog styles (matching Tenant Management)
+  // Song password dialog styles
   songPasswordModalContainer: {
     flex: 1,
     justifyContent: 'center',

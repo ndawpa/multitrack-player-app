@@ -10,26 +10,6 @@
       }
     },
     
-    "tenants": {
-      "$tenantId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-    
-    "organizations": {
-      "$orgId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-    
-    "userTenantAssignments": {
-      "$assignmentId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
     
     "songs": {
       "$songId": {
@@ -45,12 +25,6 @@
       }
     },
     
-    "tenantRoles": {
-      "$roleId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
     
     "playlists": {
       "$playlistId": {

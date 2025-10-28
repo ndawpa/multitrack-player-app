@@ -6,9 +6,6 @@ export interface Song {
   lyrics?: string;
   scores?: Score[];
   resources?: Resource[];
-  tenantId?: string;
-  organizationId?: string;
-  accessLevel?: 'public' | 'private' | 'restricted';
   createdAt?: Date;
   updatedAt?: Date;
   createdBy?: string;
