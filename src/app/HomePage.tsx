@@ -19,6 +19,7 @@ import PlaylistPlayerService from '../services/playlistPlayerService';
 import PlaylistService from '../services/playlistService';
 import TrackStateService, { TrackState, SongTrackStates } from '../services/trackStateService';
 import { Playlist } from '../types/playlist';
+import Header from '../components/Header';
 
 // Custom ID generator
 const generateId = () => {
@@ -4305,103 +4306,117 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         ) : (
           // Track Player View
           <>
-            <View style={[styles.header, isLandscape && styles.headerLandscape]}>
-              <View style={[styles.headerTop, isLandscape && styles.headerTopLandscape]}>
-                {!isPlaylistMode && (
+            {/* Header for playlist mode */}
+            {isPlaylistMode && currentPlaylist ? (
+              <Header 
+                title={currentPlaylist.name}
+                onBack={handleBackToPlaylists}
+                rightComponent={
+                  <TouchableOpacity 
+                    onPress={() => setShowPlaylistSongsModal(true)}
+                    style={styles.playlistListButton}
+                  >
+                    <Ionicons name="list" size={20} color="#BB86FC" />
+                  </TouchableOpacity>
+                }
+              />
+            ) : (
+              <View style={[styles.header, isLandscape && styles.headerLandscape]}>
+                <View style={[styles.headerTop, isLandscape && styles.headerTopLandscape]}>
                   <TouchableOpacity 
                     style={styles.backButton}
                     onPress={() => setSelectedSong(null)}
                   >
                     <Ionicons name="chevron-back" size={24} color="#BB86FC" />
                   </TouchableOpacity>
-                )}
-                
-                
-                <View style={styles.songHeaderText}>
-                  {/* Dedicated Playlist Section */}
-                  {isPlaylistMode && currentPlaylist && (
-                    <View style={styles.playlistSection}>
-                      <View style={styles.playlistHeader}>
-                        <Text style={styles.playlistTrackCount}>
-                          {currentPlaylistIndex + 1} of {playlistSongs.length}
-                        </Text>
-                        <Text style={styles.playlistTitle} numberOfLines={1}>
-                          {currentPlaylist.name}
-                        </Text>
-                        <TouchableOpacity 
-                          onPress={() => setShowPlaylistSongsModal(true)}
-                          style={styles.playlistTrackCountContainer}
-                        >
-                          <Ionicons name="list" size={16} color="#BB86FC" />
-                        </TouchableOpacity>
-                      </View>
-                      
-                      <View style={styles.playlistControls}>
-                        <TouchableOpacity
-                          style={[styles.playlistControlBtn, styles.playlistStopBtn]}
-                          onPress={handleBackToPlaylists}
-                        >
-                          <Ionicons name="arrow-back" size={18} color="#FFFFFF" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.playlistControlBtn, styles.playlistPrevBtn]}
-                          onPress={handlePreviousSong}
-                        >
-                          <Ionicons name="play-skip-back" size={18} color="#FFFFFF" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.playlistControlBtn, styles.playlistPauseBtn]}
-                          onPress={async () => {
-                            console.log('Playlist pause/resume pressed, isPlaying:', isPlaying);
-                            if (isPlaying) {
-                              console.log('Stopping playback...');
-                              await stopLocalPlayback();
-                            } else {
-                              console.log('Starting playback...');
-                              await startLocalPlayback();
-                            }
-                          }}
-                        >
-                          <Ionicons 
-                            name={isPlaying ? 'pause' : 'play'} 
-                            size={18} 
-                            color="#FFFFFF" 
-                          />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.playlistControlBtn, styles.playlistNextBtn]}
-                          onPress={handleNextSong}
-                        >
-                          <Ionicons name="play-skip-forward" size={18} color="#FFFFFF" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.playlistControlBtn, styles.playlistRestartBtn, isPlaylistRepeating && styles.playlistRepeatActive]}
-                          onPress={handleTogglePlaylistRepeat}
-                        >
-                          <Ionicons name="repeat" size={18} color="#FFFFFF" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-                  <MarqueeText 
-                    text={selectedSong.title} 
-                    style={[styles.title, { textAlign: 'center' }]}
-                  />
-                  <Text style={[styles.artist, { textAlign: 'center' }]} numberOfLines={1}>
-                    {selectedSong.artist}
-                  </Text>
+                  
+                  <View style={styles.songHeaderText}>
+                    <MarqueeText 
+                      text={selectedSong.title} 
+                      style={[styles.title, { textAlign: 'center' }]}
+                    />
+                    <Text style={[styles.artist, { textAlign: 'center' }]} numberOfLines={1}>
+                      {selectedSong.artist}
+                    </Text>
+                  </View>
                 </View>
               </View>
-              {selectedSong.tracks && selectedSong.tracks.length > 0 && (
-                <View style={styles.playbackControlsContainer}>
-                  {renderPlaybackControls()}
+            )}
+            
+            {/* Playlist controls section */}
+            {isPlaylistMode && currentPlaylist && (
+              <View style={styles.playlistControlsSection}>
+                <View style={styles.playlistTrackInfo}>
+                  <Text style={styles.playlistTrackCount}>
+                    {currentPlaylistIndex + 1} of {playlistSongs.length}
+                  </Text>
                 </View>
-              )}
-              {selectedSong.tracks && selectedSong.tracks.length > 0 && (
+                
+                <View style={styles.playlistControls}>
+                  <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistPrevBtn]}
+                    onPress={handlePreviousSong}
+                  >
+                    <Ionicons name="play-skip-back" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistPauseBtn]}
+                    onPress={async () => {
+                      console.log('Playlist pause/resume pressed, isPlaying:', isPlaying);
+                      if (isPlaying) {
+                        console.log('Stopping playback...');
+                        await stopLocalPlayback();
+                      } else {
+                        console.log('Starting playback...');
+                        await startLocalPlayback();
+                      }
+                    }}
+                  >
+                    <Ionicons 
+                      name={isPlaying ? 'pause' : 'play'} 
+                      size={18} 
+                      color="#FFFFFF" 
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistNextBtn]}
+                    onPress={handleNextSong}
+                  >
+                    <Ionicons name="play-skip-forward" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistRestartBtn, isPlaylistRepeating && styles.playlistRepeatActive]}
+                    onPress={handleTogglePlaylistRepeat}
+                  >
+                    <Ionicons name="repeat" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+            
+            {/* Song info for non-playlist mode */}
+            {!isPlaylistMode && (
+              <View style={styles.songInfoSection}>
+                <MarqueeText 
+                  text={selectedSong.title} 
+                  style={[styles.title, { textAlign: 'center' }]}
+                />
+                <Text style={[styles.artist, { textAlign: 'center' }]} numberOfLines={1}>
+                  {selectedSong.artist}
+                </Text>
+              </View>
+            )}
+            
+            {selectedSong.tracks && selectedSong.tracks.length > 0 && (
+              <View style={styles.playbackControlsContainer}>
+                {renderPlaybackControls()}
+              </View>
+            )}
+            
+            {selectedSong.tracks && selectedSong.tracks.length > 0 && (
                 <View style={styles.seekbarContainer}>
                   <Text style={styles.timeText}>
                     {formatTime(trackProgress[selectedSong.tracks[0]?.id] || 0)}
@@ -4453,9 +4468,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   </View>
                 </View>
               )}
-
-              {/* Playlist Controls - Always visible when in playlist mode */}
-            </View>
             
             <View style={[styles.mainContent, { paddingBottom: insets.bottom }]}>
               {renderSongView()}
@@ -6231,5 +6243,31 @@ const styles = StyleSheet.create({
     color: '#BB86FC',
     fontSize: 14,
     marginLeft: 8,
+  },
+  // New styles for playlist header
+  playlistListButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#2C2C2C',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playlistControlsSection: {
+    backgroundColor: 'rgba(187, 134, 252, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(187, 134, 252, 0.2)',
+  },
+  playlistTrackInfo: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  songInfoSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
 });
