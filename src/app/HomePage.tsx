@@ -1533,69 +1533,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
   const renderSongList = () => (
     <View style={styles.songListContainer}>
-      <View style={styles.titleContainer}>
-        <View style={styles.titleButtons}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => {
-              if (isAdminMode) {
-                setIsAdminMode(false);
-              } else {
-                setShowSongPasswordDialog(true);
-                setPendingSongOperation('admin');
-              }
-            }}
-          >
-            <Ionicons 
-              name="create-outline" 
-              size={24} 
-              color="#BB86FC" 
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => setIsSessionMenuExpanded(!isSessionMenuExpanded)}
-          >
-            <Ionicons 
-              name="people" 
-              size={24} 
-              color="#BB86FC" 
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.iconButton, showFavoritesOnly && styles.activeFilterButton]}
-            onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
-          >
-            <Ionicons 
-              name="star" 
-              size={24} 
-              color={showFavoritesOnly ? "#BB86FC" : "#BB86FC"} 
-            />
-          </TouchableOpacity>
-          {onNavigateToPlaylists && (
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => onNavigateToPlaylists(songs)}
-            >
-              <Ionicons 
-                name="musical-notes" 
-                size={24} 
-                color="#BB86FC" 
-              />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={onNavigateToProfile}
-          >
-            <Ionicons 
-              name="person-circle" 
-              size={24} 
-              color="#BB86FC" 
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
       {isSessionMenuExpanded && (
         <View style={styles.sessionMenuContent}>
           {sessionId ? (
@@ -1708,6 +1645,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         renderItem={renderSongItem}
         keyExtractor={item => item.id}
         style={styles.songList}
+        showsVerticalScrollIndicator={false}
       />
       {showArtistFilterDialog && (
         <View style={styles.dialogOverlay}>
@@ -4190,7 +4128,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       <View style={styles.statusBarBackground} />
       <StatusBar style="light" />
       <SafeAreaView style={styles.content}>
-        {!selectedSong ? renderSongList() : (
+        {!selectedSong ? (
+          <View style={styles.mainContent}>
+            {renderSongList()}
+          </View>
+        ) : (
           // Track Player View
           <>
             <View style={[styles.header, isLandscape && styles.headerLandscape]}>
@@ -4350,6 +4292,71 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             </View>
           </>
         )}
+        
+        {/* Bottom Navigation - Only show on song list view */}
+        {!selectedSong && (
+          <View style={[styles.bottomNavigation, { paddingBottom: insets.bottom }]}>
+            <TouchableOpacity
+              style={styles.bottomNavButton}
+              onPress={() => {
+                if (isAdminMode) {
+                  setIsAdminMode(false);
+                } else {
+                  setShowSongPasswordDialog(true);
+                  setPendingSongOperation('admin');
+                }
+              }}
+            >
+              <Ionicons 
+                name="create-outline" 
+                size={24} 
+                color="#BB86FC" 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bottomNavButton}
+              onPress={() => setIsSessionMenuExpanded(!isSessionMenuExpanded)}
+            >
+              <Ionicons 
+                name="people" 
+                size={24} 
+                color="#BB86FC" 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.bottomNavButton, showFavoritesOnly && styles.activeFilterButton]}
+              onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            >
+              <Ionicons 
+                name="star" 
+                size={24} 
+                color={showFavoritesOnly ? "#BB86FC" : "#BB86FC"} 
+              />
+            </TouchableOpacity>
+            {onNavigateToPlaylists && (
+              <TouchableOpacity
+                style={styles.bottomNavButton}
+                onPress={() => onNavigateToPlaylists(songs)}
+              >
+                <Ionicons 
+                  name="musical-notes" 
+                  size={24} 
+                  color="#BB86FC" 
+                />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.bottomNavButton}
+              onPress={onNavigateToProfile}
+            >
+              <Ionicons 
+                name="person-circle" 
+                size={24} 
+                color="#BB86FC" 
+              />
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
       {showJoinDialog && renderJoinDialog()}
       {showSessionIdDialog && renderSessionIdDialog()}
@@ -4434,6 +4441,31 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1
+  },
+  mainContent: {
+    flex: 1,
+    paddingBottom: 0, // No extra padding needed with flex layout
+  },
+  bottomNavigation: {
+    backgroundColor: '#1E1E1E',
+    borderTopWidth: 1,
+    borderTopColor: '#2C2C2C',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  bottomNavButton: {
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 50,
   },
   header: {
     padding: 16,
@@ -4684,11 +4716,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  mainContent: {
-    flex: 1,
-    backgroundColor: '#121212',
-    height: '100%',
   },
   songView: {
     flex: 1,
