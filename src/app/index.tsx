@@ -23,6 +23,7 @@ const App = () => {
   const [verificationUser, setVerificationUser] = useState<User | null>(null);
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
   const [playlistToPlay, setPlaylistToPlay] = useState<{playlist: Playlist, songs: Song[]} | null>(null);
+  const [isAdminMode, setIsAdminMode] = useState(false);
 
   const authService = AuthService.getInstance();
 
@@ -125,6 +126,10 @@ const App = () => {
     setCurrentScreen('auth');
   };
 
+  const handleAdminModeChange = (isAdmin: boolean) => {
+    setIsAdminMode(isAdmin);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -190,6 +195,8 @@ const App = () => {
           onNavigateToSettings={handleNavigateToSettings}
           onBack={handleBackToMain}
           onSignOut={handleSignOut}
+          isAdminMode={isAdminMode}
+          onAdminModeChange={handleAdminModeChange}
         />
       );
     
@@ -224,6 +231,8 @@ const App = () => {
           user={user}
           playlistToPlay={playlistToPlay}
           onPlaylistPlayed={() => setPlaylistToPlay(null)}
+          isAdminMode={isAdminMode}
+          onAdminModeChange={handleAdminModeChange}
         />
       );
   }

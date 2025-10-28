@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,18 +19,26 @@ interface ProfileScreenProps {
   onNavigateToSettings: () => void;
   onBack: () => void;
   onSignOut: () => void;
+  isAdminMode?: boolean;
+  onAdminModeChange?: (isAdmin: boolean) => void;
 }
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ 
   onNavigateToSettings, 
   onBack,
-  onSignOut 
+  onSignOut,
+  isAdminMode = false,
+  onAdminModeChange
 }) => {
   const insets = useSafeAreaInsets();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const authService = AuthService.getInstance();
+  const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -82,6 +91,34 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const handlePasswordVerification = () => {
+    if (password === ADMIN_PASSWORD) {
+      setShowPasswordDialog(false);
+      setPassword('');
+      setPasswordError('');
+      onAdminModeChange?.(true);
+    } else {
+      setPasswordError('Incorrect password. Please try again.');
+      setPassword('');
+    }
+  };
+
+  const handleAdminModeToggle = () => {
+    if (isAdminMode) {
+      onAdminModeChange?.(false);
+    } else {
+      setShowPasswordDialog(true);
+      setPassword('');
+      setPasswordError('');
+    }
+  };
+
+  const handlePasswordDialogCancel = () => {
+    setShowPasswordDialog(false);
+    setPassword('');
+    setPasswordError('');
   };
 
   if (loading) {
@@ -175,6 +212,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
+          
+          <TouchableOpacity style={styles.actionButton} onPress={handleAdminModeToggle}>
+            <Ionicons 
+              name={isAdminMode ? "shield-checkmark" : "shield"} 
+              size={20} 
+              color={isAdminMode ? "#4CAF50" : "#BB86FC"} 
+            />
+            <Text style={[styles.actionText, isAdminMode && { color: '#4CAF50' }]}>
+              {isAdminMode ? 'Admin Mode (Active)' : 'Admin Mode'}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+          
           <TouchableOpacity style={styles.actionButton} onPress={onNavigateToSettings}>
             <Ionicons name="settings" size={20} color="#BB86FC" />
             <Text style={styles.actionText}>Settings</Text>
@@ -188,6 +238,50 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Admin Mode Password Dialog */}
+      {showPasswordDialog && (
+        <View style={styles.passwordDialogOverlay}>
+          <View style={styles.passwordDialog}>
+            <View style={styles.passwordDialogHeader}>
+              <Ionicons name="lock-closed" size={32} color="#BB86FC" />
+              <Text style={styles.passwordDialogTitle}>Admin Mode</Text>
+              <Text style={styles.passwordDialogSubtitle}>Enter password to access</Text>
+            </View>
+            
+            <View style={styles.passwordDialogContent}>
+              <TextInput
+                style={styles.passwordDialogInput}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter admin password"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholderTextColor="#666"
+              />
+              {passwordError ? (
+                <Text style={styles.passwordDialogError}>{passwordError}</Text>
+              ) : null}
+            </View>
+            
+            <View style={styles.passwordDialogButtons}>
+              <TouchableOpacity 
+                style={styles.passwordDialogCancelButton} 
+                onPress={handlePasswordDialogCancel}
+              >
+                <Text style={styles.passwordDialogCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.passwordDialogSubmitButton} 
+                onPress={handlePasswordVerification}
+              >
+                <Text style={styles.passwordDialogSubmitText}>Enter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -342,6 +436,96 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     marginLeft: 12,
+  },
+  // Password dialog styles
+  passwordDialogOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  passwordDialog: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  passwordDialogHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  passwordDialogTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  passwordDialogSubtitle: {
+    fontSize: 14,
+    color: '#BBBBBB',
+    textAlign: 'center',
+  },
+  passwordDialogContent: {
+    marginBottom: 8,
+  },
+  passwordDialogInput: {
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#2A2A2A',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  passwordDialogError: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  passwordDialogButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  passwordDialogCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#333333',
+    alignItems: 'center',
+  },
+  passwordDialogCancelText: {
+    color: '#BBBBBB',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  passwordDialogSubmitButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#BB86FC',
+    alignItems: 'center',
+  },
+  passwordDialogSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

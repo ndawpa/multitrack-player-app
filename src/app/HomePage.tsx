@@ -154,9 +154,11 @@ interface HomePageProps {
   user: User | null;
   playlistToPlay?: {playlist: Playlist, songs: Song[]} | null;
   onPlaylistPlayed?: () => void;
+  isAdminMode?: boolean;
+  onAdminModeChange?: (isAdmin: boolean) => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPlaylists, user, playlistToPlay, onPlaylistPlayed }) => {
+const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPlaylists, user, playlistToPlay, onPlaylistPlayed, isAdminMode: propIsAdminMode, onAdminModeChange }) => {
   const insets = useSafeAreaInsets();
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [players, setPlayers] = useState<Audio.Sound[]>([]);
@@ -241,9 +243,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [songToDelete, setSongToDelete] = useState<Song | null>(null);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(propIsAdminMode || false);
   const [password, setPassword] = useState('');
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
+
+  // Sync local admin mode state with prop
+  useEffect(() => {
+    if (propIsAdminMode !== undefined) {
+      setIsAdminMode(propIsAdminMode);
+    }
+  }, [propIsAdminMode]);
   
   // Song operation password protection states
   const [showSongPasswordDialog, setShowSongPasswordDialog] = useState(false);
@@ -2240,6 +2249,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     if (password === ADMIN_PASSWORD) {
       setShowPasswordDialog(false);
       setIsAdminMode(true);
+      onAdminModeChange?.(true);
       setPassword('');
     } else {
       Alert.alert('Error', 'Incorrect password');
@@ -2257,6 +2267,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       // Execute the pending operation
       if (pendingSongOperation === 'admin') {
         setIsAdminMode(true);
+        onAdminModeChange?.(true);
       }
       
       setPendingSongOperation(null);
@@ -4296,23 +4307,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         {/* Bottom Navigation - Only show on song list view */}
         {!selectedSong && (
           <View style={[styles.bottomNavigation, { paddingBottom: insets.bottom }]}>
-            <TouchableOpacity
-              style={styles.bottomNavButton}
-              onPress={() => {
-                if (isAdminMode) {
-                  setIsAdminMode(false);
-                } else {
-                  setShowSongPasswordDialog(true);
-                  setPendingSongOperation('admin');
-                }
-              }}
-            >
-              <Ionicons 
-                name="create-outline" 
-                size={24} 
-                color="#BB86FC" 
-              />
-            </TouchableOpacity>
             <TouchableOpacity
               style={styles.bottomNavButton}
               onPress={() => setIsSessionMenuExpanded(!isSessionMenuExpanded)}
