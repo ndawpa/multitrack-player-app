@@ -1606,38 +1606,38 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          {searchQuery ? (
-            <TouchableOpacity 
-              style={styles.clearButton}
-              onPress={() => setSearchQuery('')}
+          <View style={styles.searchRightActions}>
+            {searchQuery ? (
+              <TouchableOpacity 
+                style={styles.clearButton}
+                onPress={() => setSearchQuery('')}
+              >
+                <Ionicons name="close-circle" size={20} color="#BBBBBB" />
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.integratedActionButton, selectedArtists.size > 0 && styles.integratedActiveButton]}
+              onPress={() => {
+                setShowArtistFilterDialog(true);
+              }}
             >
-              <Ionicons name="close-circle" size={20} color="#BBBBBB" />
+              <Ionicons 
+                name="filter" 
+                size={16} 
+                color={selectedArtists.size > 0 ? "#FFFFFF" : "#BBBBBB"} 
+              />
             </TouchableOpacity>
-          ) : null}
-        </View>
-        <View style={styles.filterButtonsContainer}>
-          <TouchableOpacity
-            style={styles.artistFilterButton}
-            onPress={() => {
-              setShowArtistFilterDialog(true);
-            }}
-          >
-            <Ionicons 
-              name="filter" 
-              size={20} 
-              color={selectedArtists.size > 0 ? "#BB86FC" : "#BBBBBB"} 
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.sortButton}
-            onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-          >
-            <Ionicons 
-              name={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
-              size={20} 
-              color={sortOrder === 'desc' ? "#BB86FC" : "#BBBBBB"} 
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.integratedActionButton, sortOrder === 'desc' && styles.integratedActiveButton]}
+              onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+            >
+              <Ionicons 
+                name={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
+                size={16} 
+                color={sortOrder === 'desc' ? "#FFFFFF" : "#BBBBBB"} 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       {isAdminMode && (
@@ -4629,7 +4629,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 40,
-    marginRight: 4,
+    marginRight: 8,
   },
   searchIcon: {
     marginRight: 8,
@@ -4641,6 +4641,7 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+    marginRight: 2,
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -5138,6 +5139,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C2C2C',
     borderRadius: 4,
   },
+  uploadPrompt: {
+    color: '#BBBBBB',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   menuButtonContainer: {
     gap: 12,
     marginBottom: 16,
@@ -5527,22 +5534,26 @@ const styles = StyleSheet.create({
   searchAndFilterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
     marginBottom: 12,
     paddingHorizontal: 16,
   },
-  filterButtonsContainer: {
+  searchRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
-  artistFilterButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#1F1F1F',
+  integratedActionButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 2,
+  },
+  integratedActiveButton: {
+    backgroundColor: '#BB86FC',
   },
   artistFilterOption: {
     paddingVertical: 12,
