@@ -4336,13 +4336,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             )}
             
             {/* Playlist controls section */}
-            {isPlaylistMode && currentPlaylist && (
-              <View style={styles.playlistControlsSection}>
-                <View style={styles.playlistTrackInfo}>
-                  <Text style={styles.playlistTrackCount}>
-                    {currentPlaylistIndex + 1} of {playlistSongs.length}
-                  </Text>
-                </View>
+             {isPlaylistMode && currentPlaylist && (
+               <View style={styles.playlistControlsSection}>
+                 <View style={styles.playlistTrackInfo}>
+                   <Text style={styles.playlistTrackCount}>
+                     {currentPlaylistIndex + 1} of {playlistSongs.length}
+                   </Text>
+                   <MarqueeText 
+                     text={selectedSong.title} 
+                     style={styles.playlistSongTitle}
+                   />
+                   <Text style={styles.playlistSongArtist} numberOfLines={1}>
+                     {selectedSong.artist}
+                   </Text>
+                 </View>
                 
                 <View style={styles.playlistControls}>
                   <TouchableOpacity
@@ -6087,6 +6094,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  playlistSongTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  playlistSongArtist: {
+    color: '#BBBBBB',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   playlistTitle: {
     color: '#BB86FC',
@@ -6247,6 +6268,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(187, 134, 252, 0.2)',
+  },
+  playlistTrackInfo: {
+    alignItems: 'center',
+    marginBottom: 12,
+    flexDirection: 'column',
   },
   songInfoSection: {
     paddingHorizontal: 16,
