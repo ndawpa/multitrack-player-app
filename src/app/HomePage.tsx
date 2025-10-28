@@ -4461,26 +4461,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         {/* Bottom Navigation - Only show on song list view */}
         {!selectedSong && (
           <View style={[styles.bottomNavigation, { paddingBottom: insets.bottom }]}>
-            <TouchableOpacity
-              style={styles.bottomNavButton}
-              onPress={() => setIsSessionMenuExpanded(!isSessionMenuExpanded)}
-            >
-              <Ionicons 
-                name="people" 
-                size={24} 
-                color="#BB86FC" 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.bottomNavButton, showFavoritesOnly && styles.activeFilterButton]}
-              onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
-            >
-              <Ionicons 
-                name="star" 
-                size={24} 
-                color={showFavoritesOnly ? "#BB86FC" : "#BB86FC"} 
-              />
-            </TouchableOpacity>
             {onNavigateToPlaylists && (
               <TouchableOpacity
                 style={styles.bottomNavButton}
@@ -4493,6 +4473,26 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 />
               </TouchableOpacity>
             )}
+            <TouchableOpacity
+              style={[styles.bottomNavButton, showFavoritesOnly && styles.activeFilterButton]}
+              onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            >
+              <Ionicons 
+                name="star" 
+                size={24} 
+                color={showFavoritesOnly ? "#BB86FC" : "#BB86FC"} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bottomNavButton}
+              onPress={() => setIsSessionMenuExpanded(!isSessionMenuExpanded)}
+            >
+              <Ionicons 
+                name="people" 
+                size={24} 
+                color="#BB86FC" 
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.bottomNavButton}
               onPress={onNavigateToProfile}
