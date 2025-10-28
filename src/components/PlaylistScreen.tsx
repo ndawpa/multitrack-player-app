@@ -193,13 +193,6 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
     }
   };
 
-  const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
 
   const renderPlaylistItem = ({ item }: { item: Playlist }) => (
     <TouchableOpacity 
@@ -209,8 +202,7 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
       <View style={styles.playlistInfo}>
         <Text style={styles.playlistName}>{item.name}</Text>
         <Text style={styles.playlistMeta}>
-          {item.songs.length} song{item.songs.length !== 1 ? 's' : ''} • 
-          Updated {formatDate(item.updatedAt)}
+          {item.songs.length} song{item.songs.length !== 1 ? 's' : ''}
         </Text>
         {item.description && (
           <Text style={styles.playlistDescription} numberOfLines={2}>
