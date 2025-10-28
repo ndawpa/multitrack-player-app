@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { User } from '../types/user';
+import Header from './Header';
 
 interface EmailVerificationScreenProps {
   user: User;
@@ -107,12 +108,8 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
 
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBackToAuth} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <Header title="Email Verification" onBack={onBackToAuth} />
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <Text style={styles.emailIcon}>✉️</Text>
@@ -173,19 +170,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 10,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-  },
-  backButtonText: {
-    color: '#BB86FC',
-    fontSize: 16,
-    fontWeight: '500',
   },
   content: {
     flex: 1,

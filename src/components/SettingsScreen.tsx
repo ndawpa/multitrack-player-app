@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { User, UserPreferences } from '../types/user';
+import Header from './Header';
 
 /**
  * SettingsScreen - Enhanced with improved error handling
@@ -201,14 +202,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <Header title="Settings" onBack={onBack} />
 
       <ScrollView 
         style={styles.scrollView}
@@ -496,26 +490,6 @@ const styles = StyleSheet.create({
   },
   errorBannerClose: {
     padding: 4,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333333',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  placeholder: {
-    width: 40,
   },
   scrollView: {
     flex: 1,

@@ -18,6 +18,7 @@ import PlaylistService from '../services/playlistService';
 import { Playlist, CreatePlaylistForm, PlaylistItem } from '../types/playlist';
 import { Song } from '../types/song';
 import { User } from '../types/user';
+import Header from './Header';
 
 interface PlaylistScreenProps {
   onBack: () => void;
@@ -299,21 +300,18 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Playlists</Text>
+      <Header 
+        title="My Playlists" 
+        onBack={onBack}
+        rightComponent={
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => setShowCreateModal(true)}
           >
             <Ionicons name="add" size={24} color="#BB86FC" />
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       {/* Playlists List */}
       <View style={styles.content}>
@@ -487,27 +485,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     marginTop: 16,
-  },
-  header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2C',
-    backgroundColor: '#1E1E1E',
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    flex: 1,
-    textAlign: 'center',
   },
   addButton: {
     padding: 8,

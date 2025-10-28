@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { User } from '../types/user';
+import Header from './Header';
 
 interface ProfileScreenProps {
   onNavigateToSettings: () => void;
@@ -143,14 +144,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Back Button */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Profile</Text>
-        <View style={styles.topBarSpacer} />
-      </View>
+      <Header title="Profile" onBack={onBack} />
       
       <ScrollView 
         style={styles.scrollView}
@@ -290,28 +284,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333333',
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#1E1E1E',
-  },
-  topBarTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  topBarSpacer: {
-    width: 40, // Same width as back button to center the title
   },
   scrollView: {
     flex: 1,

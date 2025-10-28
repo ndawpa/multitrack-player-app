@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { PasswordResetForm } from '../types/user';
+import Header from './Header';
 
 interface PasswordResetScreenProps {
   onBack: () => void;
@@ -95,20 +96,16 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
 
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container}>
+      <Header 
+        title={step === 'email' ? 'Reset Password' : 'Check Your Email'} 
+        onBack={onBack} 
+      />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onBack} style={styles.backButton}>
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.title}>
-              {step === 'email' ? 'Reset Password' : 'Check Your Email'}
-            </Text>
-          </View>
 
           <View style={styles.formContainer}>
             {step === 'email' ? (
@@ -174,24 +171,6 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 20,
-  },
-  header: {
-    marginBottom: 30,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    marginBottom: 20,
-  },
-  backButtonText: {
-    color: '#BB86FC',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 10,
   },
   description: {
     fontSize: 16,
