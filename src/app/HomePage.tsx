@@ -4311,14 +4311,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               <Header 
                 title={currentPlaylist.name}
                 onBack={handleBackToPlaylists}
-                rightComponent={
-                  <TouchableOpacity 
-                    onPress={() => setShowPlaylistSongsModal(true)}
-                    style={styles.playlistListButton}
-                  >
-                    <Ionicons name="list" size={20} color="#BB86FC" />
-                  </TouchableOpacity>
-                }
               />
             ) : (
               <View style={[styles.header, isLandscape && styles.headerLandscape]}>
@@ -4353,6 +4345,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 </View>
                 
                 <View style={styles.playlistControls}>
+                  <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistListBtn]}
+                    onPress={() => setShowPlaylistSongsModal(true)}
+                  >
+                    <Ionicons name="list" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     style={[styles.playlistControlBtn, styles.playlistPrevBtn]}
                     onPress={handlePreviousSong}
@@ -6124,6 +6123,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  playlistListBtn: {
+    backgroundColor: '#6B7280',
+    borderColor: 'rgba(107, 114, 128, 0.3)',
+  },
   playlistPrevBtn: {
     backgroundColor: '#BB86FC',
     borderColor: 'rgba(187, 134, 252, 0.3)',
@@ -6245,13 +6248,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   // New styles for playlist header
-  playlistListButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#2C2C2C',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   playlistControlsSection: {
     backgroundColor: 'rgba(187, 134, 252, 0.1)',
     borderRadius: 12,
@@ -6260,10 +6256,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(187, 134, 252, 0.2)',
-  },
-  playlistTrackInfo: {
-    alignItems: 'center',
-    marginBottom: 12,
   },
   songInfoSection: {
     paddingHorizontal: 16,
