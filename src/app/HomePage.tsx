@@ -4396,18 +4396,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               </View>
             )}
             
-            {/* Song info for non-playlist mode */}
-            {!isPlaylistMode && (
-              <View style={styles.songInfoSection}>
-                <MarqueeText 
-                  text={selectedSong.title} 
-                  style={[styles.title, { textAlign: 'center' }]}
-                />
-                <Text style={[styles.artist, { textAlign: 'center' }]} numberOfLines={1}>
-                  {selectedSong.artist}
-                </Text>
-              </View>
-            )}
+            {/* Add spacing between header and playback controls */}
+            <View style={styles.headerSpacing} />
             
             {selectedSong.tracks && selectedSong.tracks.length > 0 && (
               <View style={styles.playbackControlsContainer}>
@@ -6096,6 +6086,7 @@ const styles = StyleSheet.create({
     color: '#BBBBBB',
     fontSize: 14,
     fontWeight: '500',
+    textAlign: 'center',
   },
   playlistTitle: {
     color: '#BB86FC',
@@ -6261,5 +6252,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     alignItems: 'center',
+  },
+  headerSpacing: {
+    height: 40,
   },
 });
