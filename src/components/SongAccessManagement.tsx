@@ -58,6 +58,14 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
   const [showArtistFilterDialog, setShowArtistFilterDialog] = useState(false);
   const [showContentFilterDialog, setShowContentFilterDialog] = useState(false);
 
+  // Group management state
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [showEditGroupModal, setShowEditGroupModal] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null);
+  const [showGroupMenu, setShowGroupMenu] = useState<string | null>(null);
+  const [showGroupMembersModal, setShowGroupMembersModal] = useState(false);
+  const [selectedGroupForMembers, setSelectedGroupForMembers] = useState<UserGroup | null>(null);
+
   const groupService = GroupService.getInstance();
   const songAccessService = SongAccessService.getInstance();
 
@@ -86,6 +94,72 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
       Alert.alert('Error', 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Group management handlers
+  const handleCreateGroup = async (groupData: any) => {
+    try {
+      await groupService.createGroup(groupData, currentUserId);
+      Alert.alert('Success', 'Group created successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create group');
+    }
+  };
+
+  const handleEditGroup = (group: UserGroup) => {
+    setEditingGroup(group);
+    setShowEditGroupModal(true);
+    setShowGroupMenu(null);
+  };
+
+  const handleUpdateGroup = async (groupId: string, updates: Partial<UserGroup>) => {
+    try {
+      await groupService.updateGroup(groupId, updates);
+      Alert.alert('Success', 'Group updated successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update group');
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    Alert.alert(
+      'Delete Group',
+      'Are you sure you want to delete this group? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await groupService.deleteGroup(groupId);
+              Alert.alert('Success', 'Group deleted successfully');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete group');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleManageMembers = (group: UserGroup) => {
+    setSelectedGroupForMembers(group);
+    setShowGroupMembersModal(true);
+    setShowGroupMenu(null);
+  };
+
+  const handleRemoveUserFromGroup = async (userId: string, groupId: string) => {
+    try {
+      await groupService.assignUsersToGroups({
+        userIds: [userId],
+        groupIds: [groupId],
+        action: 'remove'
+      }, currentUserId);
+      Alert.alert('Success', 'User removed from group');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to remove user from group');
     }
   };
 
@@ -291,6 +365,53 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
     </TouchableOpacity>
   );
 
+  const renderGroupItem = ({ item }: { item: UserGroup }) => (
+    <TouchableOpacity
+      style={styles.groupItem}
+      onPress={() => setShowGroupMenu(null)}
+      activeOpacity={1}
+    >
+      <View style={styles.groupInfo}>
+        <View style={styles.groupDetails}>
+          <Text style={styles.groupName}>{item.name}</Text>
+          <Text style={styles.groupDescription}>{item.description}</Text>
+          <Text style={styles.memberCount}>{item.members?.length || 0} members</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={styles.menuButton}
+        onPress={() => setShowGroupMenu(showGroupMenu === item.id ? null : item.id)}
+      >
+        <Ionicons name="ellipsis-vertical" size={20} color="#BBBBBB" />
+      </TouchableOpacity>
+      {showGroupMenu === item.id && (
+        <View style={styles.groupMenu}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => handleEditGroup(item)}
+          >
+            <Text style={styles.menuItemText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => handleManageMembers(item)}
+          >
+            <Text style={styles.menuItemText}>Manage Members</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              setShowGroupMenu(null);
+              handleDeleteGroup(item.id);
+            }}
+          >
+            <Text style={[styles.menuItemText, styles.deleteMenuItemText]}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -420,18 +541,20 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
 
       {activeTab === 'groups' && (
         <View style={styles.content}>
-          <Text style={styles.sectionTitle}>Group Overview</Text>
-          {groups.map(group => (
-            <View key={group.id} style={styles.groupItem}>
-              <View style={styles.groupDetails}>
-                <Text style={styles.groupName}>{group.name}</Text>
-                <Text style={styles.groupDescription}>{group.description}</Text>
-                <Text style={styles.groupMembers}>
-                  {group.members?.length || 0} members
-                </Text>
-              </View>
-            </View>
-          ))}
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => setShowCreateGroupModal(true)}
+          >
+            <Ionicons name="add" size={20} color="#FFFFFF" />
+            <Text style={styles.createButtonText}>Create Group</Text>
+          </TouchableOpacity>
+
+          <FlatList
+            data={groups}
+            keyExtractor={(item) => item.id}
+            renderItem={renderGroupItem}
+            style={styles.list}
+          />
         </View>
       )}
 
@@ -696,6 +819,34 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* Group Management Modals */}
+      <CreateGroupModal
+        visible={showCreateGroupModal}
+        onClose={() => setShowCreateGroupModal(false)}
+        onCreateGroup={handleCreateGroup}
+      />
+
+      <EditGroupModal
+        visible={showEditGroupModal}
+        onClose={() => {
+          setShowEditGroupModal(false);
+          setEditingGroup(null);
+        }}
+        onUpdateGroup={handleUpdateGroup}
+        group={editingGroup}
+      />
+
+      <GroupMembersModal
+        visible={showGroupMembersModal}
+        onClose={() => {
+          setShowGroupMembersModal(false);
+          setSelectedGroupForMembers(null);
+        }}
+        group={selectedGroupForMembers}
+        users={users}
+        onRemoveUser={handleRemoveUserFromGroup}
+      />
     </View>
   );
 };
@@ -845,27 +996,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
     marginTop: 16,
-  },
-  groupItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E1E1E',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  groupDetails: {
-    flex: 1,
-  },
-  groupName: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  groupDescription: {
-    color: '#666',
-    fontSize: 14,
-    marginTop: 2,
   },
   groupMembers: {
     color: '#BB86FC',
@@ -1086,6 +1216,357 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 12,
   },
+  // Group management styles
+  groupItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    overflow: 'visible',
+    zIndex: 1,
+  },
+  groupInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupDetails: {
+    flex: 1,
+  },
+  groupName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  groupDescription: {
+    color: '#666',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  memberCount: {
+    color: '#BB86FC',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  menuButton: {
+    padding: 8,
+  },
+  groupMenu: {
+    position: 'absolute',
+    top: 50,
+    right: 10,
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    paddingVertical: 8,
+    minWidth: 150,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  menuItemText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  deleteMenuItemText: {
+    color: '#FF5252',
+  },
+  // Member management styles
+  memberList: {
+    maxHeight: 300,
+  },
+  memberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  memberInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#BB86FC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  memberAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  memberDetails: {
+    flex: 1,
+  },
+  memberName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  memberEmail: {
+    color: '#666',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  removeButton: {
+    padding: 8,
+  },
+  emptyText: {
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+  },
+  // Additional styles for modals
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#BB86FC',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  createButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  input: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    marginTop: 20,
+  },
 });
+
+// Create Group Modal Component
+const CreateGroupModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onCreateGroup: (data: any) => void;
+}> = ({ visible, onClose, onCreateGroup }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    color: '#BB86FC',
+    icon: 'people'
+  });
+
+  const handleSubmit = () => {
+    if (!formData.name.trim()) {
+      Alert.alert('Error', 'Group name is required');
+      return;
+    }
+    onCreateGroup(formData);
+    setFormData({ name: '', description: '', color: '#BB86FC', icon: 'people' });
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.dialogOverlay}>
+        <View style={styles.dialog}>
+          <Text style={styles.dialogTitle}>Create Group</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Group name"
+            placeholderTextColor="#666"
+            value={formData.name}
+            onChangeText={(text) => setFormData({ ...formData, name: text })}
+          />
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Description (optional)"
+            placeholderTextColor="#666"
+            value={formData.description}
+            onChangeText={(text) => setFormData({ ...formData, description: text })}
+            multiline
+            numberOfLines={3}
+          />
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+              <Text style={styles.submitButtonText}>Create</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// Edit Group Modal Component
+const EditGroupModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onUpdateGroup: (groupId: string, updates: Partial<UserGroup>) => void;
+  group: UserGroup | null;
+}> = ({ visible, onClose, onUpdateGroup, group }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    color: '#BB86FC',
+    icon: 'people'
+  });
+
+  useEffect(() => {
+    if (group) {
+      setFormData({
+        name: group.name || '',
+        description: group.description || '',
+        color: group.color || '#BB86FC',
+        icon: group.icon || 'people'
+      });
+    }
+  }, [group]);
+
+  const handleSubmit = () => {
+    if (!formData.name.trim()) {
+      Alert.alert('Error', 'Group name is required');
+      return;
+    }
+    if (group) {
+      onUpdateGroup(group.id, formData);
+      onClose();
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.dialogOverlay}>
+        <View style={styles.dialog}>
+          <Text style={styles.dialogTitle}>Edit Group</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Group name"
+            placeholderTextColor="#666"
+            value={formData.name}
+            onChangeText={(text) => setFormData({ ...formData, name: text })}
+          />
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Description (optional)"
+            placeholderTextColor="#666"
+            value={formData.description}
+            onChangeText={(text) => setFormData({ ...formData, description: text })}
+            multiline
+            numberOfLines={3}
+          />
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+              <Text style={styles.submitButtonText}>Update</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// Group Members Modal Component
+const GroupMembersModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  group: UserGroup | null;
+  users: AdminUserView[];
+  onRemoveUser: (userId: string, groupId: string) => void;
+}> = ({ visible, onClose, group, users, onRemoveUser }) => {
+  if (!group) return null;
+
+  const groupMembers = users.filter(user => 
+    group.members?.includes((user as any).id)
+  );
+
+  const handleRemoveUser = (userId: string) => {
+    Alert.alert(
+      'Remove User',
+      'Are you sure you want to remove this user from the group?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => onRemoveUser(userId, group.id)
+        }
+      ]
+    );
+  };
+
+  const renderMemberItem = ({ item }: { item: AdminUserView }) => (
+    <View style={styles.memberItem}>
+      <View style={styles.memberInfo}>
+        <View style={styles.memberAvatar}>
+          <Text style={styles.memberAvatarText}>
+            {((item as any).displayName || (item as any).email || 'U').charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.memberDetails}>
+          <Text style={styles.memberName}>{(item as any).displayName || 'No Name'}</Text>
+          <Text style={styles.memberEmail}>{(item as any).email || 'No Email'}</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => handleRemoveUser((item as any).id)}
+      >
+        <Ionicons name="close-circle" size={24} color="#FF5252" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.dialogOverlay}>
+        <View style={styles.dialog}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.dialogTitle}>{group.name} Members</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={groupMembers}
+            keyExtractor={(item) => (item as any).id}
+            renderItem={renderMemberItem}
+            style={styles.memberList}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No members in this group</Text>
+            }
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 export default SongAccessManagement;
