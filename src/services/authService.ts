@@ -14,12 +14,25 @@ import {
 } from 'firebase/auth';
 import { ref, set, get, onValue, off } from 'firebase/database';
 import { auth, database } from '../config/firebase';
-import { User, UserPreferences, UserStats, AuthUser, LoginForm, SignupForm, ProfileUpdateForm, PasswordResetForm, PasswordResetConfirmForm } from '../types/user';
+import { User, UserPreferences, UserStats, AuthUser, LoginForm, SignupForm, ProfileUpdateForm, PasswordResetForm, PasswordResetConfirmForm, FilterState } from '../types/user';
 
 class AuthService {
   private static instance: AuthService;
   private currentUser: User | null = null;
   private authStateListeners: ((user: User | null) => void)[] = [];
+
+  private getDefaultFilterState(): FilterState {
+    return {
+      searchQuery: '',
+      selectedArtists: [],
+      showFavoritesOnly: false,
+      hasTracks: false,
+      hasLyrics: false,
+      hasScores: false,
+      hasLinks: false,
+      sortOrder: 'asc'
+    };
+  }
 
   private constructor() {
     console.log('AuthService: Initializing');
@@ -165,7 +178,8 @@ class AuthService {
         defaultPlaybackSpeed: 1.0,
         autoPlay: false,
         notifications: true,
-        language: 'en'
+        language: 'en',
+        filters: this.getDefaultFilterState()
       };
 
       const defaultStats: UserStats = {
@@ -293,7 +307,8 @@ class AuthService {
           defaultPlaybackSpeed: 1.0,
           autoPlay: false,
           notifications: true,
-          language: 'en'
+          language: 'en',
+          filters: this.getDefaultFilterState()
         };
 
         const defaultStats: UserStats = {
@@ -332,7 +347,8 @@ class AuthService {
           defaultPlaybackSpeed: 1.0,
           autoPlay: false,
           notifications: true,
-          language: 'en'
+          language: 'en',
+          filters: this.getDefaultFilterState()
         };
 
         const defaultStats: UserStats = {
@@ -434,6 +450,30 @@ class AuthService {
       this.notifyAuthStateListeners(this.currentUser);
     } catch (error) {
       console.error('Error updating user stats:', error);
+      throw error;
+    }
+  }
+
+  public async updateFilterPreferences(filterState: Partial<FilterState>): Promise<void> {
+    if (!this.currentUser) {
+      throw new Error('No user logged in');
+    }
+
+    try {
+      const userRef = ref(database, `users/${this.currentUser.id}/preferences/filters`);
+      
+      // Update local user object
+      this.currentUser.preferences.filters = {
+        ...this.currentUser.preferences.filters,
+        ...filterState
+      };
+
+      // Update in database
+      await set(userRef, this.currentUser.preferences.filters);
+      
+      this.notifyAuthStateListeners(this.currentUser);
+    } catch (error) {
+      console.error('Error updating filter preferences:', error);
       throw error;
     }
   }

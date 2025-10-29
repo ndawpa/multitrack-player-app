@@ -10,12 +10,24 @@ export interface User {
   emailVerified: boolean;
 }
 
+export interface FilterState {
+  searchQuery: string;
+  selectedArtists: string[];
+  showFavoritesOnly: boolean;
+  hasTracks: boolean;
+  hasLyrics: boolean;
+  hasScores: boolean;
+  hasLinks: boolean;
+  sortOrder: 'asc' | 'desc';
+}
+
 export interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   defaultPlaybackSpeed: number;
   autoPlay: boolean;
   notifications: boolean;
   language: string;
+  filters: FilterState;
 }
 
 export interface UserStats {

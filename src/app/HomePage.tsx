@@ -13,7 +13,8 @@ import AudioStorageService from '../services/audioStorage';
 import * as DocumentPicker from 'expo-document-picker';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system';
-import { User } from '../types/user';
+import { User, FilterState } from '../types/user';
+import AuthService from '../services/authService';
 import FavoritesService from '../services/favoritesService';
 import PlaylistPlayerService from '../services/playlistPlayerService';
 import PlaylistService from '../services/playlistService';
@@ -310,6 +311,31 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [favoriteSongs, setFavoriteSongs] = useState<Set<string>>(new Set());
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [favoritesService] = useState(() => FavoritesService.getInstance());
+  const [authService] = useState(() => AuthService.getInstance());
+
+  // Load filter state from user preferences
+  const loadFilterState = () => {
+    if (user?.preferences?.filters) {
+      const filters = user.preferences.filters;
+      setSearchQuery(filters.searchQuery || '');
+      setSelectedArtists(new Set(filters.selectedArtists || []));
+      setShowFavoritesOnly(filters.showFavoritesOnly || false);
+      setHasTracks(filters.hasTracks || false);
+      setHasLyrics(filters.hasLyrics || false);
+      setHasScores(filters.hasScores || false);
+      setHasLinks(filters.hasLinks || false);
+      setSortOrder(filters.sortOrder || 'asc');
+    }
+  };
+
+  // Save filter state to user preferences
+  const saveFilterState = async (filterUpdates: Partial<FilterState>) => {
+    try {
+      await authService.updateFilterPreferences(filterUpdates);
+    } catch (error) {
+      console.error('Error saving filter preferences:', error);
+    }
+  };
   
   // Content filter states
   const [showContentFilterDialog, setShowContentFilterDialog] = useState(false);
@@ -377,6 +403,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   useEffect(() => {
     trackStateService.setCurrentUser(user?.id || null);
   }, [user, trackStateService]);
+
+  // Load filter state when user changes
+  useEffect(() => {
+    if (user && user.preferences) {
+      loadFilterState();
+    }
+  }, [user]);
 
   // Apply persisted track states when they change
   useEffect(() => {
@@ -1006,7 +1039,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     }
     
     // Apply search query if present
-    if (searchQuery.trim()) {
+    if (searchQuery && searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered
         .map(song => {
@@ -1061,6 +1094,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       } else {
         newSet.add(artist);
       }
+      // Save to user preferences
+      saveFilterState({ selectedArtists: Array.from(newSet) });
       return newSet;
     });
   };
@@ -1071,6 +1106,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     setHasLyrics(false);
     setHasScores(false);
     setHasLinks(false);
+    // Save to user preferences
+    saveFilterState({ hasTracks: false, hasLyrics: false, hasScores: false, hasLinks: false });
   };
 
   const hasActiveContentFilters = () => {
@@ -1080,10 +1117,60 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   // Artist filter helper functions
   const clearArtistFilters = () => {
     setSelectedArtists(new Set());
+    // Save to user preferences
+    saveFilterState({ selectedArtists: [] });
+  };
+
+  // Content filter toggle functions
+  const toggleHasTracks = () => {
+    const newValue = !hasTracks;
+    setHasTracks(newValue);
+    saveFilterState({ hasTracks: newValue });
+  };
+
+  const toggleHasLyrics = () => {
+    const newValue = !hasLyrics;
+    setHasLyrics(newValue);
+    saveFilterState({ hasLyrics: newValue });
+  };
+
+  const toggleHasScores = () => {
+    const newValue = !hasScores;
+    setHasScores(newValue);
+    saveFilterState({ hasScores: newValue });
+  };
+
+  const toggleHasLinks = () => {
+    const newValue = !hasLinks;
+    setHasLinks(newValue);
+    saveFilterState({ hasLinks: newValue });
+  };
+
+  // Search and sort functions
+  const handleSearchQueryChange = (text: string) => {
+    setSearchQuery(text);
+    saveFilterState({ searchQuery: text });
+  };
+
+  const toggleSortOrder = () => {
+    const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(newOrder);
+    saveFilterState({ sortOrder: newOrder });
+  };
+
+  const toggleFavoritesFilter = () => {
+    const newValue = !showFavoritesOnly;
+    setShowFavoritesOnly(newValue);
+    saveFilterState({ showFavoritesOnly: newValue });
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    saveFilterState({ searchQuery: '' });
   };
 
   const renderSongItem = ({ item }: { item: Song & { matchInfo?: { titleMatch: boolean; artistMatch: boolean; lyricsMatch: boolean } } }) => {
-    const searchTerm = searchQuery.toLowerCase().trim();
+    const searchTerm = searchQuery ? searchQuery.toLowerCase().trim() : '';
     const hasLyricsMatch = item.lyrics && item.lyrics.toLowerCase().includes(searchTerm);
     const isExpanded = expandedLyricsIds.has(item.id);
     
@@ -1722,13 +1809,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             placeholder="Search songs..."
             placeholderTextColor="#666666"
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={handleSearchQueryChange}
           />
           <View style={styles.searchRightActions}>
             {searchQuery ? (
               <TouchableOpacity 
                 style={styles.clearButton}
-                onPress={() => setSearchQuery('')}
+                onPress={clearSearch}
               >
                 <Ionicons name="close-circle" size={20} color="#BBBBBB" />
               </TouchableOpacity>
@@ -1759,7 +1846,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.integratedActionButton, sortOrder === 'desc' && styles.integratedActiveButton]}
-              onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+              onPress={toggleSortOrder}
             >
               <Ionicons 
                 name={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
@@ -1854,7 +1941,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             <ScrollView style={styles.dialogScrollView}>
               <TouchableOpacity
                 style={styles.artistFilterOption}
-                onPress={() => setHasTracks(!hasTracks)}
+                onPress={toggleHasTracks}
               >
                 <View style={styles.artistFilterOptionContent}>
                   <Ionicons 
@@ -1872,7 +1959,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               
               <TouchableOpacity
                 style={styles.artistFilterOption}
-                onPress={() => setHasLyrics(!hasLyrics)}
+                onPress={toggleHasLyrics}
               >
                 <View style={styles.artistFilterOptionContent}>
                   <Ionicons 
@@ -1890,7 +1977,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               
               <TouchableOpacity
                 style={styles.artistFilterOption}
-                onPress={() => setHasScores(!hasScores)}
+                onPress={toggleHasScores}
               >
                 <View style={styles.artistFilterOptionContent}>
                   <Ionicons 
@@ -1908,7 +1995,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               
               <TouchableOpacity
                 style={styles.artistFilterOption}
-                onPress={() => setHasLinks(!hasLinks)}
+                onPress={toggleHasLinks}
               >
                 <View style={styles.artistFilterOptionContent}>
                   <Ionicons 
@@ -4583,7 +4670,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             )}
             <TouchableOpacity
               style={[styles.bottomNavButton, showFavoritesOnly && styles.activeFilterButton]}
-              onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              onPress={toggleFavoritesFilter}
             >
               <Ionicons 
                 name="star" 
