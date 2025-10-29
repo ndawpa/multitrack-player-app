@@ -39,6 +39,24 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
   const [selectedGroupForMembers, setSelectedGroupForMembers] = useState<UserGroup | null>(null);
   const [showUserGroupsModal, setShowUserGroupsModal] = useState(false);
   const [selectedUserForGroups, setSelectedUserForGroups] = useState<AdminUserView | null>(null);
+  
+  // Assignment management state
+  const [assignments, setAssignments] = useState<Array<{
+    userId: string;
+    userName: string;
+    userEmail: string;
+    groupId: string;
+    groupName: string;
+    groupColor: string;
+    addedBy: string;
+    addedAt: string;
+    isActive: boolean;
+  }>>([]);
+  const [assignmentSearchQuery, setAssignmentSearchQuery] = useState('');
+  const [selectedAssignments, setSelectedAssignments] = useState<string[]>([]);
+  const [showBulkAssignmentModal, setShowBulkAssignmentModal] = useState(false);
+  const [bulkAssignmentAction, setBulkAssignmentAction] = useState<'add' | 'remove'>('add');
+  const [bulkAssignmentGroups, setBulkAssignmentGroups] = useState<string[]>([]);
 
   const groupService = GroupService.getInstance();
 
@@ -58,17 +76,73 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('Loading data...');
+      
       const [groupsData, usersData] = await Promise.all([
         groupService.getAllGroups(),
         groupService.getAllUsersForAdmin()
       ]);
-      setGroups(groupsData);
-      setUsers(usersData);
+      
+      // Ensure we have arrays even if the service returns undefined
+      const safeGroupsData = Array.isArray(groupsData) ? groupsData : [];
+      const safeUsersData = Array.isArray(usersData) ? usersData : [];
+      
+      console.log('Groups loaded:', safeGroupsData.length);
+      console.log('Users loaded:', safeUsersData.length);
+      
+      setGroups(safeGroupsData);
+      setUsers(safeUsersData);
+      loadAssignments(safeGroupsData, safeUsersData);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load data');
+      console.error('Error loading data:', error);
+      Alert.alert('Error', `Failed to load data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadAssignments = (groupsData: UserGroup[], usersData: AdminUserView[]) => {
+    console.log('Loading assignments...');
+    console.log('Groups data:', groupsData.map(g => ({ id: g.id, name: g.name, members: g.members || [] })));
+    console.log('Users data:', usersData.map(u => ({ id: u.id, name: u.displayName, email: u.email })));
+    
+    const assignmentList: Array<{
+      userId: string;
+      userName: string;
+      userEmail: string;
+      groupId: string;
+      groupName: string;
+      groupColor: string;
+      addedBy: string;
+      addedAt: string;
+      isActive: boolean;
+    }> = [];
+
+    // Create assignments from group memberships
+    groupsData.forEach(group => {
+      const members = group.members || [];
+      console.log(`Processing group ${group.name} with ${members.length} members:`, members);
+      members.forEach(userId => {
+        const user = usersData.find(u => u.id === userId);
+        console.log(`Looking for user ${userId}, found:`, user ? user.displayName : 'NOT FOUND');
+        if (user) {
+          assignmentList.push({
+            userId: user.id,
+            userName: user.displayName || user.email,
+            userEmail: user.email,
+            groupId: group.id,
+            groupName: group.name,
+            groupColor: group.color || '#BB86FC',
+            addedBy: 'Unknown', // This would need to be tracked in the actual implementation
+            addedAt: user.joinDate?.toISOString() || new Date().toISOString(),
+            isActive: true
+          });
+        }
+      });
+    });
+
+    console.log('Created assignments:', assignmentList.length);
+    setAssignments(assignmentList);
   };
 
   const handleCreateGroup = async (groupData: GroupFormData) => {
@@ -215,10 +289,76 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
       setSelectedGroups([]);
       setShowAssignmentModal(false);
       Alert.alert('Success', 'Users assigned to groups successfully');
+      
+      // Reload assignments after successful assignment
+      loadAssignments(groups, users);
     } catch (error) {
       Alert.alert('Error', 'Failed to assign users');
     }
   };
+
+  // Assignment management functions
+  const handleAssignmentToggle = (assignmentId: string) => {
+    if (selectedAssignments.includes(assignmentId)) {
+      setSelectedAssignments(selectedAssignments.filter(id => id !== assignmentId));
+    } else {
+      setSelectedAssignments([...selectedAssignments, assignmentId]);
+    }
+  };
+
+  const handleBulkAssignment = async () => {
+    if (selectedAssignments.length === 0 || bulkAssignmentGroups.length === 0) {
+      Alert.alert('Error', 'Please select assignments and groups');
+      return;
+    }
+
+    try {
+      const userIds = selectedAssignments.map(assignmentId => {
+        const assignment = assignments.find(a => `${a.userId}-${a.groupId}` === assignmentId);
+        return assignment?.userId;
+      }).filter(Boolean) as string[];
+
+      await groupService.assignUsersToGroups({
+        userIds,
+        groupIds: bulkAssignmentGroups,
+        action: bulkAssignmentAction
+      }, currentUserId);
+
+      setSelectedAssignments([]);
+      setBulkAssignmentGroups([]);
+      setShowBulkAssignmentModal(false);
+      Alert.alert('Success', `Users ${bulkAssignmentAction === 'add' ? 'assigned to' : 'removed from'} groups successfully`);
+      
+      // Reload assignments
+      loadAssignments(groups, users);
+    } catch (error) {
+      Alert.alert('Error', `Failed to ${bulkAssignmentAction} users`);
+    }
+  };
+
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    const assignment = assignments.find(a => `${a.userId}-${a.groupId}` === assignmentId);
+    if (!assignment) return;
+
+    try {
+      await groupService.assignUsersToGroups({
+        userIds: [assignment.userId],
+        groupIds: [assignment.groupId],
+        action: 'remove'
+      }, currentUserId);
+
+      Alert.alert('Success', 'Assignment removed successfully');
+      loadAssignments(groups, users);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to remove assignment');
+    }
+  };
+
+  const filteredAssignments = assignments.filter(assignment =>
+    assignment.userName.toLowerCase().includes(assignmentSearchQuery.toLowerCase()) ||
+    assignment.userEmail.toLowerCase().includes(assignmentSearchQuery.toLowerCase()) ||
+    assignment.groupName.toLowerCase().includes(assignmentSearchQuery.toLowerCase())
+  );
 
   const filteredUsers = users.filter(user =>
     (user.displayName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -313,6 +453,57 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
       </View>
     </View>
   );
+
+  const renderAssignmentItem = ({ item }: { item: typeof assignments[0] }) => {
+    const assignmentId = `${item.userId}-${item.groupId}`;
+    const isSelected = selectedAssignments.includes(assignmentId);
+    
+    return (
+      <TouchableOpacity
+        style={[styles.assignmentItem, isSelected && styles.selectedAssignmentItem]}
+        onPress={() => handleAssignmentToggle(assignmentId)}
+      >
+        <View style={styles.assignmentCheckbox}>
+          {isSelected && <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />}
+        </View>
+        
+        <View style={styles.assignmentInfo}>
+          <View style={styles.assignmentUser}>
+            <View style={styles.assignmentUserAvatar}>
+              <Text style={styles.assignmentUserAvatarText}>
+                {item.userName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.assignmentUserDetails}>
+              <Text style={styles.assignmentUserName}>{item.userName}</Text>
+              <Text style={styles.assignmentUserEmail}>{item.userEmail}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.assignmentGroup}>
+            <View style={[styles.assignmentGroupColor, { backgroundColor: item.groupColor }]} />
+            <Text style={styles.assignmentGroupName}>{item.groupName}</Text>
+          </View>
+          
+          <View style={styles.assignmentMeta}>
+            <Text style={styles.assignmentDate}>
+              Added: {new Date(item.addedAt).toLocaleDateString()}
+            </Text>
+            <Text style={styles.assignmentStatus}>
+              {item.isActive ? 'Active' : 'Inactive'}
+            </Text>
+          </View>
+        </View>
+        
+        <TouchableOpacity
+          style={styles.assignmentRemoveButton}
+          onPress={() => handleRemoveAssignment(assignmentId)}
+        >
+          <Ionicons name="trash-outline" size={20} color="#FF5722" />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -420,9 +611,61 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
 
       {activeTab === 'assignments' && (
         <View style={styles.content}>
-          <Text style={styles.placeholderText}>
-            Assignment management coming soon...
-          </Text>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#666" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search assignments..."
+              value={assignmentSearchQuery}
+              onChangeText={setAssignmentSearchQuery}
+            />
+          </View>
+
+          {selectedAssignments.length > 0 && (
+            <View style={styles.bulkActionsContainer}>
+              <Text style={styles.bulkActionsText}>
+                {selectedAssignments.length} assignment{selectedAssignments.length > 1 ? 's' : ''} selected
+              </Text>
+              <View style={styles.bulkActionsButtons}>
+                <TouchableOpacity
+                  style={[styles.bulkActionButton, { backgroundColor: '#4CAF50' }]}
+                  onPress={() => {
+                    setBulkAssignmentAction('add');
+                    setShowBulkAssignmentModal(true);
+                  }}
+                >
+                  <Ionicons name="add" size={16} color="#FFFFFF" />
+                  <Text style={styles.bulkActionButtonText}>Add to Groups</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.bulkActionButton, { backgroundColor: '#FF5722' }]}
+                  onPress={() => {
+                    setBulkAssignmentAction('remove');
+                    setShowBulkAssignmentModal(true);
+                  }}
+                >
+                  <Ionicons name="remove" size={16} color="#FFFFFF" />
+                  <Text style={styles.bulkActionButtonText}>Remove from Groups</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          <FlatList
+            data={filteredAssignments}
+            keyExtractor={(item) => `${item.userId}-${item.groupId}`}
+            renderItem={renderAssignmentItem}
+            style={styles.list}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Ionicons name="people-outline" size={48} color="#666" />
+                <Text style={styles.emptyText}>No assignments found</Text>
+                <Text style={styles.emptySubtext}>
+                  {assignmentSearchQuery ? 'Try adjusting your search' : 'Create some user-group assignments'}
+                </Text>
+              </View>
+            }
+          />
         </View>
       )}
 
@@ -477,6 +720,22 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
         selectedGroups={selectedGroups}
         onSelectGroups={setSelectedGroups}
         onAssign={handleAssignUsers}
+      />
+
+      {/* Bulk Assignment Modal */}
+      <BulkAssignmentModal
+        visible={showBulkAssignmentModal}
+        onClose={() => {
+          setShowBulkAssignmentModal(false);
+          setBulkAssignmentGroups([]);
+        }}
+        groups={groups}
+        selectedAssignments={selectedAssignments}
+        assignments={assignments}
+        selectedGroups={bulkAssignmentGroups}
+        onSelectGroups={setBulkAssignmentGroups}
+        onBulkAssign={handleBulkAssignment}
+        action={bulkAssignmentAction}
       />
     </View>
   );
@@ -891,6 +1150,114 @@ const AssignmentModal: React.FC<{
             disabled={selectedGroups.length === 0}
           >
             <Text style={styles.submitButtonText}>Assign Users</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+};
+
+// Bulk Assignment Modal Component
+const BulkAssignmentModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  groups: UserGroup[];
+  selectedAssignments: string[];
+  assignments: Array<{
+    userId: string;
+    userName: string;
+    userEmail: string;
+    groupId: string;
+    groupName: string;
+    groupColor: string;
+    addedBy: string;
+    addedAt: string;
+    isActive: boolean;
+  }>;
+  selectedGroups: string[];
+  onSelectGroups: (groups: string[]) => void;
+  onBulkAssign: () => void;
+  action: 'add' | 'remove';
+}> = ({ visible, onClose, groups, selectedAssignments, assignments, selectedGroups, onSelectGroups, onBulkAssign, action }) => {
+  const handleGroupToggle = (groupId: string) => {
+    if (selectedGroups.includes(groupId)) {
+      onSelectGroups(selectedGroups.filter(id => id !== groupId));
+    } else {
+      onSelectGroups([...selectedGroups, groupId]);
+    }
+  };
+
+  const selectedUserIds = selectedAssignments.map(assignmentId => {
+    const assignment = assignments.find(a => `${a.userId}-${a.groupId}` === assignmentId);
+    return assignment?.userId;
+  }).filter(Boolean) as string[];
+
+  const uniqueUsers = selectedUserIds.map(userId => {
+    const assignment = assignments.find(a => a.userId === userId);
+    return assignment ? { id: userId, name: assignment.userName, email: assignment.userEmail } : null;
+  }).filter(Boolean);
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>
+            {action === 'add' ? 'Add' : 'Remove'} {uniqueUsers.length} users {action === 'add' ? 'to' : 'from'} groups
+          </Text>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.modalContent}>
+          <View style={styles.selectedUsersContainer}>
+            <Text style={styles.selectedUsersTitle}>Selected Users:</Text>
+            {uniqueUsers.map((user, index) => (
+              <View key={user?.id || index} style={styles.selectedUserItemModal}>
+                <View style={styles.selectedUserAvatar}>
+                  <Text style={styles.selectedUserAvatarText}>
+                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </Text>
+                </View>
+                <View style={styles.selectedUserDetails}>
+                  <Text style={styles.selectedUserName}>{user?.name}</Text>
+                  <Text style={styles.selectedUserEmail}>{user?.email}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.groupsTitle}>Select Groups:</Text>
+          {groups.map(group => (
+            <TouchableOpacity
+              key={group.id}
+              style={[
+                styles.groupSelectItem,
+                selectedGroups.includes(group.id) && styles.selectedGroupItem
+              ]}
+              onPress={() => handleGroupToggle(group.id)}
+            >
+              <View style={[styles.groupColor, { backgroundColor: group.color || '#BB86FC' }]} />
+              <Text style={styles.groupSelectName}>{group.name}</Text>
+              {selectedGroups.includes(group.id) && (
+                <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <View style={styles.modalFooter}>
+          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.submitButton, selectedGroups.length === 0 && styles.disabledButton]} 
+            onPress={onBulkAssign}
+            disabled={selectedGroups.length === 0}
+          >
+            <Text style={styles.submitButtonText}>
+              {action === 'add' ? 'Add to Groups' : 'Remove from Groups'}
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -1327,6 +1694,193 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 16,
     lineHeight: 20,
+  },
+  // Assignment styles
+  assignmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    padding: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  selectedAssignmentItem: {
+    borderColor: '#BB86FC',
+    backgroundColor: '#2A1E2E',
+  },
+  assignmentCheckbox: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  assignmentInfo: {
+    flex: 1,
+  },
+  assignmentUser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  assignmentUserAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#BB86FC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  assignmentUserAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  assignmentUserDetails: {
+    flex: 1,
+  },
+  assignmentUserName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  assignmentUserEmail: {
+    color: '#BBBBBB',
+    fontSize: 14,
+  },
+  assignmentGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  assignmentGroupColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  assignmentGroupName: {
+    color: '#BB86FC',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  assignmentMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  assignmentDate: {
+    color: '#888',
+    fontSize: 12,
+  },
+  assignmentStatus: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  assignmentRemoveButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  bulkActionsContainer: {
+    backgroundColor: '#1E1E1E',
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  bulkActionsText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  bulkActionsButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  bulkActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 6,
+  },
+  bulkActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: {
+    color: '#BBBBBB',
+    fontSize: 18,
+    fontWeight: '500',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    color: '#888',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  selectedUsersContainer: {
+    marginBottom: 24,
+  },
+  selectedUsersTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  selectedUserItemModal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  selectedUserAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#BB86FC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  selectedUserAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  selectedUserDetails: {
+    flex: 1,
+  },
+  selectedUserName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  selectedUserEmail: {
+    color: '#BBBBBB',
+    fontSize: 12,
+  },
+  groupsTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
   },
 });
 

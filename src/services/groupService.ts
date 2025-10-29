@@ -94,7 +94,11 @@ class GroupService {
       }
 
       const groups = snapshot.val();
-      return Object.values(groups).filter((group: any) => group.isActive);
+      if (!groups || typeof groups !== 'object') {
+        return [];
+      }
+
+      return Object.values(groups).filter((group: any) => group && group.isActive);
     } catch (error) {
       console.error('Error fetching groups:', error);
       throw error;
@@ -117,13 +121,18 @@ class GroupService {
       }
 
       const users = usersSnapshot.val();
+      if (!users || typeof users !== 'object') {
+        return [];
+      }
+
       const memberships = membershipsSnapshot.exists() ? membershipsSnapshot.val() : {};
+      const safeMemberships = memberships && typeof memberships === 'object' ? memberships : {};
 
       return Object.values(users).map((user: any) => ({
         ...user,
         displayName: user.displayName || user.email || 'Unknown User',
         email: user.email || 'No Email',
-        groupMemberships: memberships[user.id] ? Object.keys(memberships[user.id]) : [],
+        groupMemberships: safeMemberships[user.id] ? Object.keys(safeMemberships[user.id]) : [],
         lastActiveAt: user.lastActiveAt ? new Date(user.lastActiveAt) : new Date(),
         isOnline: false, // This would need to be implemented with presence
         totalSongsPlayed: user.stats?.totalSessions || 0,
