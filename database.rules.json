@@ -13,8 +13,8 @@
     
     "songs": {
       "$songId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && (data.child('visibility').val() == 'public' || data.child('accessControl/allowedUsers').hasChild(auth.uid) || data.child('accessControl/allowedGroups').hasChild(auth.uid) || data.child('createdBy').val() == auth.uid || root.child('groupMemberships').child(auth.uid).hasChild(data.child('accessControl/allowedGroups').val()))",
+        ".write": "auth != null && (data.child('createdBy').val() == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'admin')"
       }
     },
     
@@ -22,6 +22,22 @@
       "$accessId": {
         ".read": "auth != null",
         ".write": "auth != null"
+      }
+    },
+    
+    "userGroups": {
+      "$groupId": {
+        ".read": "auth != null && (data.child('members').hasChild(auth.uid) || data.child('createdBy').val() == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'admin')",
+        ".write": "auth != null && (data.child('createdBy').val() == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'admin')"
+      }
+    },
+    
+    "groupMemberships": {
+      "$userId": {
+        "$groupId": {
+          ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'admin')",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'admin'"
+        }
       }
     },
     

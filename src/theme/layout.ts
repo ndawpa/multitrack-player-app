@@ -29,6 +29,7 @@ export const commonStyles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     marginLeft: spacing.sm,
+    marginBottom: spacing.md,
   },
   
   // Card/Item styles

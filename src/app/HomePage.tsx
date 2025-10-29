@@ -20,6 +20,9 @@ import PlaylistService from '../services/playlistService';
 import TrackStateService, { TrackState, SongTrackStates } from '../services/trackStateService';
 import { Playlist } from '../types/playlist';
 import Header from '../components/Header';
+import GroupManagement from '../components/GroupManagement';
+import SongAccessManagement from '../components/SongAccessManagement';
+import GroupService from '../services/groupService';
 
 // Custom ID generator
 const generateId = () => {
@@ -56,6 +59,15 @@ interface Song {
   lyrics?: string;  // Optional lyrics field
   scores?: Score[];  // Array of scores instead of single score
   resources?: Resource[];  // Array of resources
+  accessControl?: {
+    allowedUsers?: string[];
+    allowedGroups?: string[];
+    visibility: 'public' | 'private' | 'group_restricted';
+    accessLevel: 'read' | 'play' | 'download' | 'edit';
+  };
+  createdBy?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // Add new interface for song creation
@@ -244,7 +256,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [songToDelete, setSongToDelete] = useState<Song | null>(null);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showGroupManagement, setShowGroupManagement] = useState(false);
+  const [showSongAccessManagement, setShowSongAccessManagement] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(propIsAdminMode || false);
+  const [userGroups, setUserGroups] = useState<string[]>([]);
   const [password, setPassword] = useState('');
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
 
@@ -254,6 +269,26 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setIsAdminMode(propIsAdminMode);
     }
   }, [propIsAdminMode]);
+
+  // Load user groups when user changes
+  useEffect(() => {
+    const loadUserGroups = async () => {
+      if (user?.id) {
+        try {
+          const groupService = GroupService.getInstance();
+          const groups = await groupService.getUserGroups(user.id);
+          setUserGroups(groups.map(group => group.id));
+        } catch (error) {
+          console.error('Error loading user groups:', error);
+          setUserGroups([]);
+        }
+      } else {
+        setUserGroups([]);
+      }
+    };
+
+    loadUserGroups();
+  }, [user?.id]);
   
   // Song operation password protection states
   const [showSongPasswordDialog, setShowSongPasswordDialog] = useState(false);
@@ -907,6 +942,42 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     console.log('Current songs state:', songs);
     let filtered = songs;
     
+    // Apply access control filtering (only if not in admin mode)
+    if (!isAdminMode && user) {
+      filtered = filtered.filter(song => {
+        // If no access control, song is public
+        if (!song.accessControl) {
+          return true;
+        }
+        
+        // Check if song is public
+        if (song.accessControl.visibility === 'public') {
+          return true;
+        }
+        
+        // Check if user is the creator
+        if (song.createdBy === user.id) {
+          return true;
+        }
+        
+        // Check if user is in allowed users list
+        if (song.accessControl.allowedUsers?.includes(user.id)) {
+          return true;
+        }
+        
+        // For group-restricted songs, check if user is in any allowed groups
+        if (song.accessControl.visibility === 'group_restricted' && song.accessControl.allowedGroups) {
+          const hasGroupAccess = song.accessControl.allowedGroups.some(groupId => 
+            userGroups.includes(groupId)
+          );
+          return hasGroupAccess;
+        }
+        
+        // If song is private and user is not creator or in allowed users, hide it
+        return false;
+      });
+    }
+    
     // Apply artist filter if selected
     if (selectedArtists.size > 0) {
       filtered = filtered.filter(song => selectedArtists.has(song.artist));
@@ -974,7 +1045,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     
     console.log('Filtered songs:', filtered);
     return filtered;
-  }, [searchQuery, selectedArtists, songs, sortOrder, showFavoritesOnly, favoriteSongs, hasTracks, hasLyrics, hasScores, hasLinks]);
+  }, [searchQuery, selectedArtists, songs, sortOrder, showFavoritesOnly, favoriteSongs, hasTracks, hasLyrics, hasScores, hasLinks, isAdminMode, user, userGroups]);
 
   // Get unique artists for the filter dropdown
   const uniqueArtists = useMemo(() => {
@@ -1700,13 +1771,31 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         </View>
       </View>
       {isAdminMode && (
-        <TouchableOpacity 
-          style={styles.addSongButton}
-          onPress={() => setShowAddSongDialog(true)}
-        >
-          <Ionicons name="add-circle" size={24} color="#BB86FC" />
-          <Text style={styles.addSongButtonText}>Add New Song</Text>
-        </TouchableOpacity>
+        <View style={styles.adminButtonsContainer}>
+          <TouchableOpacity 
+            style={styles.addSongButton}
+            onPress={() => setShowAddSongDialog(true)}
+          >
+            <Ionicons name="add-circle" size={28} color="#BB86FC" />
+            <Text style={styles.addSongButtonText}>Add New Song</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.groupManagementButton}
+            onPress={() => setShowGroupManagement(true)}
+          >
+            <Ionicons name="people" size={28} color="#BB86FC" />
+            <Text style={styles.groupManagementButtonText}>Manage Groups</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.songAccessButton}
+            onPress={() => setShowSongAccessManagement(true)}
+          >
+            <Ionicons name="shield-checkmark" size={28} color="#BB86FC" />
+            <Text style={styles.songAccessButtonText}>Song Access</Text>
+          </TouchableOpacity>
+        </View>
       )}
       <FlatList
         data={filteredSongs}
@@ -2655,7 +2744,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         tracks,
         lyrics: newSong.lyrics,
         scores: newSong.scores,
-        resources: newSong.resources
+        resources: newSong.resources,
+        createdBy: user?.id,
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
       // Add to Firebase
@@ -2666,7 +2758,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         tracks: songToAdd.tracks,
         lyrics: songToAdd.lyrics,
         scores: songToAdd.scores,
-        resources: songToAdd.resources
+        resources: songToAdd.resources,
+        createdBy: songToAdd.createdBy,
+        createdAt: songToAdd.createdAt?.toISOString(),
+        updatedAt: songToAdd.updatedAt?.toISOString()
       });
 
       // Reset form and close dialog
@@ -4527,6 +4622,37 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       {showDeleteConfirmDialog && renderDeleteConfirmDialog()}
       {showPasswordDialog && renderPasswordDialog()}
       {showSongPasswordDialog && renderSongPasswordDialog()}
+      {/* Group Management Modal */}
+      <Modal
+        visible={showGroupManagement}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <GroupManagement 
+          onClose={() => setShowGroupManagement(false)} 
+          currentUserId={user?.id}
+        />
+      </Modal>
+
+      {/* Song Access Management Modal */}
+      <Modal
+        visible={showSongAccessManagement}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <SongAccessManagement 
+          onClose={() => setShowSongAccessManagement(false)} 
+          songs={songs}
+          currentUserId={user?.id}
+          onSongUpdate={(songId, updates) => {
+            setSongs(prevSongs => 
+              prevSongs.map(song => 
+                song.id === songId ? { ...song, ...updates } : song
+              )
+            );
+          }}
+        />
+      </Modal>
       {renderFullScreenImage()}
       
       {/* Playlist Songs Modal */}
@@ -4547,6 +4673,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           <View style={styles.playlistModalContent}>
             <FlatList
               data={playlistSongs}
+              keyExtractor={(item, index) => `playlist-song-${item.id}-${index}`}
               renderItem={({ item, index }) => (
                 <TouchableOpacity
                   style={[
@@ -4579,7 +4706,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   )}
                 </TouchableOpacity>
               )}
-              keyExtractor={(item, index) => `playlist-song-${item.id}-${index}`}
               showsVerticalScrollIndicator={false}
             />
           </View>
@@ -5152,19 +5278,68 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  addSongButton: {
+  adminButtonsContainer: {
     flexDirection: 'row',
+    gap: 6,
+    marginVertical: 8,
+    paddingHorizontal: 4,
+  },
+  addSongButton: {
+    flex: 1,
+    flexDirection: 'column',
     alignItems: 'center',
     backgroundColor: '#1E1E1E',
-    padding: 12,
-    borderRadius: 8,
-    marginVertical: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    justifyContent: 'center',
+    minHeight: 80,
   },
   addSongButtonText: {
     color: '#BB86FC',
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
-    marginLeft: 8,
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  groupManagementButton: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    justifyContent: 'center',
+    minHeight: 80,
+  },
+  groupManagementButtonText: {
+    color: '#BB86FC',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  songAccessButton: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    justifyContent: 'center',
+    minHeight: 80,
+  },
+  songAccessButtonText: {
+    color: '#BB86FC',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 14,
   },
   addSongForm: {
     maxHeight: 400,
@@ -6103,6 +6278,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 4,
   },
+  playlistSongTitleActive: {
+    color: '#BB86FC',
+  },
   playlistSongArtist: {
     color: '#BBBBBB',
     fontSize: 14,
@@ -6232,19 +6410,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
-  playlistSongTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  playlistSongTitleActive: {
-    color: '#BB86FC',
-  },
-  playlistSongArtist: {
-    color: '#BBBBBB',
-    fontSize: 14,
-  },
   trackStateLoadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -6267,11 +6432,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(187, 134, 252, 0.2)',
-  },
-  playlistTrackInfo: {
-    alignItems: 'center',
-    marginBottom: 12,
-    flexDirection: 'column',
   },
   songInfoSection: {
     paddingHorizontal: 16,
