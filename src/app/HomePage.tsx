@@ -20,6 +20,7 @@ import PlaylistPlayerService from '../services/playlistPlayerService';
 import PlaylistService from '../services/playlistService';
 import TrackStateService, { TrackState, SongTrackStates } from '../services/trackStateService';
 import { Playlist } from '../types/playlist';
+import { Song, Track, Score, Resource } from '../types/song';
 import Header from '../components/Header';
 import GroupManagement from '../components/GroupManagement';
 import SongAccessManagement from '../components/SongAccessManagement';
@@ -32,44 +33,6 @@ const generateId = () => {
   return `${timestamp}-${randomStr}`;
 };
 
-interface Track {
-  id: string;
-  name: string;
-  path: string;  // Path in Firebase Storage
-}
-
-interface Score {
-  id: string;
-  name: string;
-  url: string;
-}
-
-interface Resource {
-  id: string;
-  name: string;
-  type: 'youtube' | 'download' | 'link' | 'pdf';
-  url: string;
-  description?: string;
-}
-
-interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  tracks?: Track[];  // Optional tracks field
-  lyrics?: string;  // Optional lyrics field
-  scores?: Score[];  // Array of scores instead of single score
-  resources?: Resource[];  // Array of resources
-  accessControl?: {
-    allowedUsers?: string[];
-    allowedGroups?: string[];
-    visibility: 'public' | 'private' | 'group_restricted';
-    accessLevel: 'read' | 'play' | 'download' | 'edit';
-  };
-  createdBy?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
 
 // Add new interface for song creation
 interface NewSongForm {
@@ -4731,6 +4694,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           onClose={() => setShowSongAccessManagement(false)} 
           songs={songs}
           currentUserId={user?.id}
+          favoriteSongs={favoriteSongs}
           onSongUpdate={(songId, updates) => {
             setSongs(prevSongs => 
               prevSongs.map(song => 

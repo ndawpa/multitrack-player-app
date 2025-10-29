@@ -6,6 +6,12 @@ export interface Song {
   lyrics?: string;
   scores?: Score[];
   resources?: Resource[];
+  accessControl?: {
+    allowedUsers?: string[];
+    allowedGroups?: string[];
+    visibility: 'public' | 'private' | 'group_restricted';
+    accessLevel: 'read' | 'play' | 'download' | 'edit';
+  };
   createdAt?: Date;
   updatedAt?: Date;
   createdBy?: string;
@@ -20,9 +26,7 @@ export interface Track {
 export interface Score {
   id: string;
   name: string;
-  type: 'youtube' | 'download' | 'link' | 'pdf';
   url: string;
-  description?: string;
 }
 
 export interface Resource {
