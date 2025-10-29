@@ -126,7 +126,6 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
   const renderGroupItem = ({ item }: { item: UserGroup }) => (
     <View style={styles.groupItem}>
       <View style={styles.groupInfo}>
-        <View style={[styles.groupColor, { backgroundColor: item.color || '#BB86FC' }]} />
         <View style={styles.groupDetails}>
           <Text style={styles.groupName}>{item.name}</Text>
           <Text style={styles.groupDescription}>{item.description}</Text>
@@ -530,12 +529,6 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  groupColor: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    marginRight: 12,
   },
   groupDetails: {
     flex: 1,

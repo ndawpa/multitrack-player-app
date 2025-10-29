@@ -278,7 +278,6 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
           <Text style={styles.sectionTitle}>Group Overview</Text>
           {groups.map(group => (
             <View key={group.id} style={styles.groupItem}>
-              <View style={[styles.groupColor, { backgroundColor: group.color || '#BB86FC' }]} />
               <View style={styles.groupDetails}>
                 <Text style={styles.groupName}>{group.name}</Text>
                 <Text style={styles.groupDescription}>{group.description}</Text>
@@ -321,7 +320,6 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
                 }
               }}
             >
-              <View style={[styles.groupColor, { backgroundColor: group.color || '#BB86FC' }]} />
               <Text style={styles.groupSelectName}>{group.name}</Text>
               {selectedGroups.includes(group.id) && (
                 <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
@@ -419,7 +417,6 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
                       }
                     }}
                   >
-                    <View style={[styles.groupColor, { backgroundColor: group.color || '#BB86FC' }]} />
                     <Text style={styles.groupSelectName}>{group.name}</Text>
                     {selectedGroups.includes(group.id) && (
                       <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
@@ -573,12 +570,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
   },
-  groupColor: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    marginRight: 12,
-  },
   groupDetails: {
     flex: 1,
   },
@@ -614,7 +605,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#FFFFFF',
     fontSize: 16,
-    marginLeft: 12,
   },
   bulkButton: {
     backgroundColor: '#BB86FC',
