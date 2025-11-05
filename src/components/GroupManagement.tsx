@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import GroupService from '../services/groupService';
 import { UserGroup, AdminUserView, GroupFormData } from '../types/group';
+import { normalizeSearchText, matchesSearch } from '../utils/textNormalization';
 
 interface GroupManagementProps {
   onClose: () => void;
@@ -355,14 +356,14 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
   };
 
   const filteredAssignments = assignments.filter(assignment =>
-    assignment.userName.toLowerCase().includes(assignmentSearchQuery.toLowerCase()) ||
-    assignment.userEmail.toLowerCase().includes(assignmentSearchQuery.toLowerCase()) ||
-    assignment.groupName.toLowerCase().includes(assignmentSearchQuery.toLowerCase())
+    matchesSearch(assignmentSearchQuery, assignment.userName) ||
+    matchesSearch(assignmentSearchQuery, assignment.userEmail) ||
+    matchesSearch(assignmentSearchQuery, assignment.groupName)
   );
 
   const filteredUsers = users.filter(user =>
-    (user.displayName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (user.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+    matchesSearch(searchQuery, user.displayName || '') ||
+    matchesSearch(searchQuery, user.email || '')
   );
 
   const renderGroupItem = ({ item }: { item: UserGroup }) => (

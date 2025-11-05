@@ -18,6 +18,7 @@ import GroupService from '../services/groupService';
 import SongAccessService from '../services/songAccessService';
 import { UserGroup, AdminUserView } from '../types/group';
 import { Song, Track, Score, Resource } from '../types/song';
+import { normalizeSearchText, matchesSearch } from '../utils/textNormalization';
 
 
 interface SongAccessManagementProps {
@@ -202,8 +203,8 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
 
     try {
       const selectedSongs = songs.filter(song => 
-        song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        song.artist.toLowerCase().includes(searchQuery.toLowerCase())
+        matchesSearch(searchQuery, song.title) ||
+        matchesSearch(searchQuery, song.artist)
       );
 
       for (const song of selectedSongs) {
@@ -234,8 +235,8 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
     // Apply search query
     if (searchQuery) {
       filtered = filtered.filter(song =>
-        song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        song.artist.toLowerCase().includes(searchQuery.toLowerCase())
+        matchesSearch(searchQuery, song.title) ||
+        matchesSearch(searchQuery, song.artist)
       );
     }
     

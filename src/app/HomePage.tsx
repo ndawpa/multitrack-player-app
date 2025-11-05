@@ -25,6 +25,7 @@ import Header from '../components/Header';
 import GroupManagement from '../components/GroupManagement';
 import SongAccessManagement from '../components/SongAccessManagement';
 import GroupService from '../services/groupService';
+import { normalizeSearchText, matchesSearch, findMatchesInText } from '../utils/textNormalization';
 
 // Custom ID generator
 const generateId = () => {
@@ -1003,12 +1004,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     
     // Apply search query if present
     if (searchQuery && searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
       filtered = filtered
         .map(song => {
-          const titleMatch = song.title.toLowerCase().includes(query);
-          const artistMatch = song.artist.toLowerCase().includes(query);
-          const lyricsMatch = song.lyrics && song.lyrics.toLowerCase().includes(query);
+          const titleMatch = matchesSearch(searchQuery, song.title);
+          const artistMatch = matchesSearch(searchQuery, song.artist);
+          const lyricsMatch = song.lyrics && matchesSearch(searchQuery, song.lyrics);
           
           // Calculate match priority (higher number = higher priority)
           let priority = 0;
@@ -1133,49 +1133,44 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   };
 
   const renderSongItem = ({ item }: { item: Song & { matchInfo?: { titleMatch: boolean; artistMatch: boolean; lyricsMatch: boolean } } }) => {
-    const searchTerm = searchQuery ? searchQuery.toLowerCase().trim() : '';
-    const hasLyricsMatch = item.lyrics && item.lyrics.toLowerCase().includes(searchTerm);
+    const hasLyricsMatch = item.lyrics && searchQuery && matchesSearch(searchQuery, item.lyrics);
     const isExpanded = expandedLyricsIds.has(item.id);
     
     // Function to get all lyrics snippets with context
     const getAllLyricsSnippets = () => {
-      if (!item.lyrics || !searchTerm) return [];
+      if (!item.lyrics || !searchQuery) return [];
       
-      const lyrics = item.lyrics.toLowerCase();
+      // Find all matches with their original text positions
+      const matches = findMatchesInText(searchQuery, item.lyrics);
       const snippets = [];
-      let startIndex = 0;
       
-      while (true) {
-        const termIndex = lyrics.indexOf(searchTerm, startIndex);
-        if (termIndex === -1) break;
+      for (const match of matches) {
+        // Get 30 characters before and after the match
+        const start = Math.max(0, match.start - 30);
+        const end = Math.min(item.lyrics.length, match.end + 30);
         
-        // Get 30 characters before and after the term
-        const start = Math.max(0, termIndex - 30);
-        const end = Math.min(lyrics.length, termIndex + searchTerm.length + 30);
+        const originalSnippet = item.lyrics.slice(start, end);
+        const hasLeadingEllipsis = start > 0;
+        const hasTrailingEllipsis = end < item.lyrics.length;
         
-        let snippet = item.lyrics.slice(start, end);
+        // Calculate the highlight positions within the snippet (before adding ellipsis)
+        const highlightStart = match.start - start;
+        const highlightEnd = match.end - start;
         
-        // Add ellipsis if we're not at the start/end
-        if (start > 0) snippet = '...' + snippet;
-        if (end < item.lyrics.length) snippet = snippet + '...';
+        // Extract parts from original snippet
+        const beforeTerm = originalSnippet.slice(0, highlightStart);
+        const term = originalSnippet.slice(highlightStart, highlightEnd);
+        const afterTerm = originalSnippet.slice(highlightEnd);
         
-        // Highlight the search term
-        const termStart = snippet.toLowerCase().indexOf(searchTerm);
-        if (termStart !== -1) {
-          const beforeTerm = snippet.slice(0, termStart);
-          const term = snippet.slice(termStart, termStart + searchTerm.length);
-          const afterTerm = snippet.slice(termStart + searchTerm.length);
-          
-          snippets.push(
-            <Text key={termIndex} style={styles.lyricsSnippet}>
-              {beforeTerm}
-              <Text style={styles.highlightedTerm}>{term}</Text>
-              {afterTerm}
-            </Text>
-          );
-        }
-        
-        startIndex = termIndex + searchTerm.length;
+        snippets.push(
+          <Text key={match.start} style={styles.lyricsSnippet}>
+            {hasLeadingEllipsis && '...'}
+            {beforeTerm}
+            <Text style={styles.highlightedTerm}>{term}</Text>
+            {afterTerm}
+            {hasTrailingEllipsis && '...'}
+          </Text>
+        );
       }
       
       return snippets;
@@ -1233,7 +1228,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               </View>
             )}
           </View>
-          {searchTerm && hasLyricsMatch && (
+          {searchQuery && hasLyricsMatch && (
             <View style={styles.matchIndicator}>
               <View style={styles.lyricsHeader}>
                 <View style={styles.lyricsTitleContainer}>
