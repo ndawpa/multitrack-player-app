@@ -4380,54 +4380,46 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           setIsLyricsFullscreen(false);
         }}
       >
-        <View style={styles.fullScreenContainer}>
-          <StatusBar hidden={true} />
-          <TouchableOpacity
-            style={styles.fullScreenCloseButton}
-            onPress={() => {
-              setIsLyricsFullscreen(false);
-            }}
-          >
-            <Ionicons name="close" size={30} color="#FFFFFF" />
-          </TouchableOpacity>
-          
-          <View style={styles.fullScreenLyricsContainer}>
-            <GestureDetector
-              gesture={Gesture.Simultaneous(
-                Gesture.Pinch()
-                  .onStart(() => {
-                    lyricsLastScaleRef.current = 1.0;
-                  })
-                  .onUpdate((e) => {
-                    const scaleChange = e.scale / lyricsLastScaleRef.current;
-                    const newScale = Math.max(0.5, Math.min(5.0, lyricsZoomScaleRef.current * scaleChange));
-                    lyricsLastScaleRef.current = e.scale;
-                    lyricsZoomScaleRef.current = newScale;
-                    runOnJS(setLyricsZoomScale)(newScale);
-                  })
-                  .onEnd(() => {
-                    lyricsLastScaleRef.current = 1.0;
-                  }),
-                Gesture.Pan()
-                  .minPointers(1)
-                  .maxPointers(2)
-                  .onStart(() => {
-                    lyricsLastPanXRef.current = lyricsTranslateXRef.current;
-                    lyricsLastPanYRef.current = lyricsTranslateYRef.current;
-                  })
-                  .onUpdate((e) => {
-                    const newX = lyricsLastPanXRef.current + e.translationX;
-                    const newY = lyricsLastPanYRef.current + e.translationY;
-                    lyricsTranslateXRef.current = newX;
-                    lyricsTranslateYRef.current = newY;
-                    runOnJS(setLyricsTranslateX)(newX);
-                    runOnJS(setLyricsTranslateY)(newY);
-                  })
-                  .onEnd(() => {
-                    // Keep the current translation values
-                  })
-              )}
-            >
+        <GestureDetector
+          gesture={Gesture.Simultaneous(
+            Gesture.Pinch()
+              .onStart(() => {
+                lyricsLastScaleRef.current = 1.0;
+              })
+              .onUpdate((e) => {
+                const scaleChange = e.scale / lyricsLastScaleRef.current;
+                const newScale = Math.max(0.5, Math.min(5.0, lyricsZoomScaleRef.current * scaleChange));
+                lyricsLastScaleRef.current = e.scale;
+                lyricsZoomScaleRef.current = newScale;
+                runOnJS(setLyricsZoomScale)(newScale);
+              })
+              .onEnd(() => {
+                lyricsLastScaleRef.current = 1.0;
+              }),
+            Gesture.Pan()
+              .minPointers(1)
+              .maxPointers(2)
+              .onStart(() => {
+                lyricsLastPanXRef.current = lyricsTranslateXRef.current;
+                lyricsLastPanYRef.current = lyricsTranslateYRef.current;
+              })
+              .onUpdate((e) => {
+                const newX = lyricsLastPanXRef.current + e.translationX;
+                const newY = lyricsLastPanYRef.current + e.translationY;
+                lyricsTranslateXRef.current = newX;
+                lyricsTranslateYRef.current = newY;
+                runOnJS(setLyricsTranslateX)(newX);
+                runOnJS(setLyricsTranslateY)(newY);
+              })
+              .onEnd(() => {
+                // Keep the current translation values
+              })
+          )}
+        >
+          <View style={styles.fullScreenContainer}>
+            <StatusBar hidden={true} />
+            
+            <View style={styles.fullScreenLyricsContainer}>
               <ScrollView
                 style={styles.fullScreenLyricsScrollView}
                 contentContainerStyle={styles.fullScreenLyricsScrollContent}
@@ -4453,9 +4445,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   </Markdown>
                 </View>
               </ScrollView>
-            </GestureDetector>
+            </View>
+            
+            <TouchableOpacity
+              style={styles.fullScreenCloseButton}
+              onPress={() => {
+                setIsLyricsFullscreen(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={30} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
-        </View>
+        </GestureDetector>
       </Modal>
     );
   };
@@ -6803,19 +6805,24 @@ const styles = StyleSheet.create({
   },
   fullScreenLyricsContainer: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
   },
   fullScreenLyricsScrollView: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
   fullScreenLyricsScrollContent: {
     flexGrow: 1,
     padding: 40,
     justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: Dimensions.get('window').width,
+    minHeight: Dimensions.get('window').height,
   },
   fullScreenLyricsContent: {
-    width: '100%',
+    width: Dimensions.get('window').width - 80,
   },
   lyricsHeaderLeft: {
     flex: 1,
