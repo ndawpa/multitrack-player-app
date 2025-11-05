@@ -128,6 +128,10 @@ const App = () => {
 
   const handleAdminModeChange = (isAdmin: boolean) => {
     setIsAdminMode(isAdmin);
+    // Redirect to home page when entering admin mode
+    if (isAdmin && currentScreen !== 'main') {
+      setCurrentScreen('main');
+    }
   };
 
   if (loading) {
