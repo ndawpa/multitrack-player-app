@@ -1147,6 +1147,52 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     const hasLyricsMatch = item.lyrics && searchQuery && matchesSearch(searchQuery, item.lyrics);
     const isExpanded = expandedLyricsIds.has(item.id);
     
+    // Function to render title with highlighted matches
+    const renderTitleWithHighlight = () => {
+      if (!searchQuery || !item.matchInfo?.titleMatch) {
+        return <Text style={styles.songTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>;
+      }
+      
+      const matches = findMatchesInText(searchQuery, item.title);
+      if (matches.length === 0) {
+        return <Text style={styles.songTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>;
+      }
+      
+      // Sort matches by start position
+      matches.sort((a, b) => a.start - b.start);
+      
+      // Build the highlighted text
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      
+      for (const match of matches) {
+        // Add text before the match
+        if (match.start > lastIndex) {
+          parts.push(item.title.slice(lastIndex, match.start));
+        }
+        
+        // Add the highlighted match
+        parts.push(
+          <Text key={match.start} style={[styles.songTitle, styles.highlightedTerm]}>
+            {item.title.slice(match.start, match.end)}
+          </Text>
+        );
+        
+        lastIndex = match.end;
+      }
+      
+      // Add remaining text after the last match
+      if (lastIndex < item.title.length) {
+        parts.push(item.title.slice(lastIndex));
+      }
+      
+      return (
+        <Text style={styles.songTitle} numberOfLines={1} ellipsizeMode="tail">
+          {parts}
+        </Text>
+      );
+    };
+    
     // Function to get all lyrics snippets with context
     const getAllLyricsSnippets = () => {
       if (!item.lyrics || !searchQuery) return [];
@@ -1224,12 +1270,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
         <View style={styles.songInfo}>
           <View style={styles.titleContainer}>
-            <Text style={styles.songTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
-            {item.matchInfo?.titleMatch && (
-              <View style={styles.matchBadge}>
-                <Text style={styles.matchBadgeText}>Title</Text>
-              </View>
-            )}
+            {renderTitleWithHighlight()}
           </View>
           <View style={styles.artistContainer}>
             <Text style={styles.songArtist} numberOfLines={1} ellipsizeMode="tail">{item.artist}</Text>
