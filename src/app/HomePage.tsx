@@ -4,10 +4,12 @@ import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-nativ
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Markdown from 'react-native-markdown-display';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { ref, onValue, set, serverTimestamp } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { database } from '../config/firebase';
@@ -154,6 +156,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [expandedLyricsIds, setExpandedLyricsIds] = useState<Set<string>>(new Set());
+  const [lyricsZoomScale, setLyricsZoomScale] = useState(1.0);
+  const lyricsZoomScaleRef = useRef(1.0);
+  const lyricsLastScaleRef = useRef(1.0);
+  const [lyricsTranslateX, setLyricsTranslateX] = useState(0);
+  const [lyricsTranslateY, setLyricsTranslateY] = useState(0);
+  const lyricsTranslateXRef = useRef(0);
+  const lyricsTranslateYRef = useRef(0);
+  const lyricsLastPanXRef = useRef(0);
+  const lyricsLastPanYRef = useRef(0);
   const [isSessionMenuExpanded, setIsSessionMenuExpanded] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
   const [expandedScores, setExpandedScores] = useState<{ [key: string]: boolean }>({});
@@ -882,6 +893,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       });
     };
   }, [selectedSong]);
+
+  // Reset zoom and translation when song changes
+  useEffect(() => {
+    setLyricsZoomScale(1.0);
+    lyricsZoomScaleRef.current = 1.0;
+    lyricsLastScaleRef.current = 1.0;
+    setLyricsTranslateX(0);
+    setLyricsTranslateY(0);
+    lyricsTranslateXRef.current = 0;
+    lyricsTranslateYRef.current = 0;
+    lyricsLastPanXRef.current = 0;
+    lyricsLastPanYRef.current = 0;
+  }, [selectedSong?.id]);
 
   const handleSongSelect = async (song: Song) => {
     setIsPlaying(false);
@@ -3771,9 +3795,70 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     textAlignVertical="top"
                   />
                 ) : (
-                  <Markdown style={markdownStyles}>
-                    {selectedSong.lyrics || ''}
-                  </Markdown>
+                  <View style={styles.lyricsScrollView}>
+                    <GestureDetector
+                      gesture={Gesture.Simultaneous(
+                        Gesture.Pinch()
+                          .onStart(() => {
+                            lyricsLastScaleRef.current = 1.0;
+                          })
+                          .onUpdate((e) => {
+                            const scaleChange = e.scale / lyricsLastScaleRef.current;
+                            const newScale = Math.max(0.5, Math.min(5.0, lyricsZoomScaleRef.current * scaleChange));
+                            lyricsLastScaleRef.current = e.scale;
+                            lyricsZoomScaleRef.current = newScale;
+                            runOnJS(setLyricsZoomScale)(newScale);
+                          })
+                          .onEnd(() => {
+                            lyricsLastScaleRef.current = 1.0;
+                          }),
+                        Gesture.Pan()
+                          .minPointers(1)
+                          .maxPointers(2)
+                          .onStart(() => {
+                            lyricsLastPanXRef.current = lyricsTranslateXRef.current;
+                            lyricsLastPanYRef.current = lyricsTranslateYRef.current;
+                          })
+                          .onUpdate((e) => {
+                            const newX = lyricsLastPanXRef.current + e.translationX;
+                            const newY = lyricsLastPanYRef.current + e.translationY;
+                            lyricsTranslateXRef.current = newX;
+                            lyricsTranslateYRef.current = newY;
+                            runOnJS(setLyricsTranslateX)(newX);
+                            runOnJS(setLyricsTranslateY)(newY);
+                          })
+                          .onEnd(() => {
+                            // Keep the current translation values
+                          })
+                      )}
+                    >
+                      <ScrollView
+                        style={styles.lyricsScrollView}
+                        contentContainerStyle={styles.lyricsScrollContent}
+                        showsHorizontalScrollIndicator={lyricsZoomScale > 1.0}
+                        showsVerticalScrollIndicator={lyricsZoomScale > 1.0}
+                        scrollEnabled={false}
+                        bounces={false}
+                      >
+                        <View
+                          style={[
+                            styles.lyricsContent,
+                            {
+                              transform: [
+                                { translateX: lyricsTranslateX },
+                                { translateY: lyricsTranslateY },
+                                { scale: lyricsZoomScale },
+                              ],
+                            },
+                          ]}
+                        >
+                          <Markdown style={markdownStyles}>
+                            {selectedSong.lyrics || ''}
+                          </Markdown>
+                        </View>
+                      </ScrollView>
+                    </GestureDetector>
+                  </View>
                 )}
               </View>
             ) : activeView === 'score' ? (
@@ -6169,6 +6254,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     lineHeight: 20,
+  },
+  lyricsScrollView: {
+    flex: 1,
+  },
+  lyricsScrollContent: {
+    flexGrow: 1,
+    padding: 16,
+  },
+  lyricsContent: {
+    width: '100%',
   },
   viewToggleContainer: {
     flexDirection: 'row',
