@@ -1027,17 +1027,28 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           };
         })
         .filter(song => song.matchInfo.priority > 0)
-        .sort((a, b) => b.matchInfo.priority - a.matchInfo.priority);
+        .sort((a, b) => {
+          // First sort by priority (higher priority first - title matches come first)
+          const priorityDiff = b.matchInfo.priority - a.matchInfo.priority;
+          if (priorityDiff !== 0) return priorityDiff;
+          
+          // If same priority, sort alphabetically by title
+          const titleA = a.title.toLowerCase();
+          const titleB = b.title.toLowerCase();
+          return sortOrder === 'asc' 
+            ? titleA.localeCompare(titleB)
+            : titleB.localeCompare(titleA);
+        });
+    } else {
+      // No search query - sort alphabetically by title
+      filtered = [...filtered].sort((a, b) => {
+        const titleA = a.title.toLowerCase();
+        const titleB = b.title.toLowerCase();
+        return sortOrder === 'asc' 
+          ? titleA.localeCompare(titleB)
+          : titleB.localeCompare(titleA);
+      });
     }
-    
-    // Sort songs by title
-    filtered = [...filtered].sort((a, b) => {
-      const titleA = a.title.toLowerCase();
-      const titleB = b.title.toLowerCase();
-      return sortOrder === 'asc' 
-        ? titleA.localeCompare(titleB)
-        : titleB.localeCompare(titleA);
-    });
     
     console.log('Filtered songs:', filtered);
     return filtered;
