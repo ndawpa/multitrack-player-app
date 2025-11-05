@@ -180,6 +180,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
   const [currentPlaylistIndex, setCurrentPlaylistIndex] = useState(0);
   const [isPlaylistMode, setIsPlaylistMode] = useState(false);
+  
+  // Filtered songs navigation state
+  const [currentFilteredIndex, setCurrentFilteredIndex] = useState(-1);
   // Playlist player removed - using main audio system
   
   // Add to playlist state
@@ -940,6 +943,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     setIsPlaying(false);
     setSelectedSong(song);
     
+    // Update current filtered index if not in playlist mode
+    if (!isPlaylistMode) {
+      const index = filteredSongs.findIndex(s => s.id === song.id);
+      setCurrentFilteredIndex(index >= 0 ? index : -1);
+    }
+    
     // Reset track states for new song
     setPersistedTrackStates({});
     setSoloedTrackIds([]);
@@ -1108,6 +1117,22 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     console.log('Filtered songs:', filtered);
     return filtered;
   }, [searchQuery, selectedArtists, songs, sortOrder, showFavoritesOnly, favoriteSongs, hasTracks, hasLyrics, hasScores, hasLinks, isAdminMode, user, userGroups]);
+
+  // Update currentFilteredIndex when filters change or selected song is no longer in filtered list
+  useEffect(() => {
+    if (!isPlaylistMode && selectedSong && filteredSongs.length > 0) {
+      const index = filteredSongs.findIndex(s => s.id === selectedSong.id);
+      if (index >= 0) {
+        setCurrentFilteredIndex(index);
+      } else {
+        // Current song is no longer in filtered list, reset index
+        setCurrentFilteredIndex(-1);
+      }
+    } else if (!selectedSong) {
+      // No song selected, reset index
+      setCurrentFilteredIndex(-1);
+    }
+  }, [filteredSongs, selectedSong, isPlaylistMode]);
 
   // Get unique artists for the filter dropdown
   const uniqueArtists = useMemo(() => {
@@ -2885,6 +2910,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       // If the deleted song was selected, clear the selection
       if (selectedSong?.id === songToDelete.id) {
         setSelectedSong(null);
+        setCurrentFilteredIndex(-1);
       }
     } catch (error) {
       console.error('Error deleting song:', error);
@@ -5591,6 +5617,59 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     setIsPlaylistRepeating(!isPlaylistRepeating);
   };
 
+  // Filtered songs navigation functions
+  const handlePreviousFilteredSong = async () => {
+    if (filteredSongs.length > 0 && currentFilteredIndex >= 0) {
+      try {
+        const newIndex = currentFilteredIndex > 0 ? currentFilteredIndex - 1 : filteredSongs.length - 1;
+        const previousSong = filteredSongs[newIndex];
+        
+        if (previousSong) {
+          setCurrentFilteredIndex(newIndex);
+          setSelectedSong(previousSong);
+          setIsFinished(false);
+          // Stop current playback and progress tracking
+          setIsPlaying(false);
+          // Reset initialization state for new song
+          setIsInitialized(false);
+          // Small delay to ensure proper cleanup before loading new song
+          setTimeout(() => {
+            handleSongSelect(previousSong);
+          }, 100);
+        }
+      } catch (error) {
+        console.error('Error going to previous filtered song:', error);
+        Alert.alert('Error', 'Failed to go to previous song');
+      }
+    }
+  };
+
+  const handleNextFilteredSong = async () => {
+    if (filteredSongs.length > 0 && currentFilteredIndex >= 0) {
+      try {
+        const newIndex = currentFilteredIndex < filteredSongs.length - 1 ? currentFilteredIndex + 1 : 0;
+        const nextSong = filteredSongs[newIndex];
+        
+        if (nextSong) {
+          setCurrentFilteredIndex(newIndex);
+          setSelectedSong(nextSong);
+          setIsFinished(false);
+          // Stop current playback and progress tracking
+          setIsPlaying(false);
+          // Reset initialization state for new song
+          setIsInitialized(false);
+          // Small delay to ensure proper cleanup before loading new song
+          setTimeout(() => {
+            handleSongSelect(nextSong);
+          }, 100);
+        }
+      } catch (error) {
+        console.error('Error going to next filtered song:', error);
+        Alert.alert('Error', 'Failed to go to next song');
+      }
+    }
+  };
+
   const handleJumpToSong = async (songIndex: number) => {
     if (!currentPlaylist || !playlistSongs || songIndex < 0 || songIndex >= playlistSongs.length) {
       return;
@@ -5687,6 +5766,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setPlaylistSongs([]);
       setCurrentPlaylistIndex(0);
       setSelectedSong(null);
+      setCurrentFilteredIndex(-1);
       setIsPlaying(false);
       setLastAutoStartedSong(null); // Reset auto-start tracking
       setIsPlaylistRepeating(false); // Reset repeat state
@@ -5759,7 +5839,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 <View style={[styles.headerTop, isLandscape && styles.headerTopLandscape]}>
                   <TouchableOpacity 
                     style={styles.backButton}
-                    onPress={() => setSelectedSong(null)}
+                    onPress={() => {
+                      setSelectedSong(null);
+                      setCurrentFilteredIndex(-1);
+                    }}
                   >
                     <Ionicons name="chevron-back" size={24} color="#BB86FC" />
                   </TouchableOpacity>
@@ -5773,6 +5856,60 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       {selectedSong.artist}
                     </Text>
                   </View>
+                </View>
+              </View>
+            )}
+            
+            {/* Filtered songs navigation controls section */}
+            {!isPlaylistMode && selectedSong && filteredSongs.length > 0 && currentFilteredIndex >= 0 && (
+              <View style={styles.playlistControlsSection}>
+                <View style={styles.playlistTrackInfo}>
+                  <Text style={styles.playlistTrackCount}>
+                    {currentFilteredIndex + 1} of {filteredSongs.length}
+                  </Text>
+                  <MarqueeText 
+                    text={selectedSong.title} 
+                    style={styles.playlistSongTitle}
+                  />
+                  <Text style={styles.playlistSongArtist} numberOfLines={1}>
+                    {selectedSong.artist}
+                  </Text>
+                </View>
+                
+                <View style={styles.playlistControls}>
+                  <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistPrevBtn]}
+                    onPress={handlePreviousFilteredSong}
+                  >
+                    <Ionicons name="play-skip-back" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistPauseBtn]}
+                    onPress={async () => {
+                      console.log('Pause/resume pressed, isPlaying:', isPlaying);
+                      if (isPlaying) {
+                        console.log('Stopping playback...');
+                        await stopLocalPlayback();
+                      } else {
+                        console.log('Starting playback...');
+                        await startLocalPlayback();
+                      }
+                    }}
+                  >
+                    <Ionicons 
+                      name={isPlaying ? 'pause' : 'play'} 
+                      size={18} 
+                      color="#FFFFFF" 
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistNextBtn]}
+                    onPress={handleNextFilteredSong}
+                  >
+                    <Ionicons name="play-skip-forward" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
                 </View>
               </View>
             )}
