@@ -183,6 +183,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   
   // Filtered songs navigation state
   const [currentFilteredIndex, setCurrentFilteredIndex] = useState(-1);
+  const [showNavigationControls, setShowNavigationControls] = useState(true);
   // Playlist player removed - using main audio system
   
   // Add to playlist state
@@ -5842,6 +5843,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     onPress={() => {
                       setSelectedSong(null);
                       setCurrentFilteredIndex(-1);
+                      setShowNavigationControls(true);
                     }}
                   >
                     <Ionicons name="chevron-back" size={24} color="#BB86FC" />
@@ -5856,23 +5858,29 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       {selectedSong.artist}
                     </Text>
                   </View>
+                  
+                  {filteredSongs.length > 0 && currentFilteredIndex >= 0 && (
+                    <TouchableOpacity 
+                      style={styles.toggleButton}
+                      onPress={() => setShowNavigationControls(!showNavigationControls)}
+                    >
+                      <Ionicons 
+                        name={showNavigationControls ? "chevron-up" : "chevron-down"} 
+                        size={24} 
+                        color="#BB86FC" 
+                      />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             )}
             
             {/* Filtered songs navigation controls section */}
-            {!isPlaylistMode && selectedSong && filteredSongs.length > 0 && currentFilteredIndex >= 0 && (
+            {!isPlaylistMode && selectedSong && filteredSongs.length > 0 && currentFilteredIndex >= 0 && showNavigationControls && (
               <View style={styles.playlistControlsSection}>
                 <View style={styles.playlistTrackInfo}>
                   <Text style={styles.playlistTrackCount}>
                     {currentFilteredIndex + 1} of {filteredSongs.length}
-                  </Text>
-                  <MarqueeText 
-                    text={selectedSong.title} 
-                    style={styles.playlistSongTitle}
-                  />
-                  <Text style={styles.playlistSongArtist} numberOfLines={1}>
-                    {selectedSong.artist}
                   </Text>
                 </View>
                 
@@ -6420,6 +6428,11 @@ const styles = StyleSheet.create({
   backButton: {
     position: 'absolute',
     left: 0,
+    zIndex: 1,
+  },
+  toggleButton: {
+    position: 'absolute',
+    right: 0,
     zIndex: 1,
   },
   searchContainer: {
