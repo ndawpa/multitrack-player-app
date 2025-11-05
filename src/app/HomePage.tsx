@@ -202,6 +202,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [imageScale, setImageScale] = useState(1);
   const [imageTranslateX, setImageTranslateX] = useState(0);
   const [imageTranslateY, setImageTranslateY] = useState(0);
+  const imageScaleRef = useRef(1);
+  const imageLastScaleRef = useRef(1);
+  const imageTranslateXRef = useRef(0);
+  const imageTranslateYRef = useRef(0);
+  const imageLastPanXRef = useRef(0);
+  const imageLastPanYRef = useRef(0);
   const [isLyricsFullscreen, setIsLyricsFullscreen] = useState(false);
   
   // Sync state
@@ -252,6 +258,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setFullScreenPageIndex(fullScreenImage.currentPageIndex);
     } else if (fullScreenImage && !fullScreenImage.pages) {
       setFullScreenPageIndex(0);
+    }
+    // Reset zoom and pan when image changes
+    if (fullScreenImage) {
+      setImageScale(1);
+      setImageTranslateX(0);
+      setImageTranslateY(0);
+      imageScaleRef.current = 1;
+      imageTranslateXRef.current = 0;
+      imageTranslateYRef.current = 0;
     }
   }, [fullScreenImage]);
 
@@ -2480,32 +2495,32 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                           isActive && (styles as any).trackUploadContainerActive
                         ]}
                       >
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onLongPress={drag}
-                          disabled={isActive}
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onLongPress={drag}
+                        disabled={isActive}
                           style={styles.scoreItem}
+                      >
+                        <TouchableOpacity
+                          onPress={drag}
+                          style={(styles as any).dragHandle}
                         >
-                          <TouchableOpacity
-                            onPress={drag}
-                            style={(styles as any).dragHandle}
-                          >
-                            <Ionicons name="reorder-three-outline" size={24} color="#BB86FC" />
-                          </TouchableOpacity>
-                          <TextInput
-                            style={[styles.dialogInput, { flex: 1 }]}
-                            placeholder="Score Name"
-                            placeholderTextColor="#666666"
-                            value={score.name}
-                            onChangeText={(text) => {
-                              setEditingSong(prev => {
-                                if (!prev) return null;
-                                const newScores = [...prev.scores];
-                                newScores[index] = { ...newScores[index], name: text };
-                                return { ...prev, scores: newScores };
-                              });
-                            }}
-                          />
+                          <Ionicons name="reorder-three-outline" size={24} color="#BB86FC" />
+                        </TouchableOpacity>
+                        <TextInput
+                          style={[styles.dialogInput, { flex: 1 }]}
+                          placeholder="Score Name"
+                          placeholderTextColor="#666666"
+                          value={score.name}
+                          onChangeText={(text) => {
+                            setEditingSong(prev => {
+                              if (!prev) return null;
+                              const newScores = [...prev.scores];
+                              newScores[index] = { ...newScores[index], name: text };
+                              return { ...prev, scores: newScores };
+                            });
+                          }}
+                        />
                           {hasPages && !isUploading && (
                             <Text style={styles.pageCountText}>
                               {pageCount} {pageCount === 1 ? 'page' : 'pages'}
@@ -2514,19 +2529,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                           {isUploading && (
                             <ActivityIndicator size="small" color="#BB86FC" style={{ marginHorizontal: 8 }} />
                           )}
-                          <TouchableOpacity
-                            style={styles.iconButton}
-                            onPress={() => {
-                              setEditingSong(prev => {
-                                if (!prev) return null;
-                                const newScores = prev.scores.filter((_, i) => i !== index);
-                                return { ...prev, scores: newScores };
-                              });
-                            }}
-                          >
-                            <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                          </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.iconButton}
+                          onPress={() => {
+                            setEditingSong(prev => {
+                              if (!prev) return null;
+                              const newScores = prev.scores.filter((_, i) => i !== index);
+                              return { ...prev, scores: newScores };
+                            });
+                          }}
+                        >
+                          <Ionicons name="trash-outline" size={24} color="#FF5252" />
                         </TouchableOpacity>
+                      </TouchableOpacity>
                         {hasPages && !isUploading && (
                           <TouchableOpacity
                             style={styles.addPageButton}
@@ -2645,22 +2660,22 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
                       try {
                         // Upload single image file
-                        const downloadURL = await uploadSheetMusic(file, scoreName, editingSong.title);
-                        
-                        // Update the score with the download URL
-                        setEditingSong(prev => {
-                          if (!prev) return null;
-                          const newScores = prev.scores.map(score => 
+                      const downloadURL = await uploadSheetMusic(file, scoreName, editingSong.title);
+                      
+                      // Update the score with the download URL
+                      setEditingSong(prev => {
+                        if (!prev) return null;
+                        const newScores = prev.scores.map(score => 
                             score.id === scoreId && score.url === 'uploading' ? { ...score, url: downloadURL } : score
-                          );
-                          return { ...prev, scores: newScores };
-                        });
+                        );
+                        return { ...prev, scores: newScores };
+                      });
                       } catch (uploadError) {
                         console.error('Error uploading score:', uploadError);
-                        Alert.alert('Error', 'Failed to upload score');
+                    Alert.alert('Error', 'Failed to upload score');
                         // Remove the failed score
-                        setEditingSong(prev => {
-                          if (!prev) return null;
+                    setEditingSong(prev => {
+                      if (!prev) return null;
                           return { ...prev, scores: prev.scores.filter(score => score.id !== scoreId) };
                         });
                       }
@@ -3393,19 +3408,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 return (
                   <View key={score.id} style={styles.scoreItemContainer}>
                     <View style={styles.scoreItem}>
-                      <TextInput
-                        style={[styles.dialogInput, { flex: 1 }]}
-                        placeholder="Score Name"
-                        placeholderTextColor="#666666"
-                        value={score.name}
-                        onChangeText={(text) => {
-                          setNewSong(prev => {
-                            const newScores = [...prev.scores];
-                            newScores[index] = { ...newScores[index], name: text };
-                            return { ...prev, scores: newScores };
-                          });
-                        }}
-                      />
+                  <TextInput
+                    style={[styles.dialogInput, { flex: 1 }]}
+                    placeholder="Score Name"
+                    placeholderTextColor="#666666"
+                    value={score.name}
+                    onChangeText={(text) => {
+                      setNewSong(prev => {
+                        const newScores = [...prev.scores];
+                        newScores[index] = { ...newScores[index], name: text };
+                        return { ...prev, scores: newScores };
+                      });
+                    }}
+                  />
                       {hasPages && !isUploading && (
                         <Text style={styles.pageCountText}>
                           {pageCount} {pageCount === 1 ? 'page' : 'pages'}
@@ -3414,18 +3429,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       {isUploading && (
                         <ActivityIndicator size="small" color="#BB86FC" style={{ marginHorizontal: 8 }} />
                       )}
-                      <TouchableOpacity
-                        style={styles.iconButton}
-                        onPress={() => {
-                          setNewSong(prev => {
-                            const newScores = prev.scores.filter((_, i) => i !== index);
-                            return { ...prev, scores: newScores };
-                          });
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                      </TouchableOpacity>
-                    </View>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => {
+                      setNewSong(prev => {
+                        const newScores = prev.scores.filter((_, i) => i !== index);
+                        return { ...prev, scores: newScores };
+                      });
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                  </TouchableOpacity>
+                </View>
                     {hasPages && !isUploading && (
                       <TouchableOpacity
                         style={styles.addPageButton}
@@ -3539,20 +3554,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
                     try {
                       // Upload single image file
-                      const downloadURL = await uploadSheetMusic(file, scoreName, newSong.title);
-                      
-                      // Update the score with the download URL
-                      setNewSong(prev => {
-                        const newScores = prev.scores.map(score => 
+                    const downloadURL = await uploadSheetMusic(file, scoreName, newSong.title);
+                    
+                    // Update the score with the download URL
+                    setNewSong(prev => {
+                      const newScores = prev.scores.map(score => 
                           score.id === scoreId && score.url === 'uploading' ? { ...score, url: downloadURL } : score
-                        );
-                        return { ...prev, scores: newScores };
-                      });
+                      );
+                      return { ...prev, scores: newScores };
+                    });
                     } catch (uploadError) {
                       console.error('Error uploading score:', uploadError);
-                      Alert.alert('Error', 'Failed to upload score');
+                  Alert.alert('Error', 'Failed to upload score');
                       // Remove the failed score
-                      setNewSong(prev => {
+                  setNewSong(prev => {
                         return { ...prev, scores: prev.scores.filter(score => score.id !== scoreId) };
                       });
                     }
@@ -4229,44 +4244,44 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                               // PDF handling - WebView already supports page navigation
                               const pdfUrl = pages[0];
                               return (
-                                <View style={styles.sheetMusicView}>
-                                  <WebView
-                                    source={{ 
+                              <View style={styles.sheetMusicView}>
+                                <WebView
+                                  source={{ 
                                       uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`
-                                    }}
-                                    style={{
-                                      height: 400,
-                                      width: Dimensions.get('window').width - 48,
-                                      backgroundColor: '#FFFFFF',
-                                    }}
-                                    onError={(syntheticEvent) => {
-                                      const { nativeEvent } = syntheticEvent;
-                                      console.error('WebView error:', nativeEvent);
-                                      Alert.alert(
-                                        'PDF Viewing Error',
-                                        'Unable to load PDF. You can try opening it in your browser.',
-                                        [
-                                          {
-                                            text: 'Open in Browser',
-                                            onPress: () => {
+                                  }}
+                                  style={{
+                                    height: 400,
+                                    width: Dimensions.get('window').width - 48,
+                                    backgroundColor: '#FFFFFF',
+                                  }}
+                                  onError={(syntheticEvent) => {
+                                    const { nativeEvent } = syntheticEvent;
+                                    console.error('WebView error:', nativeEvent);
+                                    Alert.alert(
+                                      'PDF Viewing Error',
+                                      'Unable to load PDF. You can try opening it in your browser.',
+                                      [
+                                        {
+                                          text: 'Open in Browser',
+                                          onPress: () => {
                                               Linking.openURL(pdfUrl);
-                                            }
-                                          },
-                                          {
-                                            text: 'Cancel',
-                                            style: 'cancel'
                                           }
-                                        ]
-                                      );
-                                    }}
-                                    renderLoading={() => (
-                                      <View style={styles.loadingContainer}>
-                                        <ActivityIndicator size="large" color="#BB86FC" />
-                                        <Text style={styles.loadingText}>Loading PDF...</Text>
-                                      </View>
-                                    )}
-                                  />
-                                </View>
+                                        },
+                                        {
+                                          text: 'Cancel',
+                                          style: 'cancel'
+                                        }
+                                      ]
+                                    );
+                                  }}
+                                  renderLoading={() => (
+                                    <View style={styles.loadingContainer}>
+                                      <ActivityIndicator size="large" color="#BB86FC" />
+                                      <Text style={styles.loadingText}>Loading PDF...</Text>
+                                    </View>
+                                  )}
+                                />
+                              </View>
                               );
                             } else {
                               // Image handling with multi-page support
@@ -4274,7 +4289,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                 <View style={styles.scorePagesContainer}>
                                   {hasMultiplePages && (
                                     <View style={styles.scorePageControls}>
-                                      <TouchableOpacity
+                              <TouchableOpacity
                                         style={[
                                           styles.scorePageButton,
                                           currentPageIndex === 0 && styles.scorePageButtonDisabled
@@ -4326,15 +4341,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                           pages: pages,
                                           currentPageIndex: index
                                         })}
-                                        activeOpacity={0.8}
+                                activeOpacity={0.8}
                                         style={styles.scorePageItem}
-                                      >
-                                        <Image
+                              >
+                                <Image
                                           source={{ uri: pageUrl }}
-                                          style={styles.sheetMusicImage}
-                                          resizeMode="contain"
-                                        />
-                                      </TouchableOpacity>
+                                  style={styles.sheetMusicImage}
+                                  resizeMode="contain"
+                                />
+                              </TouchableOpacity>
                                     ))}
                                   </ScrollView>
                                 </View>
@@ -4369,44 +4384,44 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                           // PDF handling - WebView already supports page navigation
                           const pdfUrl = pages[0];
                           return (
-                            <View style={styles.sheetMusicView}>
-                              <WebView
-                                source={{ 
+                          <View style={styles.sheetMusicView}>
+                            <WebView
+                              source={{ 
                                   uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`
-                                }}
-                                style={{
-                                  height: 400,
-                                  width: Dimensions.get('window').width - 48,
-                                  backgroundColor: '#FFFFFF',
-                                }}
-                                onError={(syntheticEvent) => {
-                                  const { nativeEvent } = syntheticEvent;
-                                  console.error('WebView error:', nativeEvent);
-                                  Alert.alert(
-                                    'PDF Viewing Error',
-                                    'Unable to load PDF. You can try opening it in your browser.',
-                                    [
-                                      {
-                                        text: 'Open in Browser',
-                                        onPress: () => {
+                              }}
+                              style={{
+                                height: 400,
+                                width: Dimensions.get('window').width - 48,
+                                backgroundColor: '#FFFFFF',
+                              }}
+                              onError={(syntheticEvent) => {
+                                const { nativeEvent } = syntheticEvent;
+                                console.error('WebView error:', nativeEvent);
+                                Alert.alert(
+                                  'PDF Viewing Error',
+                                  'Unable to load PDF. You can try opening it in your browser.',
+                                  [
+                                    {
+                                      text: 'Open in Browser',
+                                      onPress: () => {
                                           Linking.openURL(pdfUrl);
-                                        }
-                                      },
-                                      {
-                                        text: 'Cancel',
-                                        style: 'cancel'
                                       }
-                                    ]
-                                  );
-                                }}
-                                renderLoading={() => (
-                                  <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color="#BB86FC" />
-                                    <Text style={styles.loadingText}>Loading PDF...</Text>
-                                  </View>
-                                )}
-                              />
-                            </View>
+                                    },
+                                    {
+                                      text: 'Cancel',
+                                      style: 'cancel'
+                                    }
+                                  ]
+                                );
+                              }}
+                              renderLoading={() => (
+                                <View style={styles.loadingContainer}>
+                                  <ActivityIndicator size="large" color="#BB86FC" />
+                                  <Text style={styles.loadingText}>Loading PDF...</Text>
+                                </View>
+                              )}
+                            />
+                          </View>
                           );
                         } else {
                           // Image handling with multi-page support
@@ -4415,7 +4430,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                             <View style={styles.scorePagesContainer}>
                               {hasMultiplePages && (
                                 <View style={styles.scorePageControls}>
-                                  <TouchableOpacity
+                          <TouchableOpacity
                                     style={[
                                       styles.scorePageButton,
                                       currentPageIndex === 0 && styles.scorePageButtonDisabled
@@ -4467,15 +4482,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                       pages: pages,
                                       currentPageIndex: index
                                     })}
-                                    activeOpacity={0.8}
+                            activeOpacity={0.8}
                                     style={styles.scorePageItem}
-                                  >
-                                    <Image
+                          >
+                            <Image
                                       source={{ uri: pageUrl }}
-                                      style={styles.sheetMusicImage}
-                                      resizeMode="contain"
-                                    />
-                                  </TouchableOpacity>
+                              style={styles.sheetMusicImage}
+                              resizeMode="contain"
+                            />
+                          </TouchableOpacity>
                                 ))}
                               </ScrollView>
                             </View>
@@ -4774,6 +4789,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           setImageTranslateX(0);
           setImageTranslateY(0);
           setFullScreenPageIndex(0);
+          imageScaleRef.current = 1;
+          imageTranslateXRef.current = 0;
+          imageTranslateYRef.current = 0;
         }}
       >
         <View style={styles.fullScreenContainer}>
@@ -4786,6 +4804,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               setImageTranslateX(0);
               setImageTranslateY(0);
               setFullScreenPageIndex(0);
+              imageScaleRef.current = 1;
+              imageTranslateXRef.current = 0;
+              imageTranslateYRef.current = 0;
             }}
           >
             <Ionicons name="close" size={30} color="#FFFFFF" />
@@ -4815,32 +4836,61 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             contentContainerStyle={styles.fullScreenPagesScrollContent}
           >
             {pages.map((pageUrl, index) => (
-              <ScrollView
-                key={index}
-                contentContainerStyle={styles.fullScreenImageContainer}
-                maximumZoomScale={5}
-                minimumZoomScale={1}
-                showsHorizontalScrollIndicator={false}
-                showsVerticalScrollIndicator={false}
-                bounces={false}
-                bouncesZoom={false}
-                centerContent={true}
-              >
-                <Image
-                  source={{ uri: pageUrl }}
-                  style={[
-                    styles.fullScreenImage,
-                    {
-                      transform: [
-                        { scale: imageScale },
-                        { translateX: imageTranslateX },
-                        { translateY: imageTranslateY }
-                      ]
-                    }
-                  ]}
-                  resizeMode="contain"
-                />
-              </ScrollView>
+              <View key={index} style={styles.fullScreenPageContainer}>
+                <GestureDetector
+                  gesture={Gesture.Simultaneous(
+                    Gesture.Pinch()
+                      .onStart(() => {
+                        imageLastScaleRef.current = 1.0;
+                      })
+                      .onUpdate((e) => {
+                        const scaleChange = e.scale / imageLastScaleRef.current;
+                        const newScale = Math.max(0.5, Math.min(5.0, imageScaleRef.current * scaleChange));
+                        imageLastScaleRef.current = e.scale;
+                        imageScaleRef.current = newScale;
+                        runOnJS(setImageScale)(newScale);
+                      })
+                      .onEnd(() => {
+                        imageLastScaleRef.current = 1.0;
+                      }),
+                    Gesture.Pan()
+                      .minPointers(1)
+                      .maxPointers(2)
+                      .onStart(() => {
+                        imageLastPanXRef.current = imageTranslateXRef.current;
+                        imageLastPanYRef.current = imageTranslateYRef.current;
+                      })
+                      .onUpdate((e) => {
+                        const newX = imageLastPanXRef.current + e.translationX;
+                        const newY = imageLastPanYRef.current + e.translationY;
+                        imageTranslateXRef.current = newX;
+                        imageTranslateYRef.current = newY;
+                        runOnJS(setImageTranslateX)(newX);
+                        runOnJS(setImageTranslateY)(newY);
+                      })
+                      .onEnd(() => {
+                        // Keep the current translation values
+                      })
+                  )}
+                >
+                  <View style={styles.fullScreenImageContainer}>
+            <Image
+                      source={{ uri: pageUrl }}
+              style={[
+                styles.fullScreenImage,
+                {
+                  transform: [
+                    { scale: imageScale },
+                    { translateX: imageTranslateX },
+                    { translateY: imageTranslateY }
+                  ]
+                }
+              ]}
+              resizeMode="contain"
+            />
+                  </View>
+                </GestureDetector>
+              </View>
             ))}
           </ScrollView>
 
@@ -7372,6 +7422,12 @@ const styles = StyleSheet.create({
   },
   fullScreenPagesScrollContent: {
     flexDirection: 'row',
+  },
+  fullScreenPageContainer: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scorePagesContainer: {
     width: '100%',
