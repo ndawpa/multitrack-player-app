@@ -7,6 +7,7 @@ import { Audio } from 'expo-av';
 import { useEffect, useState, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Markdown from 'react-native-markdown-display';
 import { ref, onValue, set, serverTimestamp } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { database } from '../config/firebase';
@@ -3770,7 +3771,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     textAlignVertical="top"
                   />
                 ) : (
-                  <Text style={styles.lyricsText}>{selectedSong.lyrics}</Text>
+                  <Markdown style={markdownStyles}>
+                    {selectedSong.lyrics || ''}
+                  </Markdown>
                 )}
               </View>
             ) : activeView === 'score' ? (
@@ -7051,3 +7054,116 @@ const styles = StyleSheet.create({
     height: 40,
   },
 });
+
+const markdownStyles = {
+  body: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  paragraph: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 0,
+    marginBottom: 8,
+  },
+  heading1: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600' as const,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  heading2: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '600' as const,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  heading3: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600' as const,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  heading4: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600' as const,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  heading5: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600' as const,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  heading6: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600' as const,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  strong: {
+    color: '#FFFFFF',
+    fontWeight: '600' as const,
+  },
+  em: {
+    color: '#FFFFFF',
+    fontStyle: 'italic' as const,
+  },
+  link: {
+    color: '#BB86FC',
+    textDecorationLine: 'underline' as const,
+  },
+  blockquote: {
+    backgroundColor: 'rgba(187, 134, 252, 0.1)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#BB86FC',
+    paddingLeft: 12,
+    paddingVertical: 8,
+    marginVertical: 8,
+    color: '#FFFFFF',
+  },
+  code_inline: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    color: '#BB86FC',
+    fontSize: 13,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
+  },
+  code_block: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    color: '#BB86FC',
+    fontSize: 13,
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 8,
+    fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
+  },
+  list_item: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  bullet_list: {
+    marginVertical: 8,
+  },
+  ordered_list: {
+    marginVertical: 8,
+  },
+  hr: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    height: 1,
+    marginVertical: 12,
+  },
+};
