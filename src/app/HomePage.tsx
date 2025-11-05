@@ -184,6 +184,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   // Filtered songs navigation state
   const [currentFilteredIndex, setCurrentFilteredIndex] = useState(-1);
   const [showNavigationControls, setShowNavigationControls] = useState(true);
+  // Playlist controls toggle state
+  const [showPlaylistControls, setShowPlaylistControls] = useState(true);
   // Playlist player removed - using main audio system
   
   // Add to playlist state
@@ -782,6 +784,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               setCurrentPlaylist(null);
               setPlaylistSongs([]);
               setCurrentPlaylistIndex(0);
+              setShowPlaylistControls(true);
               Alert.alert('Playlist Complete', 'All songs in the playlist have been played');
             }
           }
@@ -5768,6 +5771,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setCurrentPlaylistIndex(0);
       setSelectedSong(null);
       setCurrentFilteredIndex(-1);
+      setShowPlaylistControls(true);
       setIsPlaying(false);
       setLastAutoStartedSong(null); // Reset auto-start tracking
       setIsPlaylistRepeating(false); // Reset repeat state
@@ -5834,6 +5838,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               <Header 
                 title={currentPlaylist.name}
                 onBack={handleBackToPlaylists}
+                rightComponent={
+                  <TouchableOpacity 
+                    onPress={() => setShowPlaylistControls(!showPlaylistControls)}
+                    style={{ padding: 8 }}
+                  >
+                    <Ionicons 
+                      name={showPlaylistControls ? "chevron-up" : "chevron-down"} 
+                      size={24} 
+                      color="#BB86FC" 
+                    />
+                  </TouchableOpacity>
+                }
               />
             ) : (
               <View style={[styles.header, isLandscape && styles.headerLandscape]}>
@@ -5923,7 +5939,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             )}
             
             {/* Playlist controls section */}
-             {isPlaylistMode && currentPlaylist && (
+             {isPlaylistMode && currentPlaylist && showPlaylistControls && (
                <View style={styles.playlistControlsSection}>
                  <View style={styles.playlistTrackInfo}>
                    <Text style={styles.playlistTrackCount}>
