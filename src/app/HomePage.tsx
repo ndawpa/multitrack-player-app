@@ -168,6 +168,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [isSessionMenuExpanded, setIsSessionMenuExpanded] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
   const [expandedScores, setExpandedScores] = useState<{ [key: string]: boolean }>({});
+  const [scorePageIndices, setScorePageIndices] = useState<{ [key: string]: number }>({});
+  const scoreScrollRefs = useRef<{ [key: string]: ScrollView | null }>({});
   const [expandedResources, setExpandedResources] = useState<{ [key: string]: boolean }>({});
   const [isFinished, setIsFinished] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
@@ -194,7 +196,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [trackClickTimers, setTrackClickTimers] = useState<{ [key: string]: ReturnType<typeof setTimeout> | null }>({});
   
   // Full-screen image state
-  const [fullScreenImage, setFullScreenImage] = useState<{ url: string; name: string } | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<{ url: string; name: string; pages?: string[]; currentPageIndex?: number } | null>(null);
+  const [fullScreenPageIndex, setFullScreenPageIndex] = useState(0);
+  const fullScreenScrollRef = useRef<ScrollView | null>(null);
   const [imageScale, setImageScale] = useState(1);
   const [imageTranslateX, setImageTranslateX] = useState(0);
   const [imageTranslateY, setImageTranslateY] = useState(0);
@@ -241,6 +245,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [userGroups, setUserGroups] = useState<string[]>([]);
   const [password, setPassword] = useState('');
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
+
+  // Sync fullscreen page index when fullScreenImage changes
+  useEffect(() => {
+    if (fullScreenImage?.currentPageIndex !== undefined) {
+      setFullScreenPageIndex(fullScreenImage.currentPageIndex);
+    } else if (fullScreenImage && !fullScreenImage.pages) {
+      setFullScreenPageIndex(0);
+    }
+  }, [fullScreenImage]);
 
   // Sync local admin mode state with prop
   useEffect(() => {
@@ -2454,50 +2467,150 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 scrollEnabled={false}
                 renderItem={({ item: score, drag, isActive }: RenderItemParams<Score>) => {
                   const index = editingSong.scores.findIndex(s => s.id === score.id);
+                  const pages = getScorePages(score);
+                  const pageCount = pages.length;
+                  const hasPages = pageCount > 0;
+                  const isUploading = score.url === 'uploading' || (score.pages && score.pages.some((p: string) => p === 'uploading'));
+                  
                   return (
                     <ScaleDecorator>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        onLongPress={drag}
-                        disabled={isActive}
+                      <View
                         style={[
-                          styles.scoreItem,
+                          styles.scoreItemContainer,
                           isActive && (styles as any).trackUploadContainerActive
                         ]}
                       >
                         <TouchableOpacity
-                          onPress={drag}
-                          style={(styles as any).dragHandle}
+                          activeOpacity={0.7}
+                          onLongPress={drag}
+                          disabled={isActive}
+                          style={styles.scoreItem}
                         >
-                          <Ionicons name="reorder-three-outline" size={24} color="#BB86FC" />
+                          <TouchableOpacity
+                            onPress={drag}
+                            style={(styles as any).dragHandle}
+                          >
+                            <Ionicons name="reorder-three-outline" size={24} color="#BB86FC" />
+                          </TouchableOpacity>
+                          <TextInput
+                            style={[styles.dialogInput, { flex: 1 }]}
+                            placeholder="Score Name"
+                            placeholderTextColor="#666666"
+                            value={score.name}
+                            onChangeText={(text) => {
+                              setEditingSong(prev => {
+                                if (!prev) return null;
+                                const newScores = [...prev.scores];
+                                newScores[index] = { ...newScores[index], name: text };
+                                return { ...prev, scores: newScores };
+                              });
+                            }}
+                          />
+                          {hasPages && !isUploading && (
+                            <Text style={styles.pageCountText}>
+                              {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+                            </Text>
+                          )}
+                          {isUploading && (
+                            <ActivityIndicator size="small" color="#BB86FC" style={{ marginHorizontal: 8 }} />
+                          )}
+                          <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => {
+                              setEditingSong(prev => {
+                                if (!prev) return null;
+                                const newScores = prev.scores.filter((_, i) => i !== index);
+                                return { ...prev, scores: newScores };
+                              });
+                            }}
+                          >
+                            <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                          </TouchableOpacity>
                         </TouchableOpacity>
-                        <TextInput
-                          style={[styles.dialogInput, { flex: 1 }]}
-                          placeholder="Score Name"
-                          placeholderTextColor="#666666"
-                          value={score.name}
-                          onChangeText={(text) => {
-                            setEditingSong(prev => {
-                              if (!prev) return null;
-                              const newScores = [...prev.scores];
-                              newScores[index] = { ...newScores[index], name: text };
-                              return { ...prev, scores: newScores };
-                            });
-                          }}
-                        />
-                        <TouchableOpacity
-                          style={styles.iconButton}
-                          onPress={() => {
-                            setEditingSong(prev => {
-                              if (!prev) return null;
-                              const newScores = prev.scores.filter((_, i) => i !== index);
-                              return { ...prev, scores: newScores };
-                            });
-                          }}
-                        >
-                          <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                        </TouchableOpacity>
-                      </TouchableOpacity>
+                        {hasPages && !isUploading && (
+                          <TouchableOpacity
+                            style={styles.addPageButton}
+                            onPress={async () => {
+                              try {
+                                const result = await DocumentPicker.getDocumentAsync({
+                                  type: ['image/*'],
+                                  copyToCacheDirectory: true
+                                });
+                                
+                                if (result.assets && result.assets[0]) {
+                                  const file = result.assets[0];
+                                  const currentPages = pages;
+                                  
+                                  // Add uploading placeholder
+                                  setEditingSong(prev => {
+                                    if (!prev) return null;
+                                    const newScores = [...prev.scores];
+                                    if (newScores[index].pages) {
+                                      newScores[index] = {
+                                        ...newScores[index],
+                                        pages: [...currentPages, 'uploading']
+                                      };
+                                    } else if (newScores[index].url) {
+                                      newScores[index] = {
+                                        ...newScores[index],
+                                        pages: [currentPages[0], 'uploading']
+                                      };
+                                      delete (newScores[index] as any).url;
+                                    }
+                                    return { ...prev, scores: newScores };
+                                  });
+
+                                  try {
+                                    // Upload the new page
+                                    const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, editingSong.title);
+                                    
+                                    // Update the score with the new page URL
+                                    setEditingSong(prev => {
+                                      if (!prev) return null;
+                                      const newScores = [...prev.scores];
+                                      if (newScores[index].pages) {
+                                        const updatedPages = [...newScores[index].pages!];
+                                        const uploadingIndex = updatedPages.indexOf('uploading');
+                                        if (uploadingIndex !== -1) {
+                                          updatedPages[uploadingIndex] = downloadURL;
+                                        }
+                                        newScores[index] = {
+                                          ...newScores[index],
+                                          pages: updatedPages
+                                        };
+                                      }
+                                      return { ...prev, scores: newScores };
+                                    });
+                                  } catch (uploadError) {
+                                    console.error('Error uploading page:', uploadError);
+                                    Alert.alert('Error', 'Failed to upload page');
+                                    // Remove the uploading placeholder
+                                    setEditingSong(prev => {
+                                      if (!prev) return null;
+                                      const newScores = [...prev.scores];
+                                      if (newScores[index].pages) {
+                                        newScores[index] = {
+                                          ...newScores[index],
+                                          pages: newScores[index].pages!.filter((p: string) => p !== 'uploading')
+                                        };
+                                      }
+                                      return { ...prev, scores: newScores };
+                                    });
+                                  }
+                                }
+                              } catch (error: any) {
+                                if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
+                                  console.error('Error selecting file:', error);
+                                  Alert.alert('Error', 'Failed to select file');
+                                }
+                              }
+                            }}
+                          >
+                            <Ionicons name="add-circle-outline" size={20} color="#BB86FC" />
+                            <Text style={styles.addPageButtonText}>Add Page</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </ScaleDecorator>
                   );
                 }}
@@ -2507,7 +2620,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 onPress={async () => {
                   try {
                     const result = await DocumentPicker.getDocumentAsync({
-                      type: ['application/pdf', 'image/*'],
+                      type: ['image/*'], // Only images, no PDFs
                       copyToCacheDirectory: true
                     });
                     
@@ -2516,10 +2629,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       const scoreName = file.name.split('.')[0];
                       
                       // Show loading state
+                      const scoreId = generateId();
                       setEditingSong(prev => {
                         if (!prev) return null;
                         const newScore: Score = {
-                          id: generateId(),
+                          id: scoreId,
                           name: scoreName,
                           url: 'uploading'
                         };
@@ -2529,27 +2643,34 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         };
                       });
 
-                      // Upload to Firebase Storage
-                      const downloadURL = await uploadSheetMusic(file, scoreName, editingSong.title);
-                      
-                      // Update the score with the download URL
-                      setEditingSong(prev => {
-                        if (!prev) return null;
-                        const newScores = prev.scores.map(score => 
-                          score.url === 'uploading' ? { ...score, url: downloadURL } : score
-                        );
-                        return { ...prev, scores: newScores };
-                      });
+                      try {
+                        // Upload single image file
+                        const downloadURL = await uploadSheetMusic(file, scoreName, editingSong.title);
+                        
+                        // Update the score with the download URL
+                        setEditingSong(prev => {
+                          if (!prev) return null;
+                          const newScores = prev.scores.map(score => 
+                            score.id === scoreId && score.url === 'uploading' ? { ...score, url: downloadURL } : score
+                          );
+                          return { ...prev, scores: newScores };
+                        });
+                      } catch (uploadError) {
+                        console.error('Error uploading score:', uploadError);
+                        Alert.alert('Error', 'Failed to upload score');
+                        // Remove the failed score
+                        setEditingSong(prev => {
+                          if (!prev) return null;
+                          return { ...prev, scores: prev.scores.filter(score => score.id !== scoreId) };
+                        });
+                      }
                     }
-                  } catch (error) {
-                    console.error('Error uploading score:', error);
-                    Alert.alert('Error', 'Failed to upload score');
-                    // Reset the uploading score
-                    setEditingSong(prev => {
-                      if (!prev) return null;
-                      const newScores = prev.scores.filter(score => score.url !== 'uploading');
-                      return { ...prev, scores: newScores };
-                    });
+                  } catch (error: any) {
+                    // User cancelled or error occurred
+                    if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
+                      console.error('Error selecting file:', error);
+                      Alert.alert('Error', 'Failed to select file');
+                    }
                   }
                 }}
               >
@@ -2957,6 +3078,33 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     }
   };
 
+  // Upload multiple sheet music files and return array of URLs
+  const uploadMultipleSheetMusic = async (files: DocumentPicker.DocumentPickerAsset[], baseFileName: string, songTitle: string): Promise<string[]> => {
+    try {
+      const uploadPromises = files.map(async (file, index) => {
+        const storage = getStorage();
+        const fileExtension = file.name.split('.').pop();
+        const safeSongTitle = songTitle.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        // Add index to filename if multiple files to avoid conflicts
+        const fileName = files.length > 1 
+          ? `${baseFileName}_page${index + 1}` 
+          : baseFileName;
+        const filePath = `sheet_music/${safeSongTitle}_${fileName}.${fileExtension}`;
+        const fileRef = storageRef(storage, filePath);
+
+        const response = await fetch(file.uri);
+        const blob = await response.blob();
+        await uploadBytes(fileRef, blob);
+        return await getDownloadURL(fileRef);
+      });
+
+      return await Promise.all(uploadPromises);
+    } catch (error) {
+      console.error('Error uploading multiple sheet music files:', error);
+      throw new Error('Failed to upload sheet music files');
+    }
+  };
+
   // Add this function after other utility functions
   const logSheetMusicInfo = (url: string) => {
     console.log('Sheet Music URL:', url);
@@ -3236,41 +3384,138 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           <View style={styles.lyricsSection}>
             <Text style={styles.sectionTitle}>Sheet Music</Text>
             <View style={styles.scoreList}>
-              {newSong.scores.map((score, index) => (
-                <View key={score.id} style={styles.scoreItem}>
-                  <TextInput
-                    style={[styles.dialogInput, { flex: 1 }]}
-                    placeholder="Score Name"
-                    placeholderTextColor="#666666"
-                    value={score.name}
-                    onChangeText={(text) => {
-                      setNewSong(prev => {
-                        const newScores = [...prev.scores];
-                        newScores[index] = { ...newScores[index], name: text };
-                        return { ...prev, scores: newScores };
-                      });
-                    }}
-                  />
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={() => {
-                      setNewSong(prev => {
-                        const newScores = prev.scores.filter((_, i) => i !== index);
-                        return { ...prev, scores: newScores };
-                      });
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+              {newSong.scores.map((score, index) => {
+                const pages = getScorePages(score);
+                const pageCount = pages.length;
+                const hasPages = pageCount > 0;
+                const isUploading = score.url === 'uploading' || (score.pages && score.pages.some((p: string) => p === 'uploading'));
+                
+                return (
+                  <View key={score.id} style={styles.scoreItemContainer}>
+                    <View style={styles.scoreItem}>
+                      <TextInput
+                        style={[styles.dialogInput, { flex: 1 }]}
+                        placeholder="Score Name"
+                        placeholderTextColor="#666666"
+                        value={score.name}
+                        onChangeText={(text) => {
+                          setNewSong(prev => {
+                            const newScores = [...prev.scores];
+                            newScores[index] = { ...newScores[index], name: text };
+                            return { ...prev, scores: newScores };
+                          });
+                        }}
+                      />
+                      {hasPages && !isUploading && (
+                        <Text style={styles.pageCountText}>
+                          {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+                        </Text>
+                      )}
+                      {isUploading && (
+                        <ActivityIndicator size="small" color="#BB86FC" style={{ marginHorizontal: 8 }} />
+                      )}
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => {
+                          setNewSong(prev => {
+                            const newScores = prev.scores.filter((_, i) => i !== index);
+                            return { ...prev, scores: newScores };
+                          });
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                      </TouchableOpacity>
+                    </View>
+                    {hasPages && !isUploading && (
+                      <TouchableOpacity
+                        style={styles.addPageButton}
+                        onPress={async () => {
+                          try {
+                            const result = await DocumentPicker.getDocumentAsync({
+                              type: ['image/*'],
+                              copyToCacheDirectory: true
+                            });
+                            
+                            if (result.assets && result.assets[0]) {
+                              const file = result.assets[0];
+                              const currentPages = pages;
+                              
+                              // Add uploading placeholder
+                              setNewSong(prev => {
+                                const newScores = [...prev.scores];
+                                if (newScores[index].pages) {
+                                  newScores[index] = {
+                                    ...newScores[index],
+                                    pages: [...currentPages, 'uploading']
+                                  };
+                                } else if (newScores[index].url) {
+                                  newScores[index] = {
+                                    ...newScores[index],
+                                    pages: [currentPages[0], 'uploading']
+                                  };
+                                  delete (newScores[index] as any).url;
+                                }
+                                return { ...prev, scores: newScores };
+                              });
+
+                              try {
+                                // Upload the new page
+                                const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, newSong.title);
+                                
+                                // Update the score with the new page URL
+                                setNewSong(prev => {
+                                  const newScores = [...prev.scores];
+                                  if (newScores[index].pages) {
+                                    const updatedPages = [...newScores[index].pages!];
+                                    const uploadingIndex = updatedPages.indexOf('uploading');
+                                    if (uploadingIndex !== -1) {
+                                      updatedPages[uploadingIndex] = downloadURL;
+                                    }
+                                    newScores[index] = {
+                                      ...newScores[index],
+                                      pages: updatedPages
+                                    };
+                                  }
+                                  return { ...prev, scores: newScores };
+                                });
+                              } catch (uploadError) {
+                                console.error('Error uploading page:', uploadError);
+                                Alert.alert('Error', 'Failed to upload page');
+                                // Remove the uploading placeholder
+                                setNewSong(prev => {
+                                  const newScores = [...prev.scores];
+                                  if (newScores[index].pages) {
+                                    newScores[index] = {
+                                      ...newScores[index],
+                                      pages: newScores[index].pages!.filter((p: string) => p !== 'uploading')
+                                    };
+                                  }
+                                  return { ...prev, scores: newScores };
+                                });
+                              }
+                            }
+                          } catch (error: any) {
+                            if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
+                              console.error('Error selecting file:', error);
+                              Alert.alert('Error', 'Failed to select file');
+                            }
+                          }
+                        }}
+                      >
+                        <Ionicons name="add-circle-outline" size={20} color="#BB86FC" />
+                        <Text style={styles.addPageButtonText}>Add Page</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
             </View>
             <TouchableOpacity
               style={styles.uploadButton}
               onPress={async () => {
                 try {
                   const result = await DocumentPicker.getDocumentAsync({
-                    type: ['application/pdf', 'image/*'],
+                    type: ['image/*'], // Only images, no PDFs
                     copyToCacheDirectory: true
                   });
                   
@@ -3279,9 +3524,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     const scoreName = file.name.split('.')[0];
                     
                     // Show loading state
+                    const scoreId = generateId();
                     setNewSong(prev => {
                       const newScore: Score = {
-                        id: generateId(),
+                        id: scoreId,
                         name: scoreName,
                         url: 'uploading'
                       };
@@ -3291,25 +3537,32 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       };
                     });
 
-                    // Upload to Firebase Storage
-                    const downloadURL = await uploadSheetMusic(file, scoreName, newSong.title);
-                    
-                    // Update the score with the download URL
-                    setNewSong(prev => {
-                      const newScores = prev.scores.map(score => 
-                        score.url === 'uploading' ? { ...score, url: downloadURL } : score
-                      );
-                      return { ...prev, scores: newScores };
-                    });
+                    try {
+                      // Upload single image file
+                      const downloadURL = await uploadSheetMusic(file, scoreName, newSong.title);
+                      
+                      // Update the score with the download URL
+                      setNewSong(prev => {
+                        const newScores = prev.scores.map(score => 
+                          score.id === scoreId && score.url === 'uploading' ? { ...score, url: downloadURL } : score
+                        );
+                        return { ...prev, scores: newScores };
+                      });
+                    } catch (uploadError) {
+                      console.error('Error uploading score:', uploadError);
+                      Alert.alert('Error', 'Failed to upload score');
+                      // Remove the failed score
+                      setNewSong(prev => {
+                        return { ...prev, scores: prev.scores.filter(score => score.id !== scoreId) };
+                      });
+                    }
                   }
-                } catch (error) {
-                  console.error('Error uploading score:', error);
-                  Alert.alert('Error', 'Failed to upload score');
-                  // Reset the uploading score
-                  setNewSong(prev => {
-                    const newScores = prev.scores.filter(score => score.url !== 'uploading');
-                    return { ...prev, scores: newScores };
-                  });
+                } catch (error: any) {
+                  // User cancelled or error occurred
+                  if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
+                    console.error('Error selecting file:', error);
+                    Alert.alert('Error', 'Failed to select file');
+                  }
                 }
               }}
             >
@@ -3485,6 +3738,62 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       ...prev,
       [resourceId]: !prev[resourceId]
     }));
+  };
+
+  // Helper function to get pages from a score (backward compatible)
+  const getScorePages = (score: Score): string[] => {
+    if (score.pages && score.pages.length > 0) {
+      return score.pages;
+    }
+    if (score.url) {
+      return [score.url];
+    }
+    return [];
+  };
+
+  // Helper function to check if score is PDF
+  const isScorePDF = (score: Score): boolean => {
+    const pages = getScorePages(score);
+    return pages.length > 0 && pages[0].endsWith('.pdf');
+  };
+
+  // Navigate to next/previous page for a score
+  const navigateScorePage = (scoreId: string, direction: 'next' | 'prev', totalPages: number) => {
+    setScorePageIndices(prev => {
+      const currentIndex = prev[scoreId] || 0;
+      let newIndex = currentIndex;
+      if (direction === 'next') {
+        newIndex = Math.min(currentIndex + 1, totalPages - 1);
+      } else {
+        newIndex = Math.max(currentIndex - 1, 0);
+      }
+      // Scroll the ScrollView to the new page
+      const scrollRef = scoreScrollRefs.current[scoreId];
+      if (scrollRef) {
+        const pageWidth = Dimensions.get('window').width - 48;
+        scrollRef.scrollTo({ x: newIndex * pageWidth, animated: true });
+      }
+      return { ...prev, [scoreId]: newIndex };
+    });
+  };
+
+  // Navigate fullscreen page
+  const navigateFullScreenPage = (direction: 'next' | 'prev') => {
+    if (!fullScreenImage || !fullScreenImage.pages) return;
+    const totalPages = fullScreenImage.pages.length;
+    const currentIndex = fullScreenPageIndex;
+    let newIndex = currentIndex;
+    if (direction === 'next') {
+      newIndex = Math.min(currentIndex + 1, totalPages - 1);
+    } else {
+      newIndex = Math.max(currentIndex - 1, 0);
+    }
+    setFullScreenPageIndex(newIndex);
+    // Scroll the ScrollView to the new page
+    if (fullScreenScrollRef.current) {
+      const pageWidth = Dimensions.get('window').width;
+      fullScreenScrollRef.current.scrollTo({ x: newIndex * pageWidth, animated: true });
+    }
   };
 
   const renderSongView = () => {
@@ -3910,59 +4219,128 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                               />
                             </TouchableOpacity>
                           </View>
-                          {expandedScores[score.id] && (
-                            score.url.endsWith('.pdf') ? (
-                              <View style={styles.sheetMusicView}>
-                                <WebView
-                                  source={{ 
-                                    uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(score.url)}`
-                                  }}
-                                  style={{
-                                    height: 400,
-                                    width: Dimensions.get('window').width - 48,
-                                    backgroundColor: '#FFFFFF',
-                                  }}
-                                  onError={(syntheticEvent) => {
-                                    const { nativeEvent } = syntheticEvent;
-                                    console.error('WebView error:', nativeEvent);
-                                    Alert.alert(
-                                      'PDF Viewing Error',
-                                      'Unable to load PDF. You can try opening it in your browser.',
-                                      [
-                                        {
-                                          text: 'Open in Browser',
-                                          onPress: () => {
-                                            Linking.openURL(score.url);
+                          {expandedScores[score.id] && (() => {
+                            const pages = getScorePages(score);
+                            const currentPageIndex = scorePageIndices[score.id] || 0;
+                            const isPDF = isScorePDF(score);
+                            const hasMultiplePages = pages.length > 1;
+
+                            if (isPDF) {
+                              // PDF handling - WebView already supports page navigation
+                              const pdfUrl = pages[0];
+                              return (
+                                <View style={styles.sheetMusicView}>
+                                  <WebView
+                                    source={{ 
+                                      uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`
+                                    }}
+                                    style={{
+                                      height: 400,
+                                      width: Dimensions.get('window').width - 48,
+                                      backgroundColor: '#FFFFFF',
+                                    }}
+                                    onError={(syntheticEvent) => {
+                                      const { nativeEvent } = syntheticEvent;
+                                      console.error('WebView error:', nativeEvent);
+                                      Alert.alert(
+                                        'PDF Viewing Error',
+                                        'Unable to load PDF. You can try opening it in your browser.',
+                                        [
+                                          {
+                                            text: 'Open in Browser',
+                                            onPress: () => {
+                                              Linking.openURL(pdfUrl);
+                                            }
+                                          },
+                                          {
+                                            text: 'Cancel',
+                                            style: 'cancel'
                                           }
-                                        },
-                                        {
-                                          text: 'Cancel',
-                                          style: 'cancel'
-                                        }
-                                      ]
-                                    );
-                                  }}
-                                  renderLoading={() => (
-                                    <View style={styles.loadingContainer}>
-                                      <ActivityIndicator size="large" color="#BB86FC" />
-                                      <Text style={styles.loadingText}>Loading PDF...</Text>
+                                        ]
+                                      );
+                                    }}
+                                    renderLoading={() => (
+                                      <View style={styles.loadingContainer}>
+                                        <ActivityIndicator size="large" color="#BB86FC" />
+                                        <Text style={styles.loadingText}>Loading PDF...</Text>
+                                      </View>
+                                    )}
+                                  />
+                                </View>
+                              );
+                            } else {
+                              // Image handling with multi-page support
+                              return (
+                                <View style={styles.scorePagesContainer}>
+                                  {hasMultiplePages && (
+                                    <View style={styles.scorePageControls}>
+                                      <TouchableOpacity
+                                        style={[
+                                          styles.scorePageButton,
+                                          currentPageIndex === 0 && styles.scorePageButtonDisabled
+                                        ]}
+                                        onPress={() => navigateScorePage(score.id, 'prev', pages.length)}
+                                        disabled={currentPageIndex === 0}
+                                      >
+                                        <Ionicons name="chevron-back" size={24} color={currentPageIndex === 0 ? "#666" : "#BB86FC"} />
+                                      </TouchableOpacity>
+                                      <Text style={styles.scorePageIndicator}>
+                                        {currentPageIndex + 1} / {pages.length}
+                                      </Text>
+                                      <TouchableOpacity
+                                        style={[
+                                          styles.scorePageButton,
+                                          currentPageIndex === pages.length - 1 && styles.scorePageButtonDisabled
+                                        ]}
+                                        onPress={() => navigateScorePage(score.id, 'next', pages.length)}
+                                        disabled={currentPageIndex === pages.length - 1}
+                                      >
+                                        <Ionicons name="chevron-forward" size={24} color={currentPageIndex === pages.length - 1 ? "#666" : "#BB86FC"} />
+                                      </TouchableOpacity>
                                     </View>
                                   )}
-                                />
-                              </View>
-                            ) : (
-                              <TouchableOpacity
-                                onPress={() => setFullScreenImage({ url: score.url, name: score.name })}
-                                activeOpacity={0.8}
-                              >
-                                <Image
-                                  source={{ uri: score.url }}
-                                  style={styles.sheetMusicImage}
-                                  resizeMode="contain"
-                                />
-                              </TouchableOpacity>
-                            )
-                          )}
+                                  <ScrollView
+                                    horizontal
+                                    pagingEnabled
+                                    showsHorizontalScrollIndicator={false}
+                                    ref={(ref) => {
+                                      scoreScrollRefs.current[score.id] = ref;
+                                    }}
+                                    onScroll={(event) => {
+                                      const offsetX = event.nativeEvent.contentOffset.x;
+                                      const pageWidth = Dimensions.get('window').width - 48;
+                                      const pageIndex = Math.round(offsetX / pageWidth);
+                                      if (pageIndex !== currentPageIndex && pageIndex >= 0 && pageIndex < pages.length) {
+                                        setScorePageIndices(prev => ({ ...prev, [score.id]: pageIndex }));
+                                      }
+                                    }}
+                                    scrollEventThrottle={16}
+                                    contentContainerStyle={styles.scorePagesScrollContent}
+                                  >
+                                    {pages.map((pageUrl, index) => (
+                                      <TouchableOpacity
+                                        key={index}
+                                        onPress={() => setFullScreenImage({ 
+                                          url: pageUrl, 
+                                          name: score.name,
+                                          pages: pages,
+                                          currentPageIndex: index
+                                        })}
+                                        activeOpacity={0.8}
+                                        style={styles.scorePageItem}
+                                      >
+                                        <Image
+                                          source={{ uri: pageUrl }}
+                                          style={styles.sheetMusicImage}
+                                          resizeMode="contain"
+                                        />
+                                      </TouchableOpacity>
+                                    ))}
+                                  </ScrollView>
+                                </View>
+                              );
+                            }
+                          })()}
                         </View>
                       </ScaleDecorator>
                     )}
@@ -3981,59 +4359,129 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                           color="#BB86FC"
                         />
                       </TouchableOpacity>
-                      {expandedScores[score.id] && (
-                        score.url.endsWith('.pdf') ? (
-                          <View style={styles.sheetMusicView}>
-                            <WebView
-                              source={{ 
-                                uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(score.url)}`
-                              }}
-                              style={{
-                                height: 400,
-                                width: Dimensions.get('window').width - 48,
-                                backgroundColor: '#FFFFFF',
-                              }}
-                              onError={(syntheticEvent) => {
-                                const { nativeEvent } = syntheticEvent;
-                                console.error('WebView error:', nativeEvent);
-                                Alert.alert(
-                                  'PDF Viewing Error',
-                                  'Unable to load PDF. You can try opening it in your browser.',
-                                  [
-                                    {
-                                      text: 'Open in Browser',
-                                      onPress: () => {
-                                        Linking.openURL(score.url);
+                      {expandedScores[score.id] && (() => {
+                        const pages = getScorePages(score);
+                        const currentPageIndex = scorePageIndices[score.id] || 0;
+                        const isPDF = isScorePDF(score);
+                        const hasMultiplePages = pages.length > 1;
+
+                        if (isPDF) {
+                          // PDF handling - WebView already supports page navigation
+                          const pdfUrl = pages[0];
+                          return (
+                            <View style={styles.sheetMusicView}>
+                              <WebView
+                                source={{ 
+                                  uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`
+                                }}
+                                style={{
+                                  height: 400,
+                                  width: Dimensions.get('window').width - 48,
+                                  backgroundColor: '#FFFFFF',
+                                }}
+                                onError={(syntheticEvent) => {
+                                  const { nativeEvent } = syntheticEvent;
+                                  console.error('WebView error:', nativeEvent);
+                                  Alert.alert(
+                                    'PDF Viewing Error',
+                                    'Unable to load PDF. You can try opening it in your browser.',
+                                    [
+                                      {
+                                        text: 'Open in Browser',
+                                        onPress: () => {
+                                          Linking.openURL(pdfUrl);
+                                        }
+                                      },
+                                      {
+                                        text: 'Cancel',
+                                        style: 'cancel'
                                       }
-                                    },
-                                    {
-                                      text: 'Cancel',
-                                      style: 'cancel'
-                                    }
-                                  ]
-                                );
-                              }}
-                              renderLoading={() => (
-                                <View style={styles.loadingContainer}>
-                                  <ActivityIndicator size="large" color="#BB86FC" />
-                                  <Text style={styles.loadingText}>Loading PDF...</Text>
+                                    ]
+                                  );
+                                }}
+                                renderLoading={() => (
+                                  <View style={styles.loadingContainer}>
+                                    <ActivityIndicator size="large" color="#BB86FC" />
+                                    <Text style={styles.loadingText}>Loading PDF...</Text>
+                                  </View>
+                                )}
+                              />
+                            </View>
+                          );
+                        } else {
+                          // Image handling with multi-page support
+                          const currentPageUrl = pages[currentPageIndex];
+                          return (
+                            <View style={styles.scorePagesContainer}>
+                              {hasMultiplePages && (
+                                <View style={styles.scorePageControls}>
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.scorePageButton,
+                                      currentPageIndex === 0 && styles.scorePageButtonDisabled
+                                    ]}
+                                    onPress={() => navigateScorePage(score.id, 'prev', pages.length)}
+                                    disabled={currentPageIndex === 0}
+                                  >
+                                    <Ionicons name="chevron-back" size={24} color={currentPageIndex === 0 ? "#666" : "#BB86FC"} />
+                                  </TouchableOpacity>
+                                  <Text style={styles.scorePageIndicator}>
+                                    {currentPageIndex + 1} / {pages.length}
+                                  </Text>
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.scorePageButton,
+                                      currentPageIndex === pages.length - 1 && styles.scorePageButtonDisabled
+                                    ]}
+                                    onPress={() => navigateScorePage(score.id, 'next', pages.length)}
+                                    disabled={currentPageIndex === pages.length - 1}
+                                  >
+                                    <Ionicons name="chevron-forward" size={24} color={currentPageIndex === pages.length - 1 ? "#666" : "#BB86FC"} />
+                                  </TouchableOpacity>
                                 </View>
                               )}
-                            />
-                          </View>
-                        ) : (
-                          <TouchableOpacity
-                            onPress={() => setFullScreenImage({ url: score.url, name: score.name })}
-                            activeOpacity={0.8}
-                          >
-                            <Image
-                              source={{ uri: score.url }}
-                              style={styles.sheetMusicImage}
-                              resizeMode="contain"
-                            />
-                          </TouchableOpacity>
-                        )
-                      )}
+                              <ScrollView
+                                horizontal
+                                pagingEnabled
+                                showsHorizontalScrollIndicator={false}
+                                ref={(ref) => {
+                                  scoreScrollRefs.current[score.id] = ref;
+                                }}
+                                onScroll={(event) => {
+                                  const offsetX = event.nativeEvent.contentOffset.x;
+                                  const pageWidth = Dimensions.get('window').width - 48;
+                                  const pageIndex = Math.round(offsetX / pageWidth);
+                                  if (pageIndex !== currentPageIndex && pageIndex >= 0 && pageIndex < pages.length) {
+                                    setScorePageIndices(prev => ({ ...prev, [score.id]: pageIndex }));
+                                  }
+                                }}
+                                scrollEventThrottle={16}
+                                contentContainerStyle={styles.scorePagesScrollContent}
+                              >
+                                {pages.map((pageUrl, index) => (
+                                  <TouchableOpacity
+                                    key={index}
+                                    onPress={() => setFullScreenImage({ 
+                                      url: pageUrl, 
+                                      name: score.name,
+                                      pages: pages,
+                                      currentPageIndex: index
+                                    })}
+                                    activeOpacity={0.8}
+                                    style={styles.scorePageItem}
+                                  >
+                                    <Image
+                                      source={{ uri: pageUrl }}
+                                      style={styles.sheetMusicImage}
+                                      resizeMode="contain"
+                                    />
+                                  </TouchableOpacity>
+                                ))}
+                              </ScrollView>
+                            </View>
+                          );
+                        }
+                      })()}
                     </View>
                   ))
                 )}
@@ -4310,6 +4758,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const renderFullScreenImage = () => {
     if (!fullScreenImage) return null;
 
+    const pages = fullScreenImage.pages || [fullScreenImage.url];
+    const hasMultiplePages = pages.length > 1;
+    const currentPageUrl = pages[fullScreenPageIndex] || fullScreenImage.url;
+
     return (
       <Modal
         visible={!!fullScreenImage}
@@ -4321,6 +4773,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           setImageScale(1);
           setImageTranslateX(0);
           setImageTranslateY(0);
+          setFullScreenPageIndex(0);
         }}
       >
         <View style={styles.fullScreenContainer}>
@@ -4332,36 +4785,92 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               setImageScale(1);
               setImageTranslateX(0);
               setImageTranslateY(0);
+              setFullScreenPageIndex(0);
             }}
           >
             <Ionicons name="close" size={30} color="#FFFFFF" />
           </TouchableOpacity>
           
           <ScrollView
-            contentContainerStyle={styles.fullScreenImageContainer}
-            maximumZoomScale={5}
-            minimumZoomScale={1}
+            horizontal
+            pagingEnabled
             showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            bouncesZoom={false}
-            centerContent={true}
+            ref={(ref) => {
+              fullScreenScrollRef.current = ref;
+              if (ref && hasMultiplePages) {
+                const pageWidth = Dimensions.get('window').width;
+                ref.scrollTo({ x: fullScreenPageIndex * pageWidth, animated: false });
+              }
+            }}
+            onScroll={(event) => {
+              if (!hasMultiplePages) return;
+              const offsetX = event.nativeEvent.contentOffset.x;
+              const pageWidth = Dimensions.get('window').width;
+              const pageIndex = Math.round(offsetX / pageWidth);
+              if (pageIndex !== fullScreenPageIndex && pageIndex >= 0 && pageIndex < pages.length) {
+                setFullScreenPageIndex(pageIndex);
+              }
+            }}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.fullScreenPagesScrollContent}
           >
-            <Image
-              source={{ uri: fullScreenImage.url }}
-              style={[
-                styles.fullScreenImage,
-                {
-                  transform: [
-                    { scale: imageScale },
-                    { translateX: imageTranslateX },
-                    { translateY: imageTranslateY }
-                  ]
-                }
-              ]}
-              resizeMode="contain"
-            />
+            {pages.map((pageUrl, index) => (
+              <ScrollView
+                key={index}
+                contentContainerStyle={styles.fullScreenImageContainer}
+                maximumZoomScale={5}
+                minimumZoomScale={1}
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                bouncesZoom={false}
+                centerContent={true}
+              >
+                <Image
+                  source={{ uri: pageUrl }}
+                  style={[
+                    styles.fullScreenImage,
+                    {
+                      transform: [
+                        { scale: imageScale },
+                        { translateX: imageTranslateX },
+                        { translateY: imageTranslateY }
+                      ]
+                    }
+                  ]}
+                  resizeMode="contain"
+                />
+              </ScrollView>
+            ))}
           </ScrollView>
+
+          {hasMultiplePages && (
+            <View style={[styles.fullScreenPageControls, { paddingBottom: insets.bottom + 15 }]}>
+              <TouchableOpacity
+                style={[
+                  styles.fullScreenPageButton,
+                  fullScreenPageIndex === 0 && styles.fullScreenPageButtonDisabled
+                ]}
+                onPress={() => navigateFullScreenPage('prev')}
+                disabled={fullScreenPageIndex === 0}
+              >
+                <Ionicons name="chevron-back" size={32} color={fullScreenPageIndex === 0 ? "#666" : "#FFFFFF"} />
+              </TouchableOpacity>
+              <Text style={styles.fullScreenPageIndicator}>
+                {fullScreenPageIndex + 1} / {pages.length}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.fullScreenPageButton,
+                  fullScreenPageIndex === pages.length - 1 && styles.fullScreenPageButtonDisabled
+                ]}
+                onPress={() => navigateFullScreenPage('next')}
+                disabled={fullScreenPageIndex === pages.length - 1}
+              >
+                <Ionicons name="chevron-forward" size={32} color={fullScreenPageIndex === pages.length - 1 ? "#666" : "#FFFFFF"} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </Modal>
     );
@@ -6463,11 +6972,36 @@ const styles = StyleSheet.create({
   scoreList: {
     marginBottom: 12,
   },
+  scoreItemContainer: {
+    marginBottom: 8,
+  },
   scoreItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
     gap: 8,
+  },
+  pageCountText: {
+    color: '#BB86FC',
+    fontSize: 12,
+    fontWeight: '500',
+    marginHorizontal: 8,
+  },
+  addPageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2C2C2C',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginTop: 4,
+    gap: 6,
+  },
+  addPageButtonText: {
+    color: '#BB86FC',
+    fontSize: 12,
+    fontWeight: '500',
   },
   scoreView: {
     marginBottom: 8,
@@ -6802,6 +7336,83 @@ const styles = StyleSheet.create({
   fullScreenImage: {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
+  },
+  fullScreenPageControls: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    paddingBottom: 40, // Extra padding for safe area and device home indicators
+  },
+  fullScreenPageButton: {
+    backgroundColor: 'rgba(187, 134, 252, 0.3)',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenPageButtonDisabled: {
+    backgroundColor: 'rgba(102, 102, 102, 0.3)',
+  },
+  fullScreenPageIndicator: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    minWidth: 60,
+    textAlign: 'center',
+  },
+  fullScreenPagesScrollContent: {
+    flexDirection: 'row',
+  },
+  scorePagesContainer: {
+    width: '100%',
+  },
+  scorePageControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  scorePageButton: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scorePageButtonDisabled: {
+    backgroundColor: '#1A1A1A',
+    opacity: 0.5,
+  },
+  scorePageIndicator: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  scorePagesScrollContent: {
+    flexDirection: 'row',
+  },
+  scorePageItem: {
+    width: Dimensions.get('window').width - 48,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   fullScreenLyricsContainer: {
     flex: 1,

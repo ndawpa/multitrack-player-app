@@ -26,7 +26,8 @@ export interface Track {
 export interface Score {
   id: string;
   name: string;
-  url: string;
+  url?: string; // For backward compatibility with single-page scores
+  pages?: string[]; // Array of URLs for multi-page scores
 }
 
 export interface Resource {
