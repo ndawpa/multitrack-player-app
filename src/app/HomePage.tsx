@@ -198,6 +198,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [imageScale, setImageScale] = useState(1);
   const [imageTranslateX, setImageTranslateX] = useState(0);
   const [imageTranslateY, setImageTranslateY] = useState(0);
+  const [isLyricsFullscreen, setIsLyricsFullscreen] = useState(false);
   
   // Sync state
   const [deviceId] = useState(() => generateId());
@@ -3753,35 +3754,45 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               // Lyrics view content
               <View style={styles.lyricsContainer}>
                 <View style={styles.lyricsHeader}>
-                  {isAdminMode && (
-                    <View style={styles.lyricsEditButtons}>
-                      {isLyricsEditing ? (
-                        <>
+                  <View style={styles.lyricsHeaderLeft}>
+                    {isAdminMode && (
+                      <View style={styles.lyricsEditButtons}>
+                        {isLyricsEditing ? (
+                          <>
+                            <TouchableOpacity
+                              style={[styles.lyricsEditButton, styles.cancelButton]}
+                              onPress={() => {
+                                setIsLyricsEditing(false);
+                                setEditedLyrics(selectedSong?.lyrics || '');
+                              }}
+                            >
+                              <Text style={styles.lyricsEditButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.lyricsEditButton, styles.saveButton]}
+                              onPress={handleLyricsSave}
+                            >
+                              <Text style={styles.lyricsEditButtonText}>Save</Text>
+                            </TouchableOpacity>
+                          </>
+                        ) : (
                           <TouchableOpacity
-                            style={[styles.lyricsEditButton, styles.cancelButton]}
-                            onPress={() => {
-                              setIsLyricsEditing(false);
-                              setEditedLyrics(selectedSong?.lyrics || '');
-                            }}
+                            style={styles.iconButton}
+                            onPress={startLyricsEditing}
                           >
-                            <Text style={styles.lyricsEditButtonText}>Cancel</Text>
+                            <Ionicons name="create-outline" size={24} color="#BB86FC" />
                           </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.lyricsEditButton, styles.saveButton]}
-                            onPress={handleLyricsSave}
-                          >
-                            <Text style={styles.lyricsEditButtonText}>Save</Text>
-                          </TouchableOpacity>
-                        </>
-                      ) : (
-                        <TouchableOpacity
-                          style={styles.iconButton}
-                          onPress={startLyricsEditing}
-                        >
-                          <Ionicons name="create-outline" size={24} color="#BB86FC" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                  {!isLyricsEditing && (
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => setIsLyricsFullscreen(true)}
+                    >
+                      <Ionicons name="expand-outline" size={24} color="#BB86FC" />
+                    </TouchableOpacity>
                   )}
                 </View>
                 {isLyricsEditing && isAdminMode ? (
@@ -4351,6 +4362,99 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               resizeMode="contain"
             />
           </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderFullScreenLyrics = () => {
+    if (!isLyricsFullscreen || !selectedSong) return null;
+
+    return (
+      <Modal
+        visible={isLyricsFullscreen}
+        transparent={false}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        onRequestClose={() => {
+          setIsLyricsFullscreen(false);
+        }}
+      >
+        <View style={styles.fullScreenContainer}>
+          <StatusBar hidden={true} />
+          <TouchableOpacity
+            style={styles.fullScreenCloseButton}
+            onPress={() => {
+              setIsLyricsFullscreen(false);
+            }}
+          >
+            <Ionicons name="close" size={30} color="#FFFFFF" />
+          </TouchableOpacity>
+          
+          <View style={styles.fullScreenLyricsContainer}>
+            <GestureDetector
+              gesture={Gesture.Simultaneous(
+                Gesture.Pinch()
+                  .onStart(() => {
+                    lyricsLastScaleRef.current = 1.0;
+                  })
+                  .onUpdate((e) => {
+                    const scaleChange = e.scale / lyricsLastScaleRef.current;
+                    const newScale = Math.max(0.5, Math.min(5.0, lyricsZoomScaleRef.current * scaleChange));
+                    lyricsLastScaleRef.current = e.scale;
+                    lyricsZoomScaleRef.current = newScale;
+                    runOnJS(setLyricsZoomScale)(newScale);
+                  })
+                  .onEnd(() => {
+                    lyricsLastScaleRef.current = 1.0;
+                  }),
+                Gesture.Pan()
+                  .minPointers(1)
+                  .maxPointers(2)
+                  .onStart(() => {
+                    lyricsLastPanXRef.current = lyricsTranslateXRef.current;
+                    lyricsLastPanYRef.current = lyricsTranslateYRef.current;
+                  })
+                  .onUpdate((e) => {
+                    const newX = lyricsLastPanXRef.current + e.translationX;
+                    const newY = lyricsLastPanYRef.current + e.translationY;
+                    lyricsTranslateXRef.current = newX;
+                    lyricsTranslateYRef.current = newY;
+                    runOnJS(setLyricsTranslateX)(newX);
+                    runOnJS(setLyricsTranslateY)(newY);
+                  })
+                  .onEnd(() => {
+                    // Keep the current translation values
+                  })
+              )}
+            >
+              <ScrollView
+                style={styles.fullScreenLyricsScrollView}
+                contentContainerStyle={styles.fullScreenLyricsScrollContent}
+                showsHorizontalScrollIndicator={lyricsZoomScale > 1.0}
+                showsVerticalScrollIndicator={lyricsZoomScale > 1.0}
+                scrollEnabled={false}
+                bounces={false}
+              >
+                <View
+                  style={[
+                    styles.fullScreenLyricsContent,
+                    {
+                      transform: [
+                        { translateX: lyricsTranslateX },
+                        { translateY: lyricsTranslateY },
+                        { scale: lyricsZoomScale },
+                      ],
+                    },
+                  ]}
+                >
+                  <Markdown style={markdownStyles}>
+                    {selectedSong.lyrics || ''}
+                  </Markdown>
+                </View>
+              </ScrollView>
+            </GestureDetector>
+          </View>
         </View>
       </Modal>
     );
@@ -5337,6 +5441,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         />
       </Modal>
       {renderFullScreenImage()}
+      {renderFullScreenLyrics()}
       
       {/* Playlist Songs Modal */}
       <Modal
@@ -6695,6 +6800,25 @@ const styles = StyleSheet.create({
   fullScreenImage: {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
+  },
+  fullScreenLyricsContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  fullScreenLyricsScrollView: {
+    flex: 1,
+  },
+  fullScreenLyricsScrollContent: {
+    flexGrow: 1,
+    padding: 40,
+    justifyContent: 'center',
+  },
+  fullScreenLyricsContent: {
+    width: '100%',
+  },
+  lyricsHeaderLeft: {
+    flex: 1,
   },
   adminButton: {
     backgroundColor: '#BB86FC',
