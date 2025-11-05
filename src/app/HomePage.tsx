@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image, Linking, Dimensions, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
@@ -2114,6 +2115,105 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     }));
   };
 
+  // Add function to reorder tracks
+  const reorderTracks = (data: EditSongForm['tracks']) => {
+    if (!editingSong) return;
+    setEditingSong(prev => ({
+      ...prev!,
+      tracks: data
+    }));
+  };
+
+  // Add function to reorder scores
+  const reorderScores = (data: Score[]) => {
+    if (!editingSong) return;
+    setEditingSong(prev => ({
+      ...prev!,
+      scores: data
+    }));
+  };
+
+  // Add function to reorder resources
+  const reorderResources = (data: Resource[]) => {
+    if (!editingSong) return;
+    setEditingSong(prev => ({
+      ...prev!,
+      resources: data
+    }));
+  };
+
+  // Add function to reorder tracks in song view (admin only)
+  const reorderSongTracks = async (data: Track[]) => {
+    if (!selectedSong || !isAdminMode) return;
+    try {
+      const updatedSong = {
+        ...selectedSong,
+        tracks: data
+      };
+      setSelectedSong(updatedSong);
+      
+      // Save to Firebase
+      const songRef = ref(database, `songs/${selectedSong.id}`);
+      await set(songRef, {
+        ...selectedSong,
+        tracks: data
+      });
+    } catch (error) {
+      console.error('Error reordering tracks:', error);
+      Alert.alert('Error', 'Failed to reorder tracks');
+      // Revert on error
+      setSelectedSong(selectedSong);
+    }
+  };
+
+  // Add function to reorder scores in song view (admin only)
+  const reorderSongScores = async (data: Score[]) => {
+    if (!selectedSong || !isAdminMode) return;
+    try {
+      const updatedSong = {
+        ...selectedSong,
+        scores: data
+      };
+      setSelectedSong(updatedSong);
+      
+      // Save to Firebase
+      const songRef = ref(database, `songs/${selectedSong.id}`);
+      await set(songRef, {
+        ...selectedSong,
+        scores: data
+      });
+    } catch (error) {
+      console.error('Error reordering scores:', error);
+      Alert.alert('Error', 'Failed to reorder scores');
+      // Revert on error
+      setSelectedSong(selectedSong);
+    }
+  };
+
+  // Add function to reorder resources in song view (admin only)
+  const reorderSongResources = async (data: Resource[]) => {
+    if (!selectedSong || !isAdminMode) return;
+    try {
+      const updatedSong = {
+        ...selectedSong,
+        resources: data
+      };
+      setSelectedSong(updatedSong);
+      
+      // Save to Firebase
+      const songRef = ref(database, `songs/${selectedSong.id}`);
+      await set(songRef, {
+        ...selectedSong,
+        resources: data
+      });
+    } catch (error) {
+      console.error('Error reordering resources:', error);
+      Alert.alert('Error', 'Failed to reorder resources');
+      // Revert on error
+      setSelectedSong(selectedSong);
+    }
+  };
+
   // Add function to handle song editing
   const handleEditSong = async () => {
     try {
@@ -2214,63 +2314,88 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               </TouchableOpacity>
             </View>
 
-            {editingSong.tracks.map((track, index) => (
-              <View key={track.id} style={styles.trackUploadContainer}>
-                <View style={styles.trackHeader}>
-                  <TextInput
-                    style={[styles.trackNameInput, { flex: 1 }]}
-                    placeholder={`Track ${index + 1} Name`}
-                    placeholderTextColor="#666666"
-                    value={track.name}
-                    onChangeText={(text) => updateTrackNameInSong(track.id, text)}
-                  />
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={async () => {
-                      try {
-                        const result = await AudioStorageService.getInstance().pickAudioFile();
-                        if (result) {
-                          setEditingSong(prev => {
-                            if (!prev) return null;
-                            return {
-                              ...prev,
-                              tracks: prev.tracks.map((t) => 
-                                t.id === track.id ? { ...t, file: result } : t
-                              )
-                            };
-                          });
-                        }
-                      } catch (error) {
-                        Alert.alert('Error', 'Failed to pick audio file');
-                      }
-                    }}
-                  >
-                    <Ionicons name="cloud-upload-outline" size={24} color="#BB86FC" />
+            <DraggableFlatList
+              data={editingSong.tracks}
+              onDragEnd={({ data }) => reorderTracks(data)}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+              renderItem={({ item: track, drag, isActive }: RenderItemParams<EditSongForm['tracks'][0]>) => {
+                const index = editingSong.tracks.findIndex(t => t.id === track.id);
+                return (
+                  <ScaleDecorator>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onLongPress={drag}
+                      disabled={isActive}
+                      style={[
+                        styles.trackUploadContainer,
+                        isActive && (styles as any).trackUploadContainerActive
+                      ]}
+                    >
+                      <View style={styles.trackHeader}>
+                        <TouchableOpacity
+                          onPress={drag}
+                          style={(styles as any).dragHandle}
+                        >
+                          <Ionicons name="reorder-three-outline" size={24} color="#BB86FC" />
+                        </TouchableOpacity>
+                        <TextInput
+                          style={[styles.trackNameInput, { flex: 1 }]}
+                          placeholder={`Track ${index + 1} Name`}
+                          placeholderTextColor="#666666"
+                          value={track.name}
+                          onChangeText={(text) => updateTrackNameInSong(track.id, text)}
+                        />
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={async () => {
+                          try {
+                            const result = await AudioStorageService.getInstance().pickAudioFile();
+                            if (result) {
+                              setEditingSong(prev => {
+                                if (!prev) return null;
+                                return {
+                                  ...prev,
+                                  tracks: prev.tracks.map((t) => 
+                                    t.id === track.id ? { ...t, file: result } : t
+                                  )
+                                };
+                              });
+                            }
+                          } catch (error) {
+                            Alert.alert('Error', 'Failed to pick audio file');
+                          }
+                        }}
+                      >
+                        <Ionicons name="cloud-upload-outline" size={24} color="#BB86FC" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => removeTrackFromSong(track.id)}
+                      >
+                        <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                      </TouchableOpacity>
+                    </View>
+                    {track.file ? (
+                      <View style={styles.fileNameContainer}>
+                        <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
+                          {track.file.name}
+                        </Text>
+                      </View>
+                    ) : track.path ? (
+                      <View style={styles.fileNameContainer}>
+                        <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
+                          Current: {track.path.split('/').pop()}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.uploadPrompt}>Tap upload to select audio file</Text>
+                    )}
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={() => removeTrackFromSong(track.id)}
-                  >
-                    <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                  </TouchableOpacity>
-                </View>
-                {track.file ? (
-                  <View style={styles.fileNameContainer}>
-                    <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
-                      {track.file.name}
-                    </Text>
-                  </View>
-                ) : track.path ? (
-                  <View style={styles.fileNameContainer}>
-                    <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
-                      Current: {track.path.split('/').pop()}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={styles.uploadPrompt}>Tap upload to select audio file</Text>
-                )}
-              </View>
-            ))}
+                </ScaleDecorator>
+                );
+              }}
+            />
             
             <View style={styles.lyricsSection}>
               <View style={styles.lyricsHeader}>
@@ -2296,38 +2421,61 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             
             <View style={styles.lyricsSection}>
               <Text style={styles.sectionTitle}>Sheet Music</Text>
-              <View style={styles.scoreList}>
-                {editingSong.scores.map((score, index) => (
-                  <View key={score.id} style={styles.scoreItem}>
-                    <TextInput
-                      style={[styles.dialogInput, { flex: 1 }]}
-                      placeholder="Score Name"
-                      placeholderTextColor="#666666"
-                      value={score.name}
-                      onChangeText={(text) => {
-                        setEditingSong(prev => {
-                          if (!prev) return null;
-                          const newScores = [...prev.scores];
-                          newScores[index] = { ...newScores[index], name: text };
-                          return { ...prev, scores: newScores };
-                        });
-                      }}
-                    />
-                    <TouchableOpacity
-                      style={styles.iconButton}
-                      onPress={() => {
-                        setEditingSong(prev => {
-                          if (!prev) return null;
-                          const newScores = prev.scores.filter((_, i) => i !== index);
-                          return { ...prev, scores: newScores };
-                        });
-                      }}
-                    >
-                      <Ionicons name="trash-outline" size={24} color="#FF5252" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
+              <DraggableFlatList
+                data={editingSong.scores}
+                onDragEnd={({ data }) => reorderScores(data)}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                renderItem={({ item: score, drag, isActive }: RenderItemParams<Score>) => {
+                  const index = editingSong.scores.findIndex(s => s.id === score.id);
+                  return (
+                    <ScaleDecorator>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onLongPress={drag}
+                        disabled={isActive}
+                        style={[
+                          styles.scoreItem,
+                          isActive && (styles as any).trackUploadContainerActive
+                        ]}
+                      >
+                        <TouchableOpacity
+                          onPress={drag}
+                          style={(styles as any).dragHandle}
+                        >
+                          <Ionicons name="reorder-three-outline" size={24} color="#BB86FC" />
+                        </TouchableOpacity>
+                        <TextInput
+                          style={[styles.dialogInput, { flex: 1 }]}
+                          placeholder="Score Name"
+                          placeholderTextColor="#666666"
+                          value={score.name}
+                          onChangeText={(text) => {
+                            setEditingSong(prev => {
+                              if (!prev) return null;
+                              const newScores = [...prev.scores];
+                              newScores[index] = { ...newScores[index], name: text };
+                              return { ...prev, scores: newScores };
+                            });
+                          }}
+                        />
+                        <TouchableOpacity
+                          style={styles.iconButton}
+                          onPress={() => {
+                            setEditingSong(prev => {
+                              if (!prev) return null;
+                              const newScores = prev.scores.filter((_, i) => i !== index);
+                              return { ...prev, scores: newScores };
+                            });
+                          }}
+                        >
+                          <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    </ScaleDecorator>
+                  );
+                }}
+              />
               <TouchableOpacity
                 style={styles.uploadButton}
                 onPress={async () => {
@@ -2385,97 +2533,122 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             
             <View style={styles.lyricsSection}>
               <Text style={styles.sectionTitle}>Links</Text>
-              <View style={styles.scoreList}>
-                {editingSong.resources.map((resource, index) => (
-                  <View key={resource.id} style={styles.resourceItemContainer}>
-                    <TextInput
-                      style={[styles.dialogInput, { flex: 1 }]}
-                      placeholder="Link Name"
-                      placeholderTextColor="#666666"
-                      value={resource.name}
-                      onChangeText={(text) => {
-                        setEditingSong(prev => {
-                          if (!prev) return null;
-                          const newResources = [...prev.resources];
-                          newResources[index] = { ...newResources[index], name: text };
-                          return { ...prev, resources: newResources };
-                        });
-                      }}
-                    />
-                    <View style={styles.resourceTypeContainer}>
-                      <Text style={styles.resourceTypeLabel}>Type:</Text>
-                      <View style={styles.resourceTypeButtons}>
-                        {['youtube', 'download', 'link', 'pdf'].map((type) => (
+              <DraggableFlatList
+                data={editingSong.resources}
+                onDragEnd={({ data }) => reorderResources(data)}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                renderItem={({ item: resource, drag, isActive }: RenderItemParams<Resource>) => {
+                  const index = editingSong.resources.findIndex(r => r.id === resource.id);
+                  return (
+                    <ScaleDecorator>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onLongPress={drag}
+                        disabled={isActive}
+                        style={[
+                          styles.resourceItemContainer,
+                          isActive && (styles as any).trackUploadContainerActive
+                        ]}
+                      >
+                        <View style={styles.resourceDragHandleContainer}>
                           <TouchableOpacity
-                            key={type}
-                            style={[
-                              styles.resourceTypeButton,
-                              resource.type === type && styles.resourceTypeButtonActive
-                            ]}
-                            onPress={() => {
+                            onPress={drag}
+                            style={(styles as any).dragHandle}
+                          >
+                            <Ionicons name="reorder-three-outline" size={24} color="#BB86FC" />
+                          </TouchableOpacity>
+                          <TextInput
+                            style={[styles.dialogInput, { flex: 1 }]}
+                            placeholder="Link Name"
+                            placeholderTextColor="#666666"
+                            value={resource.name}
+                            onChangeText={(text) => {
                               setEditingSong(prev => {
                                 if (!prev) return null;
                                 const newResources = [...prev.resources];
-                                newResources[index] = { ...newResources[index], type: type as any };
+                                newResources[index] = { ...newResources[index], name: text };
+                                return { ...prev, resources: newResources };
+                              });
+                            }}
+                          />
+                        </View>
+                        <View style={styles.resourceTypeContainer}>
+                          <Text style={styles.resourceTypeLabel}>Type:</Text>
+                          <View style={styles.resourceTypeButtons}>
+                            {['youtube', 'download', 'link', 'pdf'].map((type) => (
+                              <TouchableOpacity
+                                key={type}
+                                style={[
+                                  styles.resourceTypeButton,
+                                  resource.type === type && styles.resourceTypeButtonActive
+                                ]}
+                                onPress={() => {
+                                  setEditingSong(prev => {
+                                    if (!prev) return null;
+                                    const newResources = [...prev.resources];
+                                    newResources[index] = { ...newResources[index], type: type as any };
+                                    return { ...prev, resources: newResources };
+                                  });
+                                }}
+                              >
+                                <Text style={[
+                                  styles.resourceTypeButtonText,
+                                  resource.type === type && styles.resourceTypeButtonTextActive
+                                ]}>
+                                  {type === 'youtube' ? 'Video' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                        <TextInput
+                          style={[styles.dialogInput, { flex: 1 }]}
+                          placeholder="URL"
+                          placeholderTextColor="#666666"
+                          value={resource.url}
+                          onChangeText={(text) => {
+                            setEditingSong(prev => {
+                              if (!prev) return null;
+                              const newResources = [...prev.resources];
+                              newResources[index] = { ...newResources[index], url: text };
+                              return { ...prev, resources: newResources };
+                            });
+                          }}
+                        />
+                        <TextInput
+                          style={[styles.dialogInput, { flex: 1 }]}
+                          placeholder="Description (optional)"
+                          placeholderTextColor="#666666"
+                          value={resource.description || ''}
+                          onChangeText={(text) => {
+                            setEditingSong(prev => {
+                              if (!prev) return null;
+                              const newResources = [...prev.resources];
+                              newResources[index] = { ...newResources[index], description: text };
+                              return { ...prev, resources: newResources };
+                            });
+                          }}
+                        />
+                        <View style={styles.centeredTrashButton}>
+                          <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => {
+                              setEditingSong(prev => {
+                                if (!prev) return null;
+                                const newResources = prev.resources.filter((_, i) => i !== index);
                                 return { ...prev, resources: newResources };
                               });
                             }}
                           >
-                            <Text style={[
-                              styles.resourceTypeButtonText,
-                              resource.type === type && styles.resourceTypeButtonTextActive
-                            ]}>
-                              {type === 'youtube' ? 'Video' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
-                            </Text>
+                            <Ionicons name="trash-outline" size={24} color="#FF5252" />
                           </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                    <TextInput
-                      style={[styles.dialogInput, { flex: 1 }]}
-                      placeholder="URL"
-                      placeholderTextColor="#666666"
-                      value={resource.url}
-                      onChangeText={(text) => {
-                        setEditingSong(prev => {
-                          if (!prev) return null;
-                          const newResources = [...prev.resources];
-                          newResources[index] = { ...newResources[index], url: text };
-                          return { ...prev, resources: newResources };
-                        });
-                      }}
-                    />
-                    <TextInput
-                      style={[styles.dialogInput, { flex: 1 }]}
-                      placeholder="Description (optional)"
-                      placeholderTextColor="#666666"
-                      value={resource.description || ''}
-                      onChangeText={(text) => {
-                        setEditingSong(prev => {
-                          if (!prev) return null;
-                          const newResources = [...prev.resources];
-                          newResources[index] = { ...newResources[index], description: text };
-                          return { ...prev, resources: newResources };
-                        });
-                      }}
-                    />
-                    <View style={styles.centeredTrashButton}>
-                      <TouchableOpacity
-                        style={styles.iconButton}
-                        onPress={() => {
-                          setEditingSong(prev => {
-                            if (!prev) return null;
-                            const newResources = prev.resources.filter((_, i) => i !== index);
-                            return { ...prev, resources: newResources };
-                          });
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={24} color="#FF5252" />
+                        </View>
                       </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-              </View>
+                    </ScaleDecorator>
+                  );
+                }}
+              />
               <TouchableOpacity
                 style={styles.uploadButton}
                 onPress={() => {
@@ -3383,79 +3556,173 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     <Text style={styles.trackStateLoadingText}>Loading track states...</Text>
                   </View>
                 )}
-                {(selectedSong.tracks || []).map(track => (
-                  <TouchableOpacity 
-                    key={track.id} 
-                    style={[
-                      styles.trackContainer,
-                      isLandscape && styles.trackContainerLandscape
-                    ]}
-                    onPress={() => handleTrackClick(track.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.trackInfo}>
-                      <Text style={styles.trackName}>{track.name}</Text>
-                      <View style={styles.trackControls}>
-                        {loadingTracks[track.id] ? (
-                          <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="small" color="#BB86FC" />
-                            <Text style={styles.loadingText}>Loading...</Text>
+                {isAdminMode ? (
+                  <DraggableFlatList
+                    data={selectedSong.tracks || []}
+                    onDragEnd={({ data }) => reorderSongTracks(data)}
+                    keyExtractor={(item) => item.id}
+                    scrollEnabled={false}
+                    renderItem={({ item: track, drag, isActive }: RenderItemParams<Track>) => (
+                      <ScaleDecorator>
+                        <TouchableOpacity 
+                          activeOpacity={0.7}
+                          onLongPress={drag}
+                          disabled={isActive}
+                          style={[
+                            styles.trackContainer,
+                            isLandscape && styles.trackContainerLandscape,
+                            isActive && (styles as any).trackUploadContainerActive
+                          ]}
+                          onPress={() => !isActive && handleTrackClick(track.id)}
+                        >
+                          {isAdminMode && (
+                            <TouchableOpacity
+                              onPress={drag}
+                              style={(styles as any).dragHandle}
+                            >
+                              <Ionicons name="reorder-three-outline" size={20} color="#BB86FC" />
+                            </TouchableOpacity>
+                          )}
+                          <View style={styles.trackInfo}>
+                            <Text style={styles.trackName}>{track.name}</Text>
+                            <View style={styles.trackControls}>
+                              {loadingTracks[track.id] ? (
+                                <View style={styles.loadingContainer}>
+                                  <ActivityIndicator size="small" color="#BB86FC" />
+                                  <Text style={styles.loadingText}>Loading...</Text>
+                                </View>
+                              ) : (
+                                <>
+                                  <TouchableOpacity 
+                                    style={[
+                                      styles.trackToggleButton,
+                                      soloedTrackIds.includes(track.id) && styles.soloActiveButton
+                                    ]} 
+                                    onPress={() => toggleSolo(track.id)}
+                                  >
+                                    <Text style={[
+                                      styles.trackButtonText,
+                                      soloedTrackIds.includes(track.id) && styles.soloActiveText
+                                    ]}>S</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity 
+                                    style={[
+                                      styles.trackToggleButton,
+                                      !activeTrackIds.includes(track.id) && styles.muteActiveButton
+                                    ]} 
+                                    onPress={() => toggleTrack(track.id)}
+                                  >
+                                    <Text style={[
+                                      styles.trackButtonText,
+                                      !activeTrackIds.includes(track.id) && styles.muteActiveText
+                                    ]}>M</Text>
+                                  </TouchableOpacity>
+                                </>
+                              )}
+                            </View>
                           </View>
-                        ) : (
-                          <>
-                            <TouchableOpacity 
-                              style={[
-                                styles.trackToggleButton,
-                                soloedTrackIds.includes(track.id) && styles.soloActiveButton
-                              ]} 
-                              onPress={() => toggleSolo(track.id)}
-                            >
-                              <Text style={[
-                                styles.trackButtonText,
-                                soloedTrackIds.includes(track.id) && styles.soloActiveText
-                              ]}>S</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                              style={[
-                                styles.trackToggleButton,
-                                !activeTrackIds.includes(track.id) && styles.muteActiveButton
-                              ]} 
-                              onPress={() => toggleTrack(track.id)}
-                            >
-                              <Text style={[
-                                styles.trackButtonText,
-                                !activeTrackIds.includes(track.id) && styles.muteActiveText
-                              ]}>M</Text>
-                            </TouchableOpacity>
-                          </>
-                        )}
+                          <View style={styles.volumeContainer}>
+                            <Ionicons 
+                              name={
+                                loadingTracks[track.id] ? 'hourglass-outline' :
+                                trackVolumes[track.id] === 0 ? 'volume-mute' :
+                                trackVolumes[track.id] < 0.3 ? 'volume-low' :
+                                trackVolumes[track.id] < 0.7 ? 'volume-medium' :
+                                'volume-high'
+                              } 
+                              size={20} 
+                              color="#BBBBBB" 
+                            />
+                            <Slider
+                              style={styles.volumeSlider}
+                              minimumValue={0}
+                              maximumValue={1}
+                              value={trackVolumes[track.id] || 1}
+                              onValueChange={(value) => handleVolumeChange(track.id, value)}
+                              minimumTrackTintColor="#BB86FC"
+                              maximumTrackTintColor="#2C2C2C"
+                              disabled={loadingTracks[track.id]}
+                            />
+                          </View>
+                        </TouchableOpacity>
+                      </ScaleDecorator>
+                    )}
+                  />
+                ) : (
+                  (selectedSong.tracks || []).map(track => (
+                    <TouchableOpacity 
+                      key={track.id} 
+                      style={[
+                        styles.trackContainer,
+                        isLandscape && styles.trackContainerLandscape
+                      ]}
+                      onPress={() => handleTrackClick(track.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.trackInfo}>
+                        <Text style={styles.trackName}>{track.name}</Text>
+                        <View style={styles.trackControls}>
+                          {loadingTracks[track.id] ? (
+                            <View style={styles.loadingContainer}>
+                              <ActivityIndicator size="small" color="#BB86FC" />
+                              <Text style={styles.loadingText}>Loading...</Text>
+                            </View>
+                          ) : (
+                            <>
+                              <TouchableOpacity 
+                                style={[
+                                  styles.trackToggleButton,
+                                  soloedTrackIds.includes(track.id) && styles.soloActiveButton
+                                ]} 
+                                onPress={() => toggleSolo(track.id)}
+                              >
+                                <Text style={[
+                                  styles.trackButtonText,
+                                  soloedTrackIds.includes(track.id) && styles.soloActiveText
+                                ]}>S</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity 
+                                style={[
+                                  styles.trackToggleButton,
+                                  !activeTrackIds.includes(track.id) && styles.muteActiveButton
+                                ]} 
+                                onPress={() => toggleTrack(track.id)}
+                              >
+                                <Text style={[
+                                  styles.trackButtonText,
+                                  !activeTrackIds.includes(track.id) && styles.muteActiveText
+                                ]}>M</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                    <View style={styles.volumeContainer}>
-                      <Ionicons 
-                        name={
-                          loadingTracks[track.id] ? 'hourglass-outline' :
-                          trackVolumes[track.id] === 0 ? 'volume-mute' :
-                          trackVolumes[track.id] < 0.3 ? 'volume-low' :
-                          trackVolumes[track.id] < 0.7 ? 'volume-medium' :
-                          'volume-high'
-                        } 
-                        size={20} 
-                        color="#BBBBBB" 
-                      />
-                      <Slider
-                        style={styles.volumeSlider}
-                        minimumValue={0}
-                        maximumValue={1}
-                        value={trackVolumes[track.id] || 1}
-                        onValueChange={(value) => handleVolumeChange(track.id, value)}
-                        minimumTrackTintColor="#BB86FC"
-                        maximumTrackTintColor="#2C2C2C"
-                        disabled={loadingTracks[track.id]}
-                      />
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                      <View style={styles.volumeContainer}>
+                        <Ionicons 
+                          name={
+                            loadingTracks[track.id] ? 'hourglass-outline' :
+                            trackVolumes[track.id] === 0 ? 'volume-mute' :
+                            trackVolumes[track.id] < 0.3 ? 'volume-low' :
+                            trackVolumes[track.id] < 0.7 ? 'volume-medium' :
+                            'volume-high'
+                          } 
+                          size={20} 
+                          color="#BBBBBB" 
+                        />
+                        <Slider
+                          style={styles.volumeSlider}
+                          minimumValue={0}
+                          maximumValue={1}
+                          value={trackVolumes[track.id] || 1}
+                          onValueChange={(value) => handleVolumeChange(track.id, value)}
+                          minimumTrackTintColor="#BB86FC"
+                          maximumTrackTintColor="#2C2C2C"
+                          disabled={loadingTracks[track.id]}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
               </View>
             ) : activeView === 'lyrics' ? (
               // Lyrics view content
@@ -3509,96 +3776,212 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             ) : activeView === 'score' ? (
               // Scores view content
               <View style={styles.sheetMusicContainer}>
-                {selectedSong.scores?.map((score, index) => (
-                  <View key={score.id} style={styles.scoreView}>
-                    <TouchableOpacity
-                      style={styles.scoreHeader}
-                      onPress={() => toggleScoreExpansion(score.id)}
-                    >
-                      <Text style={styles.scoreTitle}>{score.name}</Text>
-                      <Ionicons
-                        name={expandedScores[score.id] ? "chevron-up" : "chevron-down"}
-                        size={24}
-                        color="#BB86FC"
-                      />
-                    </TouchableOpacity>
-                    {expandedScores[score.id] && (
-                      score.url.endsWith('.pdf') ? (
-                        <View style={styles.sheetMusicView}>
-                          <WebView
-                            source={{ 
-                              uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(score.url)}`
-                            }}
-                            style={{
-                              height: 400,
-                              width: Dimensions.get('window').width - 48,
-                              backgroundColor: '#FFFFFF',
-                            }}
-                            onError={(syntheticEvent) => {
-                              const { nativeEvent } = syntheticEvent;
-                              console.error('WebView error:', nativeEvent);
-                              Alert.alert(
-                                'PDF Viewing Error',
-                                'Unable to load PDF. You can try opening it in your browser.',
-                                [
-                                  {
-                                    text: 'Open in Browser',
-                                    onPress: () => {
-                                      Linking.openURL(score.url);
-                                    }
-                                  },
-                                  {
-                                    text: 'Cancel',
-                                    style: 'cancel'
-                                  }
-                                ]
-                              );
-                            }}
-                            renderLoading={() => (
-                              <View style={styles.loadingContainer}>
-                                <ActivityIndicator size="large" color="#BB86FC" />
-                                <Text style={styles.loadingText}>Loading PDF...</Text>
-                              </View>
-                            )}
-                          />
-                        </View>
-                      ) : (
-                        <TouchableOpacity
-                          onPress={() => setFullScreenImage({ url: score.url, name: score.name })}
-                          activeOpacity={0.8}
+                {isAdminMode ? (
+                  <DraggableFlatList
+                    data={selectedSong.scores || []}
+                    onDragEnd={({ data }) => reorderSongScores(data)}
+                    keyExtractor={(item) => item.id}
+                    scrollEnabled={false}
+                    renderItem={({ item: score, drag, isActive }: RenderItemParams<Score>) => (
+                      <ScaleDecorator>
+                        <View 
+                          style={[
+                            styles.scoreView,
+                            isActive && (styles as any).trackUploadContainerActive
+                          ]}
                         >
-                          <Image
-                            source={{ uri: score.url }}
-                            style={styles.sheetMusicImage}
-                            resizeMode="contain"
-                          />
-                        </TouchableOpacity>
-                      )
+                          <View style={styles.scoreHeader}>
+                            {isAdminMode && (
+                              <TouchableOpacity
+                                onPress={drag}
+                                style={(styles as any).dragHandle}
+                              >
+                                <Ionicons name="reorder-three-outline" size={20} color="#BB86FC" />
+                              </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                              onPress={() => toggleScoreExpansion(score.id)}
+                            >
+                              <Text style={styles.scoreTitle}>{score.name}</Text>
+                              <Ionicons
+                                name={expandedScores[score.id] ? "chevron-up" : "chevron-down"}
+                                size={24}
+                                color="#BB86FC"
+                              />
+                            </TouchableOpacity>
+                          </View>
+                          {expandedScores[score.id] && (
+                            score.url.endsWith('.pdf') ? (
+                              <View style={styles.sheetMusicView}>
+                                <WebView
+                                  source={{ 
+                                    uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(score.url)}`
+                                  }}
+                                  style={{
+                                    height: 400,
+                                    width: Dimensions.get('window').width - 48,
+                                    backgroundColor: '#FFFFFF',
+                                  }}
+                                  onError={(syntheticEvent) => {
+                                    const { nativeEvent } = syntheticEvent;
+                                    console.error('WebView error:', nativeEvent);
+                                    Alert.alert(
+                                      'PDF Viewing Error',
+                                      'Unable to load PDF. You can try opening it in your browser.',
+                                      [
+                                        {
+                                          text: 'Open in Browser',
+                                          onPress: () => {
+                                            Linking.openURL(score.url);
+                                          }
+                                        },
+                                        {
+                                          text: 'Cancel',
+                                          style: 'cancel'
+                                        }
+                                      ]
+                                    );
+                                  }}
+                                  renderLoading={() => (
+                                    <View style={styles.loadingContainer}>
+                                      <ActivityIndicator size="large" color="#BB86FC" />
+                                      <Text style={styles.loadingText}>Loading PDF...</Text>
+                                    </View>
+                                  )}
+                                />
+                              </View>
+                            ) : (
+                              <TouchableOpacity
+                                onPress={() => setFullScreenImage({ url: score.url, name: score.name })}
+                                activeOpacity={0.8}
+                              >
+                                <Image
+                                  source={{ uri: score.url }}
+                                  style={styles.sheetMusicImage}
+                                  resizeMode="contain"
+                                />
+                              </TouchableOpacity>
+                            )
+                          )}
+                        </View>
+                      </ScaleDecorator>
                     )}
-                  </View>
-                ))}
+                  />
+                ) : (
+                  selectedSong.scores?.map((score, index) => (
+                    <View key={score.id} style={styles.scoreView}>
+                      <TouchableOpacity
+                        style={styles.scoreHeader}
+                        onPress={() => toggleScoreExpansion(score.id)}
+                      >
+                        <Text style={styles.scoreTitle}>{score.name}</Text>
+                        <Ionicons
+                          name={expandedScores[score.id] ? "chevron-up" : "chevron-down"}
+                          size={24}
+                          color="#BB86FC"
+                        />
+                      </TouchableOpacity>
+                      {expandedScores[score.id] && (
+                        score.url.endsWith('.pdf') ? (
+                          <View style={styles.sheetMusicView}>
+                            <WebView
+                              source={{ 
+                                uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(score.url)}`
+                              }}
+                              style={{
+                                height: 400,
+                                width: Dimensions.get('window').width - 48,
+                                backgroundColor: '#FFFFFF',
+                              }}
+                              onError={(syntheticEvent) => {
+                                const { nativeEvent } = syntheticEvent;
+                                console.error('WebView error:', nativeEvent);
+                                Alert.alert(
+                                  'PDF Viewing Error',
+                                  'Unable to load PDF. You can try opening it in your browser.',
+                                  [
+                                    {
+                                      text: 'Open in Browser',
+                                      onPress: () => {
+                                        Linking.openURL(score.url);
+                                      }
+                                    },
+                                    {
+                                      text: 'Cancel',
+                                      style: 'cancel'
+                                    }
+                                  ]
+                                );
+                              }}
+                              renderLoading={() => (
+                                <View style={styles.loadingContainer}>
+                                  <ActivityIndicator size="large" color="#BB86FC" />
+                                  <Text style={styles.loadingText}>Loading PDF...</Text>
+                                </View>
+                              )}
+                            />
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() => setFullScreenImage({ url: score.url, name: score.name })}
+                            activeOpacity={0.8}
+                          >
+                            <Image
+                              source={{ uri: score.url }}
+                              style={styles.sheetMusicImage}
+                              resizeMode="contain"
+                            />
+                          </TouchableOpacity>
+                        )
+                      )}
+                    </View>
+                  ))
+                )}
               </View>
             ) : (
               // Resources view content
               <View style={styles.sheetMusicContainer}>
-                {selectedSong.resources?.map((resource, index) => (
-                  <View key={resource.id} style={styles.scoreView}>
-                    <TouchableOpacity
-                      style={styles.scoreHeader}
-                      onPress={() => toggleResourceExpansion(resource.id)}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.scoreTitle}>{resource.name}</Text>
-                        {resource.description && (
-                          <Text style={styles.resourceDescription}>{resource.description}</Text>
-                        )}
-                      </View>
-                      <Ionicons
-                        name={expandedResources[resource.id] ? "chevron-up" : "chevron-down"}
-                        size={24}
-                        color="#BB86FC"
-                      />
-                    </TouchableOpacity>
+                {isAdminMode ? (
+                  <DraggableFlatList
+                    data={selectedSong.resources || []}
+                    onDragEnd={({ data }) => reorderSongResources(data)}
+                    keyExtractor={(item) => item.id}
+                    scrollEnabled={false}
+                    renderItem={({ item: resource, drag, isActive }: RenderItemParams<Resource>) => (
+                      <ScaleDecorator>
+                        <View 
+                          style={[
+                            styles.scoreView,
+                            isActive && (styles as any).trackUploadContainerActive
+                          ]}
+                        >
+                          <View style={styles.scoreHeader}>
+                            {isAdminMode && (
+                              <TouchableOpacity
+                                onPress={drag}
+                                style={(styles as any).dragHandle}
+                              >
+                                <Ionicons name="reorder-three-outline" size={20} color="#BB86FC" />
+                              </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                              onPress={() => toggleResourceExpansion(resource.id)}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.scoreTitle}>{resource.name}</Text>
+                                {resource.description && (
+                                  <Text style={styles.resourceDescription}>{resource.description}</Text>
+                                )}
+                              </View>
+                              <Ionicons
+                                name={expandedResources[resource.id] ? "chevron-up" : "chevron-down"}
+                                size={24}
+                                color="#BB86FC"
+                              />
+                            </TouchableOpacity>
+                          </View>
                     {expandedResources[resource.id] && (
                       <View style={styles.resourceContent}>
                         {resource.type === 'youtube' ? (
@@ -3701,8 +4084,122 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         )}
                       </View>
                     )}
-                  </View>
-                ))}
+                        </View>
+                      </ScaleDecorator>
+                    )}
+                  />
+                ) : (
+                  selectedSong.resources?.map((resource, index) => (
+                    <View key={resource.id} style={styles.scoreView}>
+                      <TouchableOpacity
+                        style={styles.scoreHeader}
+                        onPress={() => toggleResourceExpansion(resource.id)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.scoreTitle}>{resource.name}</Text>
+                          {resource.description && (
+                            <Text style={styles.resourceDescription}>{resource.description}</Text>
+                          )}
+                        </View>
+                        <Ionicons
+                          name={expandedResources[resource.id] ? "chevron-up" : "chevron-down"}
+                          size={24}
+                          color="#BB86FC"
+                        />
+                      </TouchableOpacity>
+                      {expandedResources[resource.id] && (
+                        <View style={styles.resourceContent}>
+                          {resource.type === 'youtube' ? (
+                            <View style={styles.sheetMusicView}>
+                              <WebView
+                                source={{ uri: resource.url }}
+                                style={{
+                                  height: 450,
+                                  width: Dimensions.get('window').width - 48,
+                                  backgroundColor: '#000000',
+                                }}
+                                allowsFullscreenVideo={true}
+                                javaScriptEnabled={true}
+                                domStorageEnabled={true}
+                              />
+                            </View>
+                          ) : resource.type === 'pdf' ? (
+                            <View style={styles.sheetMusicView}>
+                              <WebView
+                                source={{ 
+                                  uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(resource.url)}`
+                                }}
+                                style={{
+                                  height: 400,
+                                  width: Dimensions.get('window').width - 48,
+                                  backgroundColor: '#FFFFFF',
+                                }}
+                                javaScriptEnabled={true}
+                                domStorageEnabled={true}
+                                startInLoadingState={true}
+                                onError={(syntheticEvent) => {
+                                  const { nativeEvent } = syntheticEvent;
+                                  console.error('PDF WebView error:', nativeEvent);
+                                  Alert.alert(
+                                    'PDF Viewing Error',
+                                    `Unable to load PDF: ${resource.url}\n\nThis might be due to CORS restrictions. You can try opening it in your browser.`,
+                                    [
+                                      {
+                                        text: 'Open in Browser',
+                                        onPress: () => {
+                                          Linking.openURL(resource.url);
+                                        }
+                                      },
+                                      {
+                                        text: 'Try Alternative',
+                                        onPress: () => {
+                                          const googleDocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(resource.url)}&embedded=true`;
+                                          Linking.openURL(googleDocsUrl);
+                                        }
+                                      },
+                                      {
+                                        text: 'Cancel',
+                                        style: 'cancel'
+                                      }
+                                    ]
+                                  );
+                                }}
+                                renderLoading={() => (
+                                  <View style={styles.loadingContainer}>
+                                    <ActivityIndicator size="large" color="#BB86FC" />
+                                    <Text style={styles.loadingText}>Loading PDF...</Text>
+                                  </View>
+                                )}
+                              />
+                            </View>
+                          ) : resource.type === 'download' ? (
+                            <View style={styles.resourceLinkContainer}>
+                              <TouchableOpacity
+                                style={styles.resourceDownloadButton}
+                                onPress={() => Linking.openURL(resource.url)}
+                              >
+                                <Ionicons name="download-outline" size={24} color="#FFFFFF" />
+                                <Text style={styles.resourceDownloadText}>
+                                  Download File
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <View style={styles.resourceLinkContainer}>
+                              <TouchableOpacity
+                                style={styles.resourceLinkButton}
+                                onPress={() => Linking.openURL(resource.url)}
+                              >
+                                <Ionicons name="open-outline" size={24} color="#FFFFFF" />
+                                <Text style={styles.resourceLinkText}>Open Link</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )}
               </View>
             )}
           </ScrollView>
@@ -5469,6 +5966,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
   },
+  trackUploadContainerActive: {
+    opacity: 0.8,
+    transform: [{ scale: 1.02 }],
+  },
+  dragHandle: {
+    padding: 4,
+    marginRight: 4,
+  },
   trackHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -5816,6 +6321,12 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#2A2A2A',
     borderRadius: 8,
+  },
+  resourceDragHandleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
   resourceTypeContainer: {
     marginVertical: 8,

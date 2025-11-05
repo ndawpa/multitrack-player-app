@@ -1,15 +1,26 @@
+import 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StyleSheet } from 'react-native';
 
 export default function RootLayout() {
   return (
-    <Stack>
-      <Stack.Screen 
-        name="index" 
-        options={{ 
-          headerShown: false,
-          title: 'Kit de Voz'
-        }} 
-      />
-    </Stack>
+    <GestureHandlerRootView style={styles.container}>
+      <Stack>
+        <Stack.Screen 
+          name="index" 
+          options={{ 
+            headerShown: false,
+            title: 'Kit de Voz'
+          }} 
+        />
+      </Stack>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
