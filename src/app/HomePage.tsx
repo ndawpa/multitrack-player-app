@@ -23,7 +23,7 @@ import FavoritesService from '../services/favoritesService';
 import PlaylistPlayerService from '../services/playlistPlayerService';
 import PlaylistService from '../services/playlistService';
 import TrackStateService, { TrackState, SongTrackStates } from '../services/trackStateService';
-import { Playlist } from '../types/playlist';
+import { Playlist, CreatePlaylistForm } from '../types/playlist';
 import { Song, Track, Score, Resource } from '../types/song';
 import Header from '../components/Header';
 import GroupManagement from '../components/GroupManagement';
@@ -249,6 +249,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
   const [playlistService] = useState(() => PlaylistService.getInstance());
+  const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
+  const [newPlaylist, setNewPlaylist] = useState<CreatePlaylistForm>({
+    name: '',
+    description: '',
+    isPublic: false
+  });
   
   // Track state persistence
   const [trackStateService] = useState(() => TrackStateService.getInstance());
@@ -6267,6 +6273,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               Add "{selectedSong?.title}" to a playlist
             </Text>
             
+            <TouchableOpacity
+              style={styles.createPlaylistButton}
+              onPress={() => {
+                setShowCreatePlaylistModal(true);
+              }}
+            >
+              <Ionicons name="add-circle" size={24} color="#BB86FC" />
+              <Text style={styles.createPlaylistButtonText}>Create New Playlist</Text>
+            </TouchableOpacity>
+            
             <FlatList
               data={userPlaylists}
               keyExtractor={(item) => `playlist-${item.id}`}
@@ -6292,11 +6308,91 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   <Ionicons name="musical-notes" size={48} color="#BBBBBB" />
                   <Text style={styles.emptyPlaylistsText}>No playlists found</Text>
                   <Text style={styles.emptyPlaylistsSubtext}>
-                    Create a playlist first to add songs
+                    Create a playlist to add songs
                   </Text>
                 </View>
               }
             />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Create Playlist Modal */}
+      <Modal
+        visible={showCreatePlaylistModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowCreatePlaylistModal(false);
+          setNewPlaylist({ name: '', description: '', isPublic: false });
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create New Playlist</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => {
+                  setShowCreatePlaylistModal(false);
+                  setNewPlaylist({ name: '', description: '', isPublic: false });
+                }}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalSubtitle}>
+              Create a new playlist and add "{selectedSong?.title}"
+            </Text>
+            
+            <ScrollView style={styles.createPlaylistForm}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Name *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={newPlaylist.name}
+                  onChangeText={(text) => setNewPlaylist({ ...newPlaylist, name: text })}
+                  placeholder="Enter playlist name"
+                  placeholderTextColor="#666666"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  value={newPlaylist.description}
+                  onChangeText={(text) => setNewPlaylist({ ...newPlaylist, description: text })}
+                  placeholder="Enter playlist description (optional)"
+                  placeholderTextColor="#666666"
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setNewPlaylist({ ...newPlaylist, isPublic: !newPlaylist.isPublic })}
+                >
+                  <Ionicons
+                    name={newPlaylist.isPublic ? "checkbox" : "square-outline"}
+                    size={24}
+                    color="#BB86FC"
+                  />
+                  <Text style={styles.checkboxLabel}>Make this playlist public</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.createButton, !newPlaylist.name.trim() && styles.createButtonDisabled]}
+                onPress={handleCreatePlaylistAndAddSong}
+                disabled={!newPlaylist.name.trim()}
+              >
+                <Text style={styles.createButtonText}>Create Playlist & Add Song</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -6666,6 +6762,36 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     if (!selectedSong) return;
     loadUserPlaylists();
     setShowAddToPlaylistModal(true);
+  };
+
+  const handleCreatePlaylistAndAddSong = async () => {
+    if (!user || !selectedSong || !newPlaylist.name.trim()) {
+      Alert.alert('Error', 'Please enter a playlist name');
+      return;
+    }
+
+    try {
+      // Create the playlist
+      const createdPlaylist = await playlistService.createPlaylist(user.id, newPlaylist);
+      
+      // Add the song to the newly created playlist
+      await playlistService.addSongToPlaylist(createdPlaylist.id, {
+        songId: selectedSong.id
+      }, selectedSong as any);
+      
+      // Reset form and close modals
+      setNewPlaylist({ name: '', description: '', isPublic: false });
+      setShowCreatePlaylistModal(false);
+      setShowAddToPlaylistModal(false);
+      
+      // Reload playlists to show the new one
+      await loadUserPlaylists();
+      
+      Alert.alert('Success', `Playlist "${createdPlaylist.name}" created and song added!`);
+    } catch (error) {
+      console.error('Error creating playlist and adding song:', error);
+      Alert.alert('Error', 'Failed to create playlist and add song');
+    }
   };
 
   return (
@@ -8950,6 +9076,74 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
+  },
+  createPlaylistButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#BB86FC',
+    borderStyle: 'dashed',
+  },
+  createPlaylistButtonText: {
+    color: '#BB86FC',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  createPlaylistForm: {
+    maxHeight: 400,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  textInput: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#3C3C3C',
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkboxLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  createButton: {
+    backgroundColor: '#BB86FC',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  createButtonDisabled: {
+    backgroundColor: '#3C3C3C',
+    opacity: 0.5,
+  },
+  createButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   // Dedicated Playlist Section Styles
   playlistSection: {
