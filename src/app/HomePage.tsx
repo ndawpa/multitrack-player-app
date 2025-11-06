@@ -2182,23 +2182,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       )}
                     </View>
                     {filteredArtists.map(artist => (
-                  <TouchableOpacity
-                    key={artist}
-                    style={styles.artistFilterOption}
-                    onPress={() => toggleArtistSelection(artist)}
-                  >
-                    <View style={styles.artistFilterOptionContent}>
-                      <Ionicons 
-                        name={selectedArtists.has(artist) ? "checkbox" : "square-outline"} 
-                        size={24} 
-                        color={selectedArtists.has(artist) ? "#BB86FC" : "#BBBBBB"} 
-                      />
-                      <Text style={[
-                        styles.artistFilterOptionText,
-                        selectedArtists.has(artist) && styles.artistFilterOptionTextSelected
-                      ]}>{artist}</Text>
-                    </View>
-                  </TouchableOpacity>
+                      <TouchableOpacity
+                        key={artist}
+                        style={styles.artistFilterOption}
+                        onPress={() => toggleArtistSelection(artist)}
+                      >
+                        <View style={styles.artistFilterOptionContent}>
+                          <Ionicons 
+                            name={selectedArtists.has(artist) ? "checkbox" : "square-outline"} 
+                            size={24} 
+                            color={selectedArtists.has(artist) ? "#BB86FC" : "#BBBBBB"} 
+                          />
+                          <Text style={[
+                            styles.artistFilterOptionText,
+                            selectedArtists.has(artist) && styles.artistFilterOptionTextSelected
+                          ]}>{artist}</Text>
+                        </View>
+                      </TouchableOpacity>
                     ))}
                     {filteredArtists.length === 0 && artistSearchQuery.trim() && (
                       <Text style={styles.emptyFilterText}>No artists found</Text>
@@ -2249,26 +2249,26 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       )}
                     </View>
                     {uniqueAlbums.length > 0 ? (
-                  <>
-                    {filteredAlbums.map(album => (
-                      <TouchableOpacity
-                        key={album}
-                        style={styles.artistFilterOption}
-                        onPress={() => toggleAlbumSelection(album)}
-                      >
-                        <View style={styles.artistFilterOptionContent}>
-                          <Ionicons 
-                            name={selectedAlbums.has(album) ? "checkbox" : "square-outline"} 
-                            size={24} 
-                            color={selectedAlbums.has(album) ? "#BB86FC" : "#BBBBBB"} 
-                          />
-                          <Text style={[
-                            styles.artistFilterOptionText,
-                            selectedAlbums.has(album) && styles.artistFilterOptionTextSelected
-                          ]}>{album}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
+                      <>
+                        {filteredAlbums.map(album => (
+                          <TouchableOpacity
+                            key={album}
+                            style={styles.artistFilterOption}
+                            onPress={() => toggleAlbumSelection(album)}
+                          >
+                            <View style={styles.artistFilterOptionContent}>
+                              <Ionicons 
+                                name={selectedAlbums.has(album) ? "checkbox" : "square-outline"} 
+                                size={24} 
+                                color={selectedAlbums.has(album) ? "#BB86FC" : "#BBBBBB"} 
+                              />
+                              <Text style={[
+                                styles.artistFilterOptionText,
+                                selectedAlbums.has(album) && styles.artistFilterOptionTextSelected
+                              ]}>{album}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
                     {filteredAlbums.length === 0 && albumSearchQuery.trim() && (
                       <Text style={styles.emptyFilterText}>No albums found</Text>
                     )}
