@@ -12,6 +12,7 @@ import {
   Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Markdown from 'react-native-markdown-display';
 import AIAssistantService, { ChatMessage } from '../services/aiAssistantService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types/user';
@@ -310,9 +311,15 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
             <Text style={[styles.messageRole, message.role === 'user' && styles.userMessageRole]}>
               {message.role === 'user' ? 'You' : 'Assistant'}
             </Text>
-            <Text style={message.role === 'user' ? styles.userMessageText : styles.messageText}>
-              {message.content}
-            </Text>
+            {message.role === 'user' ? (
+              <Text style={styles.userMessageText}>
+                {message.content}
+              </Text>
+            ) : (
+              <Markdown style={markdownStyles}>
+                {message.content}
+              </Markdown>
+            )}
           </View>
         ))}
 
@@ -327,13 +334,13 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
         )}
       </ScrollView>
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 12 }]}>
         <TextInput
           style={styles.textInput}
           value={inputText}
           onChangeText={setInputText}
           placeholder="Ask about your songs..."
-          placeholderTextColor="#999"
+          placeholderTextColor="#888"
           multiline
           onSubmitEditing={handleSend}
           returnKeyType="send"
@@ -353,7 +360,7 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#121212',
   },
   header: {
     flexDirection: 'row',
@@ -361,9 +368,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#2C2C2C',
   },
   backButton: {
     fontSize: 16,
@@ -373,7 +380,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: '#FFFFFF',
   },
   settingsButton: {
     fontSize: 20,
@@ -385,25 +392,27 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   welcomeContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
   },
   welcomeTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 12,
-    color: '#000',
+    color: '#FFFFFF',
   },
   welcomeText: {
     fontSize: 16,
-    color: '#666',
+    color: '#BBBBBB',
     marginBottom: 12,
   },
   welcomeBullet: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginBottom: 8,
     paddingLeft: 8,
   },
@@ -424,16 +433,16 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   assistantMessage: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#2C2C2C',
   },
   messageRole: {
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 4,
-    color: '#666',
+    color: '#BBBBBB',
   },
   userMessageRole: {
     color: '#fff',
@@ -441,7 +450,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    color: '#000',
+    color: '#FFFFFF',
     lineHeight: 22,
   },
   userMessageText: {
@@ -456,27 +465,29 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginLeft: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     padding: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: '#2C2C2C',
     alignItems: 'flex-end',
   },
   textInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#2C2C2C',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 16,
     maxHeight: 100,
     marginRight: 8,
+    backgroundColor: '#121212',
+    color: '#FFFFFF',
   },
   sendButton: {
     backgroundColor: '#BB86FC',
@@ -499,11 +510,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#000',
+    color: '#FFFFFF',
   },
   settingsDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
     marginBottom: 24,
     lineHeight: 20,
   },
@@ -511,7 +522,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#000',
+    color: '#FFFFFF',
   },
   providerButtons: {
     flexDirection: 'row',
@@ -523,8 +534,9 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: '#2C2C2C',
     alignItems: 'center',
+    backgroundColor: '#1E1E1E',
   },
   providerButtonActive: {
     borderColor: '#BB86FC',
@@ -532,7 +544,7 @@ const styles = StyleSheet.create({
   },
   providerButtonText: {
     fontSize: 14,
-    color: '#666',
+    color: '#BBBBBB',
   },
   providerButtonTextActive: {
     color: '#BB86FC',
@@ -540,12 +552,13 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#2C2C2C',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     marginBottom: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#121212',
+    color: '#FFFFFF',
   },
   saveButton: {
     backgroundColor: '#BB86FC',
@@ -564,14 +577,158 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#2C2C2C',
+    backgroundColor: '#1E1E1E',
   },
   cancelButtonText: {
-    color: '#666',
+    color: '#BBBBBB',
     fontSize: 16,
   },
   settingsScrollView: {
     flex: 1,
+  },
+});
+
+// Markdown styles for dark theme
+const markdownStyles = StyleSheet.create({
+  body: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  paragraph: {
+    marginTop: 0,
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  heading1: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  heading2: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  heading3: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  heading4: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  heading5: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  heading6: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  strong: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  em: {
+    fontStyle: 'italic',
+    color: '#FFFFFF',
+  },
+  code_inline: {
+    backgroundColor: '#2C2C2C',
+    color: '#BB86FC',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    fontSize: 14,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  code_block: {
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 8,
+  },
+  fence: {
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 8,
+  },
+  list_item: {
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  bullet_list: {
+    marginBottom: 8,
+  },
+  ordered_list: {
+    marginBottom: 8,
+  },
+  link: {
+    color: '#BB86FC',
+    textDecorationLine: 'underline',
+  },
+  blockquote: {
+    backgroundColor: '#1E1E1E',
+    borderLeftWidth: 4,
+    borderLeftColor: '#BB86FC',
+    paddingLeft: 12,
+    paddingVertical: 8,
+    marginVertical: 8,
+    paddingRight: 12,
+  },
+  hr: {
+    backgroundColor: '#2C2C2C',
+    height: 1,
+    marginVertical: 12,
+  },
+  table: {
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    borderRadius: 8,
+    marginVertical: 8,
+  },
+  thead: {
+    backgroundColor: '#1E1E1E',
+  },
+  th: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  td: {
+    color: '#FFFFFF',
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  tr: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
   },
 });
 
