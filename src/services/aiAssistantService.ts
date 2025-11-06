@@ -302,7 +302,145 @@ class AIAssistantService {
   }
 
   /**
-   * Query AI with user question and song context
+   * Extract keywords and themes from user question for smart song filtering
+   */
+  private extractKeywordsFromQuestion(question: string): string[] {
+    const questionLower = question.toLowerCase();
+    const keywords: string[] = [];
+    
+    // Common question patterns
+    const questionPatterns = [
+      /(?:find|show|list|search|which|what).*?(?:song|songs|track|tracks)/gi,
+      /(?:about|related to|with|containing|mentioning|having)\s+([^?.,!]+)/gi,
+      /(?:theme|topic|subject|mood|feeling|emotion)\s+(?:of|is|are)?\s*([^?.,!]+)/gi,
+      /(?:word|phrase|term|lyric|lyrics)\s+["']([^"']+)["']/gi,
+    ];
+    
+    // Extract quoted terms
+    const quotedTerms = question.match(/["']([^"']+)["']/g);
+    if (quotedTerms) {
+      quotedTerms.forEach(term => {
+        const cleanTerm = term.replace(/["']/g, '').trim();
+        if (cleanTerm.length > 2) {
+          keywords.push(cleanTerm);
+        }
+      });
+    }
+    
+    // Extract words after common question words
+    const afterKeywords = ['about', 'with', 'containing', 'mentioning', 'related to', 'theme', 'topic'];
+    afterKeywords.forEach(keyword => {
+      const regex = new RegExp(`${keyword}\\s+([^?.,!]+)`, 'gi');
+      const matches = question.match(regex);
+      if (matches) {
+        matches.forEach(match => {
+          const extracted = match.replace(new RegExp(keyword, 'gi'), '').trim();
+          if (extracted.length > 2) {
+            keywords.push(extracted);
+          }
+        });
+      }
+    });
+    
+    // Extract individual significant words (3+ characters, not common words)
+    const commonWords = new Set(['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'from', 'by', 'about', 'into', 'through', 'during', 'including', 'against', 'among', 'throughout', 'despite', 'towards', 'upon', 'concerning', 'to', 'of', 'in', 'for', 'on', 'at', 'by', 'with', 'from', 'up', 'about', 'into', 'through', 'during', 'including', 'against', 'among', 'throughout', 'despite', 'towards', 'upon', 'concerning', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'what', 'which', 'who', 'where', 'when', 'why', 'how', 'find', 'show', 'list', 'search', 'song', 'songs', 'track', 'tracks']);
+    const words = questionLower.split(/\s+/).filter(word => {
+      const cleanWord = word.replace(/[^a-z0-9]/g, '');
+      return cleanWord.length >= 3 && !commonWords.has(cleanWord);
+    });
+    keywords.push(...words);
+    
+    // Remove duplicates and return
+    return [...new Set(keywords)].slice(0, 10); // Limit to top 10 keywords
+  }
+
+  /**
+   * Smart song filtering - only include songs relevant to the question
+   */
+  private filterRelevantSongs(songs: Song[], question: string): Song[] {
+    if (songs.length === 0) {
+      return songs;
+    }
+    
+    const keywords = this.extractKeywordsFromQuestion(question);
+    const questionLower = question.toLowerCase();
+    
+    // If no meaningful keywords found, return a sample (for general questions)
+    if (keywords.length === 0) {
+      console.log('No specific keywords found, using sample of songs for general question');
+      return songs.slice(0, 20); // Return first 20 for general questions
+    }
+    
+    console.log('Extracted keywords from question:', keywords);
+    
+    // Score songs based on relevance
+    const scoredSongs = songs.map(song => {
+      let score = 0;
+      const titleLower = (song.title || '').toLowerCase();
+      const artistLower = (song.artist || '').toLowerCase();
+      const albumLower = (song.album || '').toLowerCase();
+      const lyricsLower = (song.lyrics || '').toLowerCase();
+      
+      keywords.forEach(keyword => {
+        const keywordLower = keyword.toLowerCase();
+        
+        // Title match (highest weight)
+        if (titleLower.includes(keywordLower)) {
+          score += 10;
+        }
+        
+        // Artist match (high weight)
+        if (artistLower.includes(keywordLower)) {
+          score += 8;
+        }
+        
+        // Album match
+        if (albumLower.includes(keywordLower)) {
+          score += 6;
+        }
+        
+        // Lyrics match (lower weight, but check multiple times)
+        const lyricsMatches = (lyricsLower.match(new RegExp(keywordLower, 'g')) || []).length;
+        score += Math.min(lyricsMatches * 2, 10); // Cap at 10 points per keyword
+        
+        // Check resources
+        if (song.resources) {
+          song.resources.forEach(resource => {
+            const resourceName = (resource.name || '').toLowerCase();
+            const resourceDesc = (resource.description || '').toLowerCase();
+            if (resourceName.includes(keywordLower) || resourceDesc.includes(keywordLower)) {
+              score += 3;
+            }
+          });
+        }
+      });
+      
+      return { song, score };
+    });
+    
+    // Filter songs with score > 0 and sort by score
+    const relevantSongs = scoredSongs
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.song);
+    
+    // If we found relevant songs, return top matches (limit based on provider)
+    if (relevantSongs.length > 0) {
+      const provider = this.config.provider || 'openai';
+      const maxRelevant = provider === 'google' ? 50 : provider === 'anthropic' ? 30 : 20;
+      const topRelevant = relevantSongs.slice(0, maxRelevant);
+      console.log(`Found ${relevantSongs.length} relevant songs, using top ${topRelevant.length}`);
+      return topRelevant;
+    }
+    
+    // If no matches, return a small sample for context
+    console.log('No exact matches found, using sample of songs');
+    return songs.slice(0, 10);
+  }
+
+  /**
+   * Query AI with user question and smart song context selection
+   * Only sends relevant songs instead of all songs for better performance and cost
    */
   public async askQuestion(question: string, chatHistory: ChatMessage[] = []): Promise<string> {
     if (!this.config.apiKey) {
@@ -322,16 +460,22 @@ class AIAssistantService {
     });
 
     try {
-      // Get all accessible songs (including all metadata, tracks, scores, resources)
+      // Get all accessible songs first
       console.log('Fetching all accessible songs...');
-      const songs = await this.getAccessibleSongs();
-      console.log(`Found ${songs.length} accessible songs`);
+      const allSongs = await this.getAccessibleSongs();
+      console.log(`Found ${allSongs.length} accessible songs`);
       
-      const songsContext = this.formatSongsForContext(songs);
-      console.log(`Formatted context length: ${songsContext.length} characters`);
+      // Smart filtering: only get relevant songs based on the question
+      console.log('Filtering relevant songs based on question...');
+      const relevantSongs = this.filterRelevantSongs(allSongs, question);
+      console.log(`Selected ${relevantSongs.length} relevant songs (out of ${allSongs.length})`);
+      
+      const songsContext = this.formatSongsForContext(relevantSongs);
+      console.log(`Formatted context length: ${songsContext.length} characters (reduced from potential ${allSongs.length} songs)`);
 
       // Build system prompt
-      const systemPrompt = `You are a helpful AI assistant for a music multitrack player app. You have access to the user's complete song library including all metadata, lyrics, audio tracks, scores (PDFs), and resources (links, YouTube videos, downloads).
+      const totalSongsCount = allSongs.length;
+      const systemPrompt = `You are a helpful AI assistant for a music multitrack player app. The user has a library of ${totalSongsCount} songs, but I'm providing you with the most relevant songs based on their question to keep the response fast and cost-effective.
 
 Your role is to:
 1. Help users find songs based on themes, topics, lyrics content, or any song attributes
@@ -345,12 +489,13 @@ IMPORTANT:
 - Only reference songs that are in the user's library
 - You have access to complete song information including tracks, scores, and resources
 - Audio files and PDFs are stored in the cloud - you can reference their names and paths, but cannot access the actual binary content
-- If a song is not in the provided context, politely let the user know
+- The songs provided below are the most relevant matches. If you need to search more broadly, mention that the user can refine their question
+- If a song is not in the provided context, politely let the user know and suggest they try a more specific search
 
-Here is the user's complete song library:
+Here are the most relevant songs from the user's library (${relevantSongs.length} out of ${totalSongsCount} total songs):
 ${songsContext}
 
-Please provide helpful, accurate responses based on this comprehensive information.`;
+Please provide helpful, accurate responses based on this information.`;
 
       // Build messages array
       const messages: Array<{ role: string; content: string }> = [
