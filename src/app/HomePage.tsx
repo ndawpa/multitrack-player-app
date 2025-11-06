@@ -314,6 +314,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [activeView, setActiveView] = useState<'tracks' | 'lyrics' | 'sheetMusic' | 'score' | 'resources'>('tracks');
   const [isLyricsEditing, setIsLyricsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState('');
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [editingTrackName, setEditingTrackName] = useState('');
+  const [editingScoreId, setEditingScoreId] = useState<string | null>(null);
+  const [editingScoreName, setEditingScoreName] = useState('');
+  const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
+  const [editingResourceName, setEditingResourceName] = useState('');
+  const [editingResourceUrl, setEditingResourceUrl] = useState('');
+  const [editingResourceDescription, setEditingResourceDescription] = useState('');
+  const [editingResourceType, setEditingResourceType] = useState<'youtube' | 'download' | 'link' | 'pdf'>('link');
   const [showArtistFilterDialog, setShowArtistFilterDialog] = useState(false);
   const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
   
@@ -2299,6 +2308,245 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     }
   };
 
+  // Function to update song in Firebase
+  const updateSongInFirebase = async (updates: Partial<Song>) => {
+    if (!selectedSong) return;
+    try {
+      const updatedSong = { ...selectedSong, ...updates };
+      setSelectedSong(updatedSong);
+      const songRef = ref(database, `songs/${selectedSong.id}`);
+      await set(songRef, updatedSong);
+    } catch (error) {
+      console.error('Error updating song:', error);
+      Alert.alert('Error', 'Failed to save changes');
+      throw error;
+    }
+  };
+
+  // Function to update track name
+  const handleUpdateTrackName = async (trackId: string, newName: string) => {
+    if (!selectedSong || !newName.trim() || !selectedSong.tracks) return;
+    try {
+      const updatedTracks = selectedSong.tracks.map(track =>
+        track.id === trackId ? { ...track, name: newName } : track
+      );
+      await updateSongInFirebase({ tracks: updatedTracks });
+      setEditingTrackId(null);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update track name');
+    }
+  };
+
+  // Function to delete track
+  const handleDeleteTrack = async (trackId: string) => {
+    if (!selectedSong || !selectedSong.tracks) return;
+    Alert.alert(
+      'Delete Track',
+      'Are you sure you want to delete this track?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const track = selectedSong.tracks!.find(t => t.id === trackId);
+              if (track?.path) {
+                try {
+                  await AudioStorageService.getInstance().deleteAudioFile(track.path);
+                } catch (error) {
+                  console.warn('Failed to delete file from storage:', error);
+                }
+              }
+              const updatedTracks = selectedSong.tracks!.filter(t => t.id !== trackId);
+              await updateSongInFirebase({ tracks: updatedTracks });
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete track');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Function to add track
+  const handleAddTrack = async () => {
+    if (!selectedSong) return;
+    try {
+      const result = await AudioStorageService.getInstance().pickAudioFile();
+      if (result) {
+        const folderName = selectedSong.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const trackName = result.name.replace(/\.[^/.]+$/, '');
+        const path = `audio/${folderName}/${selectedSong.title} - ${trackName}.mp3`;
+        
+        await AudioStorageService.getInstance().uploadAudioFile(result, path);
+        
+        const newTrack: Track = {
+          id: generateId(),
+          name: trackName,
+          path
+        };
+        const updatedTracks = [...(selectedSong.tracks || []), newTrack];
+        await updateSongInFirebase({ tracks: updatedTracks });
+      }
+    } catch (error: any) {
+      if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
+        console.error('Error adding track:', error);
+        Alert.alert('Error', 'Failed to add track');
+      }
+    }
+  };
+
+  // Function to update score name
+  const handleUpdateScoreName = async (scoreId: string, newName: string) => {
+    if (!selectedSong || !newName.trim() || !selectedSong.scores) return;
+    try {
+      const updatedScores = selectedSong.scores.map(score =>
+        score.id === scoreId ? { ...score, name: newName } : score
+      );
+      await updateSongInFirebase({ scores: updatedScores });
+      setEditingScoreId(null);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update score name');
+    }
+  };
+
+  // Function to delete score
+  const handleDeleteScore = async (scoreId: string) => {
+    if (!selectedSong || !selectedSong.scores) return;
+    Alert.alert(
+      'Delete Score',
+      'Are you sure you want to delete this score?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updatedScores = selectedSong.scores!.filter(s => s.id !== scoreId);
+              await updateSongInFirebase({ scores: updatedScores });
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete score');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Function to add score
+  const handleAddScore = async () => {
+    if (!selectedSong) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/*'],
+        copyToCacheDirectory: true
+      });
+      
+      if (result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        const scoreName = file.name.split('.')[0];
+        
+        const scoreId = generateId();
+        const newScore: Score = {
+          id: scoreId,
+          name: scoreName,
+          url: 'uploading'
+        };
+        const updatedScores = [...(selectedSong.scores || []), newScore];
+        setSelectedSong({ ...selectedSong, scores: updatedScores });
+        
+        try {
+          const downloadURL = await uploadSheetMusic(file, scoreName, selectedSong.title);
+          const finalScores = updatedScores.map(score =>
+            score.id === scoreId ? { ...score, url: downloadURL } : score
+          );
+          await updateSongInFirebase({ scores: finalScores });
+        } catch (uploadError) {
+          console.error('Error uploading score:', uploadError);
+          Alert.alert('Error', 'Failed to upload score');
+          const revertedScores = updatedScores.filter(s => s.id !== scoreId);
+          await updateSongInFirebase({ scores: revertedScores });
+        }
+      }
+    } catch (error: any) {
+      if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
+        console.error('Error adding score:', error);
+        Alert.alert('Error', 'Failed to add score');
+      }
+    }
+  };
+
+  // Function to update resource
+  const handleUpdateResource = async () => {
+    if (!selectedSong || !editingResourceId || !editingResourceName.trim() || !editingResourceUrl.trim() || !selectedSong.resources) return;
+    try {
+      const updatedResources = selectedSong.resources.map(resource =>
+        resource.id === editingResourceId
+          ? {
+              ...resource,
+              name: editingResourceName,
+              url: editingResourceUrl,
+              description: editingResourceDescription,
+              type: editingResourceType
+            }
+          : resource
+      );
+      await updateSongInFirebase({ resources: updatedResources });
+      setEditingResourceId(null);
+      setEditingResourceName('');
+      setEditingResourceUrl('');
+      setEditingResourceDescription('');
+      setEditingResourceType('link');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update resource');
+    }
+  };
+
+  // Function to delete resource
+  const handleDeleteResource = async (resourceId: string) => {
+    if (!selectedSong || !selectedSong.resources) return;
+    Alert.alert(
+      'Delete Resource',
+      'Are you sure you want to delete this resource?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updatedResources = selectedSong.resources!.filter(r => r.id !== resourceId);
+              await updateSongInFirebase({ resources: updatedResources });
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete resource');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Function to add resource
+  const handleAddResource = () => {
+    if (!selectedSong) return;
+    const newResource: Resource = {
+      id: generateId(),
+      name: '',
+      type: 'link',
+      url: '',
+      description: ''
+    };
+    setEditingResourceId(newResource.id);
+    setEditingResourceName('');
+    setEditingResourceUrl('');
+    setEditingResourceDescription('');
+    setEditingResourceType('link');
+    const updatedResources = [...(selectedSong.resources || []), newResource];
+    setSelectedSong({ ...selectedSong, resources: updatedResources });
+  };
+
   // Add function to handle song editing
   const handleEditSong = async () => {
     try {
@@ -3938,6 +4186,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     <Text style={styles.trackStateLoadingText}>Loading track states...</Text>
                   </View>
                 )}
+                {isAdminMode && (
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={handleAddTrack}
+                  >
+                    <Ionicons name="add-circle" size={24} color="#BB86FC" />
+                    <Text style={styles.addButtonText}>Add Track</Text>
+                  </TouchableOpacity>
+                )}
                 {isAdminMode ? (
                   <DraggableFlatList
                     data={selectedSong.tracks || []}
@@ -3955,7 +4212,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                             isLandscape && styles.trackContainerLandscape,
                             isActive && (styles as any).trackUploadContainerActive
                           ]}
-                          onPress={() => !isActive && handleTrackClick(track.id)}
+                          onPress={() => !isActive && editingTrackId !== track.id && handleTrackClick(track.id)}
                         >
                           {isAdminMode && (
                             <TouchableOpacity
@@ -3966,7 +4223,39 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                             </TouchableOpacity>
                           )}
                           <View style={styles.trackInfo}>
-                            <Text style={styles.trackName}>{track.name}</Text>
+                            {editingTrackId === track.id ? (
+                              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                                <TextInput
+                                  style={[styles.trackNameInput, { flex: 1, marginRight: 8 }]}
+                                  value={editingTrackName}
+                                  onChangeText={setEditingTrackName}
+                                  placeholder="Track name"
+                                  placeholderTextColor="#666666"
+                                  autoFocus
+                                />
+                                <TouchableOpacity
+                                  style={styles.iconButton}
+                                  onPress={() => {
+                                    if (editingTrackName.trim()) {
+                                      handleUpdateTrackName(track.id, editingTrackName);
+                                    }
+                                  }}
+                                >
+                                  <Ionicons name="checkmark-outline" size={24} color="#4CAF50" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.iconButton}
+                                  onPress={() => {
+                                    setEditingTrackId(null);
+                                    setEditingTrackName('');
+                                  }}
+                                >
+                                  <Ionicons name="close-outline" size={24} color="#FF5252" />
+                                </TouchableOpacity>
+                              </View>
+                            ) : (
+                              <Text style={styles.trackName}>{track.name}</Text>
+                            )}
                             <View style={styles.trackControls}>
                               {loadingTracks[track.id] ? (
                                 <View style={styles.loadingContainer}>
@@ -4026,6 +4315,25 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                               disabled={loadingTracks[track.id]}
                             />
                           </View>
+                          {isAdminMode && editingTrackId !== track.id && (
+                            <View style={{ flexDirection: 'row', marginLeft: 8 }}>
+                              <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => {
+                                  setEditingTrackId(track.id);
+                                  setEditingTrackName(track.name);
+                                }}
+                              >
+                                <Ionicons name="create-outline" size={20} color="#BB86FC" />
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => handleDeleteTrack(track.id)}
+                              >
+                                <Ionicons name="trash-outline" size={20} color="#FF5252" />
+                              </TouchableOpacity>
+                            </View>
+                          )}
                         </TouchableOpacity>
                       </ScaleDecorator>
                     )}
@@ -4231,6 +4539,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             ) : activeView === 'score' ? (
               // Scores view content
               <View style={styles.sheetMusicContainer}>
+                {isAdminMode && (
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={handleAddScore}
+                  >
+                    <Ionicons name="add-circle" size={24} color="#BB86FC" />
+                    <Text style={styles.addButtonText}>Add Score</Text>
+                  </TouchableOpacity>
+                )}
                 {isAdminMode ? (
                   <DraggableFlatList
                     data={selectedSong.scores || []}
@@ -4258,12 +4575,67 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                               style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
                               onPress={() => toggleScoreExpansion(score.id)}
                             >
-                              <Text style={styles.scoreTitle}>{score.name}</Text>
-                              <Ionicons
-                                name={expandedScores[score.id] ? "chevron-up" : "chevron-down"}
-                                size={24}
-                                color="#BB86FC"
-                              />
+                              {editingScoreId === score.id ? (
+                                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+                                  <TextInput
+                                    style={[styles.dialogInput, { flex: 1, marginRight: 8 }]}
+                                    value={editingScoreName}
+                                    onChangeText={setEditingScoreName}
+                                    placeholder="Score name"
+                                    placeholderTextColor="#666666"
+                                    autoFocus
+                                  />
+                                  <TouchableOpacity
+                                    style={styles.iconButton}
+                                    onPress={() => {
+                                      if (editingScoreName.trim()) {
+                                        handleUpdateScoreName(score.id, editingScoreName);
+                                      }
+                                    }}
+                                  >
+                                    <Ionicons name="checkmark-outline" size={20} color="#4CAF50" />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={styles.iconButton}
+                                    onPress={() => {
+                                      setEditingScoreId(null);
+                                      setEditingScoreName('');
+                                    }}
+                                  >
+                                    <Ionicons name="close-outline" size={20} color="#FF5252" />
+                                  </TouchableOpacity>
+                                </View>
+                              ) : (
+                                <Text style={styles.scoreTitle}>{score.name}</Text>
+                              )}
+                              {editingScoreId !== score.id && (
+                                <>
+                                  <Ionicons
+                                    name={expandedScores[score.id] ? "chevron-up" : "chevron-down"}
+                                    size={24}
+                                    color="#BB86FC"
+                                  />
+                                  {isAdminMode && (
+                                    <View style={{ flexDirection: 'row', marginLeft: 8 }}>
+                                      <TouchableOpacity
+                                        style={styles.iconButton}
+                                        onPress={() => {
+                                          setEditingScoreId(score.id);
+                                          setEditingScoreName(score.name);
+                                        }}
+                                      >
+                                        <Ionicons name="create-outline" size={20} color="#BB86FC" />
+                                      </TouchableOpacity>
+                                      <TouchableOpacity
+                                        style={styles.iconButton}
+                                        onPress={() => handleDeleteScore(score.id)}
+                                      >
+                                        <Ionicons name="trash-outline" size={20} color="#FF5252" />
+                                      </TouchableOpacity>
+                                    </View>
+                                  )}
+                                </>
+                              )}
                             </TouchableOpacity>
                           </View>
                           {expandedScores[score.id] && (() => {
@@ -4536,6 +4908,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             ) : (
               // Resources view content
               <View style={styles.sheetMusicContainer}>
+                {isAdminMode && (
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={handleAddResource}
+                  >
+                    <Ionicons name="add-circle" size={24} color="#BB86FC" />
+                    <Text style={styles.addButtonText}>Add Resource</Text>
+                  </TouchableOpacity>
+                )}
                 {isAdminMode ? (
                   <DraggableFlatList
                     data={selectedSong.resources || []}
@@ -4559,24 +4940,123 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                 <Ionicons name="reorder-three-outline" size={20} color="#BB86FC" />
                               </TouchableOpacity>
                             )}
-                            <TouchableOpacity
-                              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                              onPress={() => toggleResourceExpansion(resource.id)}
-                            >
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.scoreTitle}>{resource.name}</Text>
-                                {resource.description && (
-                                  <Text style={styles.resourceDescription}>{resource.description}</Text>
-                                )}
+                            {editingResourceId === resource.id ? (
+                              <View style={{ flex: 1, padding: 8 }}>
+                                <TextInput
+                                  style={[styles.dialogInput, { marginBottom: 8 }]}
+                                  value={editingResourceName}
+                                  onChangeText={setEditingResourceName}
+                                  placeholder="Resource name"
+                                  placeholderTextColor="#666666"
+                                  autoFocus
+                                />
+                                <TextInput
+                                  style={[styles.dialogInput, { marginBottom: 8 }]}
+                                  value={editingResourceUrl}
+                                  onChangeText={setEditingResourceUrl}
+                                  placeholder="URL"
+                                  placeholderTextColor="#666666"
+                                />
+                                <TextInput
+                                  style={[styles.dialogInput, { marginBottom: 8 }]}
+                                  value={editingResourceDescription}
+                                  onChangeText={setEditingResourceDescription}
+                                  placeholder="Description (optional)"
+                                  placeholderTextColor="#666666"
+                                />
+                                <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                                  {['youtube', 'download', 'link', 'pdf'].map((type) => (
+                                    <TouchableOpacity
+                                      key={type}
+                                      style={[
+                                        styles.resourceTypeButton,
+                                        editingResourceType === type && styles.resourceTypeButtonActive
+                                      ]}
+                                      onPress={() => setEditingResourceType(type as any)}
+                                    >
+                                      <Text style={[
+                                        styles.resourceTypeButtonText,
+                                        editingResourceType === type && styles.resourceTypeButtonTextActive
+                                      ]}>
+                                        {type === 'youtube' ? 'Video' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                                  <TouchableOpacity
+                                    style={styles.iconButton}
+                                    onPress={() => {
+                                      if (editingResourceName.trim() && editingResourceUrl.trim()) {
+                                        handleUpdateResource();
+                                      }
+                                    }}
+                                  >
+                                    <Ionicons name="checkmark-outline" size={24} color="#4CAF50" />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={styles.iconButton}
+                                    onPress={() => {
+                                      if (editingResourceId === resource.id && !resource.name && !resource.url && selectedSong.resources) {
+                                        // If it's a new resource, remove it
+                                        const updatedResources = selectedSong.resources.filter(r => r.id !== resource.id);
+                                        updateSongInFirebase({ resources: updatedResources });
+                                      }
+                                      setEditingResourceId(null);
+                                      setEditingResourceName('');
+                                      setEditingResourceUrl('');
+                                      setEditingResourceDescription('');
+                                      setEditingResourceType('link');
+                                    }}
+                                  >
+                                    <Ionicons name="close-outline" size={24} color="#FF5252" />
+                                  </TouchableOpacity>
+                                </View>
                               </View>
-                              <Ionicons
-                                name={expandedResources[resource.id] ? "chevron-up" : "chevron-down"}
-                                size={24}
-                                color="#BB86FC"
-                              />
-                            </TouchableOpacity>
+                            ) : (
+                              <>
+                                <TouchableOpacity
+                                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                                  onPress={() => toggleResourceExpansion(resource.id)}
+                                >
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={styles.scoreTitle}>{resource.name}</Text>
+                                    {resource.description && (
+                                      <Text style={styles.resourceDescription}>{resource.description}</Text>
+                                    )}
+                                  </View>
+                                  <Ionicons
+                                    name={expandedResources[resource.id] ? "chevron-up" : "chevron-down"}
+                                    size={24}
+                                    color="#BB86FC"
+                                  />
+                                </TouchableOpacity>
+                                {isAdminMode && (
+                                  <View style={{ flexDirection: 'row', marginLeft: 8 }}>
+                                    <TouchableOpacity
+                                      style={styles.iconButton}
+                                      onPress={() => {
+                                        setEditingResourceId(resource.id);
+                                        setEditingResourceName(resource.name);
+                                        setEditingResourceUrl(resource.url);
+                                        setEditingResourceDescription(resource.description || '');
+                                        setEditingResourceType(resource.type);
+                                      }}
+                                    >
+                                      <Ionicons name="create-outline" size={20} color="#BB86FC" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      style={styles.iconButton}
+                                      onPress={() => handleDeleteResource(resource.id)}
+                                    >
+                                      <Ionicons name="trash-outline" size={20} color="#FF5252" />
+                                    </TouchableOpacity>
+                                  </View>
+                                )}
+                              </>
+                            )}
                           </View>
-                    {expandedResources[resource.id] && (
+                    {expandedResources[resource.id] && editingResourceId !== resource.id && (
                       <View style={styles.resourceContent}>
                         {resource.type === 'youtube' ? (
                           <View style={styles.sheetMusicView}>
@@ -5950,18 +6430,43 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     </Text>
                   </View>
                   
-                  {filteredSongs.length > 0 && currentFilteredIndex >= 0 && (
-                    <TouchableOpacity 
-                      style={styles.toggleButton}
-                      onPress={() => setShowNavigationControls(!showNavigationControls)}
-                    >
-                      <Ionicons 
-                        name={showNavigationControls ? "chevron-up" : "chevron-down"} 
-                        size={24} 
-                        color="#BB86FC" 
-                      />
-                    </TouchableOpacity>
-                  )}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 80 }}>
+                    {isAdminMode ? (
+                      <TouchableOpacity 
+                        style={[styles.iconButton, { marginRight: 8 }]}
+                        onPress={() => {
+                          setIsAdminMode(false);
+                          onAdminModeChange?.(false);
+                        }}
+                      >
+                        <Ionicons name="lock-open-outline" size={24} color="#BB86FC" />
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity 
+                        style={[styles.iconButton, { marginRight: 8 }]}
+                        onPress={() => {
+                          setPendingSongOperation('admin');
+                          setShowSongPasswordDialog(true);
+                          setSongPassword('');
+                          setSongPasswordError('');
+                        }}
+                      >
+                        <Ionicons name="lock-closed-outline" size={24} color="#BB86FC" />
+                      </TouchableOpacity>
+                    )}
+                    {filteredSongs.length > 0 && currentFilteredIndex >= 0 && (
+                      <TouchableOpacity 
+                        style={styles.iconButton}
+                        onPress={() => setShowNavigationControls(!showNavigationControls)}
+                      >
+                        <Ionicons 
+                          name={showNavigationControls ? "chevron-up" : "chevron-down"} 
+                          size={24} 
+                          color="#BB86FC" 
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               </View>
             )}
@@ -6584,9 +7089,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   toggleButton: {
-    position: 'absolute',
-    right: 0,
-    zIndex: 1,
+    padding: 4,
   },
   searchContainer: {
     flex: 1,
@@ -7066,6 +7569,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2C2C2C',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  addButtonText: {
+    color: '#BB86FC',
+    fontSize: 16,
+    fontWeight: '600',
   },
   expandButton: {
     flexDirection: 'row',
