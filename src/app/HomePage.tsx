@@ -241,6 +241,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [showNavigationControls, setShowNavigationControls] = useState(true);
   const [showFilteredSongsModal, setShowFilteredSongsModal] = useState(false);
   const [isFilteredRepeating, setIsFilteredRepeating] = useState(false);
+  const [shouldAutoStartFiltered, setShouldAutoStartFiltered] = useState(false);
   // Playlist controls toggle state
   const [showPlaylistControls, setShowPlaylistControls] = useState(true);
   // Playlist player removed - using main audio system
@@ -868,13 +869,37 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               setShowPlaylistControls(true);
               Alert.alert('Playlist Complete', 'All songs in the playlist have been played');
             }
+          } else if (!isPlaylistMode && filteredSongs.length > 0 && currentFilteredIndex >= 0) {
+            // Auto-advance to next song in filtered songs
+            let nextIndex = currentFilteredIndex < filteredSongs.length - 1 ? currentFilteredIndex + 1 : 0;
+            
+            // If repeating is enabled and we're at the end, restart from beginning
+            if (nextIndex === 0 && currentFilteredIndex === filteredSongs.length - 1 && !isFilteredRepeating) {
+              // Don't loop if repeat is not enabled - song finished, stay on current song
+              console.log('Filtered songs finished - no repeat enabled');
+            } else {
+              const nextSong = filteredSongs[nextIndex];
+              if (nextSong) {
+                setCurrentFilteredIndex(nextIndex);
+                setSelectedSong(nextSong);
+                setIsFinished(false);
+                setIsPlaying(false);
+                setIsInitialized(false);
+                setShouldAutoStartFiltered(true); // Auto-start the next song
+                
+                // Small delay to ensure proper cleanup before loading new song
+                setTimeout(() => {
+                  handleSongSelect(nextSong);
+                }, 100);
+              }
+            }
           }
         }
       }
     }, 50);
 
     return () => clearInterval(progressInterval);
-  }, [isPlaying, isSeeking, players, isInitialized, selectedSong, isFinished, activeTrackIds, isRepeat, isPlaylistMode, currentPlaylist, playlistSongs, currentPlaylistIndex]);
+  }, [isPlaying, isSeeking, players, isInitialized, selectedSong, isFinished, activeTrackIds, isRepeat, isPlaylistMode, currentPlaylist, playlistSongs, currentPlaylistIndex, currentFilteredIndex, isFilteredRepeating]);
 
   // Optimize handleSeek function
   const handleSeek = async (trackId: string, value: number) => {
@@ -1217,10 +1242,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       } else {
         // Current song is no longer in filtered list, reset index
         setCurrentFilteredIndex(-1);
+        setShouldAutoStartFiltered(false); // Reset auto-start flag when song is no longer in filtered list
       }
     } else if (!selectedSong) {
       // No song selected, reset index
       setCurrentFilteredIndex(-1);
+      setShouldAutoStartFiltered(false); // Reset auto-start flag when no song selected
     }
   }, [filteredSongs, selectedSong, isPlaylistMode]);
 
@@ -1941,6 +1968,27 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setTimeout(startPlayback, 200);
     }
   }, [isInitialized, isPlaylistMode, selectedSong, isPlaying, lastAutoStartedSong]);
+
+  // Auto-start playback when returning from back button in filtered songs mode
+  useEffect(() => {
+    if (isInitialized && !isPlaylistMode && selectedSong && !isPlaying && shouldAutoStartFiltered && filteredSongs.length > 0 && currentFilteredIndex >= 0) {
+      console.log('Auto-starting filtered song playback after back button:', { isInitialized, selectedSong: selectedSong.title, isPlaying });
+      setShouldAutoStartFiltered(false);
+      
+      const startPlayback = async () => {
+        try {
+          console.log('Calling startLocalPlayback for filtered song...');
+          await startLocalPlayback();
+          console.log('startLocalPlayback completed successfully');
+        } catch (error) {
+          console.error('Error auto-starting filtered song playback:', error);
+        }
+      };
+      
+      // Small delay to ensure everything is ready
+      setTimeout(startPlayback, 200);
+    }
+  }, [isInitialized, selectedSong, isPlaying, shouldAutoStartFiltered, filteredSongs.length, currentFilteredIndex, isPlaylistMode]);
 
   const deleteSession = async (sessionIdToDelete: string) => {
     try {
