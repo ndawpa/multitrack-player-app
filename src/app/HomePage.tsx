@@ -387,6 +387,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   });
   const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
   const [selectedAlbums, setSelectedAlbums] = useState<Set<string>>(new Set());
+  const [artistSearchQuery, setArtistSearchQuery] = useState('');
+  const [albumSearchQuery, setAlbumSearchQuery] = useState('');
   
   // Screen orientation state
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
@@ -1241,6 +1243,28 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     );
     return Array.from(albums).sort();
   }, [songs, selectedArtists]);
+
+  // Filtered artists based on search query
+  const filteredArtists = useMemo(() => {
+    if (!artistSearchQuery.trim()) {
+      return uniqueArtists;
+    }
+    const query = normalizeSearchText(artistSearchQuery);
+    return uniqueArtists.filter(artist => 
+      normalizeSearchText(artist).includes(query)
+    );
+  }, [uniqueArtists, artistSearchQuery]);
+
+  // Filtered albums based on search query
+  const filteredAlbums = useMemo(() => {
+    if (!albumSearchQuery.trim()) {
+      return uniqueAlbums;
+    }
+    const query = normalizeSearchText(albumSearchQuery);
+    return uniqueAlbums.filter(album => 
+      normalizeSearchText(album).includes(query)
+    );
+  }, [uniqueAlbums, albumSearchQuery]);
 
   const toggleArtistSelection = (artist: string) => {
     setSelectedArtists(prev => {
@@ -2139,7 +2163,25 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 </TouchableOpacity>
                 {expandedFilterSections.artist && (
                   <View style={styles.filterSectionContent}>
-                    {uniqueArtists.map(artist => (
+                    <View style={styles.filterSearchContainer}>
+                      <Ionicons name="search" size={16} color="#BBBBBB" style={styles.filterSearchIcon} />
+                      <TextInput
+                        style={styles.filterSearchInput}
+                        placeholder="Search artists..."
+                        placeholderTextColor="#666666"
+                        value={artistSearchQuery}
+                        onChangeText={setArtistSearchQuery}
+                      />
+                      {artistSearchQuery.length > 0 && (
+                        <TouchableOpacity
+                          onPress={() => setArtistSearchQuery('')}
+                          style={styles.filterSearchClearButton}
+                        >
+                          <Ionicons name="close-circle" size={18} color="#BBBBBB" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    {filteredArtists.map(artist => (
                   <TouchableOpacity
                     key={artist}
                     style={styles.artistFilterOption}
@@ -2158,6 +2200,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     </View>
                   </TouchableOpacity>
                     ))}
+                    {filteredArtists.length === 0 && artistSearchQuery.trim() && (
+                      <Text style={styles.emptyFilterText}>No artists found</Text>
+                    )}
                     {uniqueArtists.length > 0 && (
                       <TouchableOpacity 
                         style={styles.clearSectionButton}
@@ -2185,9 +2230,27 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 </TouchableOpacity>
                 {expandedFilterSections.album && (
                   <View style={styles.filterSectionContent}>
+                    <View style={styles.filterSearchContainer}>
+                      <Ionicons name="search" size={16} color="#BBBBBB" style={styles.filterSearchIcon} />
+                      <TextInput
+                        style={styles.filterSearchInput}
+                        placeholder="Search albums..."
+                        placeholderTextColor="#666666"
+                        value={albumSearchQuery}
+                        onChangeText={setAlbumSearchQuery}
+                      />
+                      {albumSearchQuery.length > 0 && (
+                        <TouchableOpacity
+                          onPress={() => setAlbumSearchQuery('')}
+                          style={styles.filterSearchClearButton}
+                        >
+                          <Ionicons name="close-circle" size={18} color="#BBBBBB" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     {uniqueAlbums.length > 0 ? (
                   <>
-                    {uniqueAlbums.map(album => (
+                    {filteredAlbums.map(album => (
                       <TouchableOpacity
                         key={album}
                         style={styles.artistFilterOption}
@@ -2206,6 +2269,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         </View>
                       </TouchableOpacity>
                     ))}
+                    {filteredAlbums.length === 0 && albumSearchQuery.trim() && (
+                      <Text style={styles.emptyFilterText}>No albums found</Text>
+                    )}
                     {selectedAlbums.size > 0 && (
                       <TouchableOpacity 
                         style={styles.clearSectionButton}
@@ -8426,6 +8492,29 @@ const styles = StyleSheet.create({
   filterSectionContent: {
     paddingTop: 8,
     paddingBottom: 8,
+  },
+  filterSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  filterSearchIcon: {
+    marginRight: 8,
+  },
+  filterSearchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    paddingVertical: 4,
+  },
+  filterSearchClearButton: {
+    marginLeft: 8,
+    padding: 4,
   },
   clearSectionButton: {
     marginTop: 8,
