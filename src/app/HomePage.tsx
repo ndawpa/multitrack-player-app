@@ -1631,7 +1631,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             onPress={(event) => handleToggleFavorite(item.id, event)}
           >
             <Ionicons 
-              name={favoriteSongs.has(item.id) ? "star" : "star-outline"} 
+              name={favoriteSongs.has(item.id) ? "heart" : "heart-outline"} 
               size={24} 
               color={favoriteSongs.has(item.id) ? "#BB86FC" : "#BBBBBB"} 
             />
@@ -7171,7 +7171,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               onPress={toggleFavoritesFilter}
             >
               <Ionicons 
-                name="star" 
+                name="heart" 
                 size={24} 
                 color={showFavoritesOnly ? "#BB86FC" : "#BB86FC"} 
               />
