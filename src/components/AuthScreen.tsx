@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import { LoginForm, SignupForm } from '../types/user';
 import Button from './Button';
+import { useI18n } from '../contexts/I18nContext';
 
 interface AuthScreenProps {
   onAuthSuccess: () => void;
@@ -25,6 +26,7 @@ interface AuthScreenProps {
 
 const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword, onEmailVerificationNeeded }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -44,7 +46,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
 
   const handleLogin = async () => {
     if (!loginForm.email || !loginForm.password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('auth.error'), t('auth.fillAllFields'));
       return;
     }
 
@@ -53,7 +55,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
       await authService.signIn(loginForm);
       onAuthSuccess();
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message || 'An error occurred during login');
+      Alert.alert(t('auth.loginFailed'), error.message || t('auth.errorOccurred'));
     } finally {
       setLoading(false);
     }
@@ -61,12 +63,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
 
   const handleSignup = async () => {
     if (!signupForm.email || !signupForm.password || !signupForm.displayName) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('auth.error'), t('auth.fillAllFields'));
       return;
     }
 
     if (signupForm.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('auth.error'), t('auth.passwordMinLength'));
       return;
     }
 
@@ -79,7 +81,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
         onAuthSuccess();
       }
     } catch (error: any) {
-      Alert.alert('Signup Failed', error.message || 'An error occurred during signup');
+      Alert.alert(t('auth.signupFailed'), error.message || t('auth.errorOccurred'));
     } finally {
       setLoading(false);
     }
@@ -98,28 +100,28 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Kit de Voz</Text>
+          <Text style={styles.title}>{t('appName')}</Text>
           <Text style={styles.subtitle}>
-            {isLogin ? 'Welcome back!' : 'Create your account'}
+            {isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}
           </Text>
         </View>
 
         <View style={[styles.form, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}>
           {!isLogin && (
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Display Name</Text>
+              <Text style={styles.label}>{t('auth.displayName')}</Text>
               <TextInput
                 style={styles.input}
                 value={signupForm.displayName}
                 onChangeText={(text) => setSignupForm({ ...signupForm, displayName: text })}
-                placeholder="Enter your name"
+                placeholder={t('auth.enterName')}
                 autoCapitalize="words"
               />
             </View>
           )}
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('auth.email')}</Text>
             <TextInput
               style={styles.input}
               value={isLogin ? loginForm.email : signupForm.email}
@@ -128,7 +130,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
                   ? setLoginForm({ ...loginForm, email: text })
                   : setSignupForm({ ...signupForm, email: text })
               }
-              placeholder="Enter your email"
+              placeholder={t('auth.enterEmail')}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -136,7 +138,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>{t('auth.password')}</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
@@ -146,7 +148,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
                     ? setLoginForm({ ...loginForm, password: text })
                     : setSignupForm({ ...signupForm, password: text })
                 }
-                placeholder="Enter your password"
+                placeholder={t('auth.enterPassword')}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -166,7 +168,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
 
           {isLogin && (
             <Button
-              title="Forgot Password?"
+              title={t('auth.forgotPassword')}
               onPress={onForgotPassword}
               variant="tertiary"
               size="small"
@@ -175,7 +177,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
           )}
 
           <Button
-            title={isLogin ? 'Sign In' : 'Sign Up'}
+            title={isLogin ? t('auth.signIn') : t('auth.signUp')}
             onPress={isLogin ? handleLogin : handleSignup}
             loading={loading}
             variant="primary"
@@ -184,10 +186,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
           />
 
           <Button
-            title={isLogin 
-              ? "Don't have an account? Sign up" 
-              : "Already have an account? Sign in"
-            }
+            title={isLogin ? t('auth.noAccount') : t('auth.hasAccount')}
             onPress={toggleAuthMode}
             variant="tertiary"
             size="medium"

@@ -17,6 +17,7 @@ import { User } from '../types/user';
 import Header from './Header';
 import Button from './Button';
 import { commonStyles, spacingStyles } from '../theme/layout';
+import { useI18n } from '../contexts/I18nContext';
 
 interface ProfileScreenProps {
   onNavigateToSettings: () => void;
@@ -34,6 +35,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onAdminModeChange
 }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -58,19 +60,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   const handleSignOut = () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
+      t('profile.signOut'),
+      t('profile.signOutConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         { 
-          text: 'Sign Out', 
+          text: t('profile.signOut'), 
           style: 'destructive',
           onPress: async () => {
             try {
               await authService.signOut();
               onSignOut();
             } catch (error) {
-              Alert.alert('Error', 'Failed to sign out');
+              Alert.alert(t('common.error'), t('profile.signOutFailed'));
             }
           }
         }
@@ -103,7 +105,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
       setPasswordError('');
       onAdminModeChange?.(true);
     } else {
-      setPasswordError('Incorrect password. Please try again.');
+      setPasswordError(t('profile.incorrectPassword'));
       setPassword('');
     }
   };
@@ -128,7 +130,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     return (
       <SafeAreaView style={commonStyles.container}>
         <View style={commonStyles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <Text style={styles.loadingText}>{t('profile.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -138,7 +140,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     return (
       <SafeAreaView style={commonStyles.container}>
         <View style={commonStyles.errorContainer}>
-          <Text style={styles.errorText}>Failed to load profile</Text>
+          <Text style={styles.errorText}>{t('profile.failedToLoad')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -146,7 +148,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   return (
     <SafeAreaView style={commonStyles.container}>
-      <Header title="Profile" onBack={onBack} />
+      <Header title={t('profile.title')} onBack={onBack} />
       
       <ScrollView 
         style={styles.scrollView}
@@ -169,37 +171,37 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Stats Section */}
         <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Your Stats</Text>
+          <Text style={commonStyles.sectionTitle}>{t('profile.yourStats')}</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{user.stats.totalSessions || 0}</Text>
-              <Text style={styles.statLabel}>Sessions</Text>
+              <Text style={styles.statLabel}>{t('profile.sessions')}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{formatPlayTime(user.stats.totalPlayTime || 0)}</Text>
-              <Text style={styles.statLabel}>Play Time</Text>
+              <Text style={styles.statLabel}>{t('profile.playTime')}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{user.stats.favoriteArtists?.length || 0}</Text>
-              <Text style={styles.statLabel}>Favorite Artists</Text>
+              <Text style={styles.statLabel}>{t('profile.favoriteArtists')}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{user.stats.favoriteSongs?.length || 0}</Text>
-              <Text style={styles.statLabel}>Favorite Songs</Text>
+              <Text style={styles.statLabel}>{t('profile.favoriteSongs')}</Text>
             </View>
           </View>
         </View>
 
         {/* Account Info */}
         <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Account Info</Text>
+          <Text style={commonStyles.sectionTitle}>{t('profile.accountInfo')}</Text>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Member since</Text>
-            <Text style={styles.infoValue}>{user.stats.joinedDate ? formatDate(user.stats.joinedDate) : 'Unknown'}</Text>
+            <Text style={styles.infoLabel}>{t('profile.memberSince')}</Text>
+            <Text style={styles.infoValue}>{user.stats.joinedDate ? formatDate(user.stats.joinedDate) : t('profile.unknown')}</Text>
           </View>
           {user.stats.lastSessionDate && (
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Last session</Text>
+              <Text style={styles.infoLabel}>{t('profile.lastSession')}</Text>
               <Text style={styles.infoValue}>{formatDate(user.stats.lastSessionDate)}</Text>
             </View>
           )}
@@ -207,7 +209,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Quick Actions */}
         <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Quick Actions</Text>
+          <Text style={commonStyles.sectionTitle}>{t('profile.quickActions')}</Text>
           
           <TouchableOpacity style={styles.actionButton} onPress={handleAdminModeToggle}>
             <Ionicons 
@@ -216,19 +218,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
               color={isAdminMode ? "#4CAF50" : "#BB86FC"} 
             />
             <Text style={[styles.actionText, isAdminMode && { color: '#4CAF50' }]}>
-              {isAdminMode ? 'Admin Mode (Active)' : 'Admin Mode'}
+              {isAdminMode ? t('profile.adminModeActive') : t('profile.adminMode')}
             </Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.actionButton} onPress={onNavigateToSettings}>
             <Ionicons name="settings" size={20} color="#BB86FC" />
-            <Text style={styles.actionText}>Settings</Text>
+            <Text style={styles.actionText}>{t('profile.settings')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
           
           <Button
-            title="Sign Out"
+            title={t('profile.signOut')}
             onPress={handleSignOut}
             variant="danger"
             size="medium"
@@ -245,8 +247,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <View style={styles.passwordDialog}>
             <View style={styles.passwordDialogHeader}>
               <Ionicons name="lock-closed" size={32} color="#BB86FC" />
-              <Text style={styles.passwordDialogTitle}>Admin Mode</Text>
-              <Text style={styles.passwordDialogSubtitle}>Enter password to access</Text>
+              <Text style={styles.passwordDialogTitle}>{t('profile.adminMode')}</Text>
+              <Text style={styles.passwordDialogSubtitle}>{t('profile.enterPassword')}</Text>
             </View>
             
             <View style={styles.passwordDialogContent}>
@@ -254,7 +256,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 style={styles.passwordDialogInput}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Enter admin password"
+                placeholder={t('profile.enterAdminPassword')}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -267,14 +269,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
             
             <View style={styles.passwordDialogButtons}>
               <Button
-                title="Cancel"
+                title={t('common.cancel')}
                 onPress={handlePasswordDialogCancel}
                 variant="secondary"
                 size="medium"
                 style={styles.passwordDialogCancelButton}
               />
               <Button
-                title="Enter"
+                title={t('profile.enter')}
                 onPress={handlePasswordVerification}
                 variant="primary"
                 size="medium"

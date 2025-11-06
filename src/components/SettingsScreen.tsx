@@ -18,6 +18,7 @@ import { User, UserPreferences } from '../types/user';
 import Header from './Header';
 import Button from './Button';
 import { commonStyles, spacingStyles } from '../theme/layout';
+import { useI18n } from '../contexts/I18nContext';
 
 /**
  * SettingsScreen - Enhanced with improved error handling
@@ -36,6 +37,7 @@ interface SettingsScreenProps {
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const insets = useSafeAreaInsets();
+  const { t, setLanguage } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,13 +78,13 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   // Validate display name
   const validateDisplayName = (name: string): string => {
     if (!name.trim()) {
-      return 'Display name cannot be empty';
+      return t('settings.displayNameEmpty');
     }
     if (name.trim().length < 2) {
-      return 'Display name must be at least 2 characters';
+      return t('settings.displayNameMinLength');
     }
     if (name.trim().length > 50) {
-      return 'Display name must be less than 50 characters';
+      return t('settings.displayNameMaxLength');
     }
     return '';
   };
@@ -119,18 +121,18 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       setPreferences(updatedPreferences);
     } catch (error: any) {
       console.error('Error updating preferences:', error);
-      let errorMessage = 'Failed to update preferences';
+      let errorMessage = t('settings.failedToUpdate');
       
       // Provide more specific error messages
       if (error.code === 'auth/network-request-failed') {
-        errorMessage = 'Network error. Please check your connection.';
+        errorMessage = t('settings.networkError');
       } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many requests. Please try again later.';
+        errorMessage = t('settings.tooManyRequests');
       } else if (error.message) {
         errorMessage = error.message;
       }
       
-      showErrorBanner(`Error updating profile: ${errorMessage}`, 'preferences');
+      showErrorBanner(`${t('settings.errorUpdatingProfile')}: ${errorMessage}`, 'preferences');
     } finally {
       setSaving(false);
     }
@@ -158,20 +160,20 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       setEditingName(false);
     } catch (error: any) {
       console.error('Error updating display name:', error);
-      let errorMessage = 'Failed to update display name';
+      let errorMessage = t('settings.failedToUpdateDisplayName');
       
       // Provide more specific error messages
       if (error.code === 'auth/network-request-failed') {
-        errorMessage = 'Network error. Please check your connection.';
+        errorMessage = t('settings.networkError');
       } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many requests. Please try again later.';
+        errorMessage = t('settings.tooManyRequests');
       } else if (error.code === 'auth/invalid-display-name') {
-        errorMessage = 'Invalid display name format.';
+        errorMessage = t('settings.invalidDisplayName');
       } else if (error.message) {
         errorMessage = error.message;
       }
       
-      Alert.alert('Error', errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
     } finally {
       setSaving(false);
     }
@@ -186,7 +188,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     return (
       <SafeAreaView style={commonStyles.container}>
         <View style={commonStyles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading settings...</Text>
+          <Text style={styles.loadingText}>{t('settings.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -196,15 +198,24 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     return (
       <SafeAreaView style={commonStyles.container}>
         <View style={commonStyles.errorContainer}>
-          <Text style={styles.errorText}>Failed to load settings</Text>
+          <Text style={styles.errorText}>{t('settings.failedToLoad')}</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  const handleLanguageChange = async (langCode: string) => {
+    // Use setLanguage from I18nContext which handles both context update and Firebase save
+    await setLanguage(langCode as 'en' | 'es' | 'pt');
+    // Also update local preferences state for immediate UI update
+    if (preferences) {
+      setPreferences({ ...preferences, language: langCode });
+    }
+  };
+
   return (
     <SafeAreaView style={commonStyles.container}>
-      <Header title="Settings" onBack={onBack} />
+      <Header title={t('settings.title')} onBack={onBack} />
 
       <ScrollView 
         style={styles.scrollView}
@@ -214,11 +225,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         <View style={commonStyles.section}>
           <View style={commonStyles.sectionHeader}>
             <Ionicons name="person-outline" size={20} color="#BB86FC" />
-            <Text style={commonStyles.sectionTitle}>Profile</Text>
+            <Text style={commonStyles.sectionTitle}>{t('settings.profile')}</Text>
           </View>
           
           <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Display Name</Text>
+            <Text style={styles.settingLabel}>{t('settings.displayName')}</Text>
             {editingName ? (
               <View>
                 <View style={styles.editContainer}>
@@ -234,7 +245,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                         setDisplayNameError('');
                       }
                     }}
-                    placeholder="Enter display name"
+                    placeholder={t('settings.enterDisplayName')}
                     placeholderTextColor="#666"
                   />
                   <Button
@@ -275,11 +286,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         <View style={commonStyles.section}>
           <View style={commonStyles.sectionHeader}>
             <Ionicons name="color-palette-outline" size={20} color="#BB86FC" />
-            <Text style={commonStyles.sectionTitle}>Appearance</Text>
+            <Text style={commonStyles.sectionTitle}>{t('settings.appearance')}</Text>
           </View>
           
           <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Theme</Text>
+            <Text style={styles.settingLabel}>{t('settings.theme')}</Text>
             <View style={styles.themeOptions}>
               {(['light', 'dark', 'auto'] as const).map((theme) => (
                 <TouchableOpacity
@@ -294,7 +305,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                     styles.themeOptionText,
                     preferences.theme === theme && styles.themeOptionTextSelected
                   ]}>
-                    {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                    {t(`settings.${theme}`)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -306,11 +317,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         <View style={commonStyles.section}>
           <View style={commonStyles.sectionHeader}>
             <Ionicons name="volume-high-outline" size={20} color="#BB86FC" />
-            <Text style={commonStyles.sectionTitle}>Audio</Text>
+            <Text style={commonStyles.sectionTitle}>{t('settings.audio')}</Text>
           </View>
           
           <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Default Playback Speed</Text>
+            <Text style={styles.settingLabel}>{t('settings.defaultPlaybackSpeed')}</Text>
             <View style={styles.speedOptions}>
               {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) => (
                 <TouchableOpacity
@@ -335,9 +346,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           <View style={styles.settingItem}>
             <View style={styles.switchContainer}>
               <View>
-                <Text style={styles.settingLabel}>Auto-play</Text>
+                <Text style={styles.settingLabel}>{t('settings.autoPlay')}</Text>
                 <Text style={styles.settingDescription}>
-                  Automatically start playing when selecting a song
+                  {t('settings.autoPlayDescription')}
                 </Text>
               </View>
               <Switch
@@ -378,15 +389,15 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         <View style={commonStyles.section}>
           <View style={commonStyles.sectionHeader}>
             <Ionicons name="notifications-outline" size={20} color="#BB86FC" />
-            <Text style={commonStyles.sectionTitle}>Notifications</Text>
+            <Text style={commonStyles.sectionTitle}>{t('settings.notifications')}</Text>
           </View>
           
           <View style={styles.settingItem}>
             <View style={styles.switchContainer}>
               <View>
-                <Text style={styles.settingLabel}>Push Notifications</Text>
+                <Text style={styles.settingLabel}>{t('settings.pushNotifications')}</Text>
                 <Text style={styles.settingDescription}>
-                  Receive notifications for session invites and updates
+                  {t('settings.notificationsDescription')}
                 </Text>
               </View>
               <Switch
@@ -403,16 +414,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         <View style={commonStyles.section}>
           <View style={commonStyles.sectionHeader}>
             <Ionicons name="language-outline" size={20} color="#BB86FC" />
-            <Text style={commonStyles.sectionTitle}>Language</Text>
+            <Text style={commonStyles.sectionTitle}>{t('settings.language')}</Text>
           </View>
           
           <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Language</Text>
+            <Text style={styles.settingLabel}>{t('settings.language')}</Text>
             <View style={styles.languageOptions}>
               {[
-                { code: 'en', name: 'English' },
-                { code: 'es', name: 'Español' },
-                { code: 'pt', name: 'Português' },
+                { code: 'en', name: t('languages.en') },
+                { code: 'es', name: t('languages.es') },
+                { code: 'pt', name: t('languages.pt') },
               ].map((lang) => (
                 <TouchableOpacity
                   key={lang.code}
@@ -420,7 +431,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                     styles.languageOption,
                     preferences.language === lang.code && styles.languageOptionSelected
                   ]}
-                  onPress={() => handlePreferenceChange('language', lang.code)}
+                  onPress={() => handleLanguageChange(lang.code)}
                 >
                   <Text style={[
                     styles.languageOptionText,

@@ -12,6 +12,7 @@ import HomePage from './HomePage';
 import { User } from '../types/user';
 import { Song } from '../types/song';
 import { Playlist } from '../types/playlist';
+import { I18nProvider } from '../contexts/I18nContext';
 
 type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification' | 'playlists';
 
@@ -136,14 +137,19 @@ const App = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#BB86FC" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      <I18nProvider>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#BB86FC" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </I18nProvider>
     );
   }
 
-  switch (currentScreen) {
+  return (
+    <I18nProvider>
+      {(() => {
+        switch (currentScreen) {
     case 'auth':
       return (
         <AuthScreen 
@@ -239,7 +245,10 @@ const App = () => {
           onAdminModeChange={handleAdminModeChange}
         />
       );
-  }
+        }
+      })()}
+    </I18nProvider>
+  );
 };
 
 const styles = StyleSheet.create({

@@ -30,6 +30,7 @@ import GroupManagement from '../components/GroupManagement';
 import SongAccessManagement from '../components/SongAccessManagement';
 import GroupService from '../services/groupService';
 import { normalizeSearchText, matchesSearch, findMatchesInText } from '../utils/textNormalization';
+import { useI18n } from '../contexts/I18nContext';
 
 // Custom ID generator
 const generateId = () => {
@@ -197,6 +198,7 @@ interface HomePageProps {
 
 const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPlaylists, user, playlistToPlay, onPlaylistPlayed, isAdminMode: propIsAdminMode, onAdminModeChange }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [players, setPlayers] = useState<Audio.Sound[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -2124,7 +2126,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           <Ionicons name="search" size={20} color="#BBBBBB" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search songs..."
+            placeholder={t('home.search')}
             placeholderTextColor="#666666"
             value={searchQuery}
             onChangeText={handleSearchQueryChange}
@@ -2200,7 +2202,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       {showFilterDialog && (
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogContainer}>
-            <Text style={styles.dialogTitle}>Filters</Text>
+            <Text style={styles.dialogTitle}>{t('home.filters')}</Text>
             <ScrollView style={styles.dialogScrollView}>
               {/* Artist Filter Section */}
               <View style={styles.filterSectionBox}>
@@ -2208,7 +2210,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   style={styles.filterSectionHeader}
                   onPress={() => setExpandedFilterSections(prev => ({ ...prev, artist: !prev.artist }))}
                 >
-                  <Text style={styles.filterSectionTitle}>Filter by Artist</Text>
+                  <Text style={styles.filterSectionTitle}>{t('home.artists')}</Text>
                   <Ionicons 
                     name={expandedFilterSections.artist ? "chevron-up" : "chevron-down"} 
                     size={20} 
@@ -2221,7 +2223,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       <Ionicons name="search" size={16} color="#BBBBBB" style={styles.filterSearchIcon} />
                       <TextInput
                         style={styles.filterSearchInput}
-                        placeholder="Search artists..."
+                        placeholder={t('home.search')}
                         placeholderTextColor="#666666"
                         value={artistSearchQuery}
                         onChangeText={setArtistSearchQuery}
@@ -2275,7 +2277,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   style={styles.filterSectionHeader}
                   onPress={() => setExpandedFilterSections(prev => ({ ...prev, album: !prev.album }))}
                 >
-                  <Text style={styles.filterSectionTitle}>Filter by Album</Text>
+                  <Text style={styles.filterSectionTitle}>{t('home.albums')}</Text>
                   <Ionicons 
                     name={expandedFilterSections.album ? "chevron-up" : "chevron-down"} 
                     size={20} 
@@ -2288,7 +2290,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       <Ionicons name="search" size={16} color="#BBBBBB" style={styles.filterSearchIcon} />
                       <TextInput
                         style={styles.filterSearchInput}
-                        placeholder="Search albums..."
+                        placeholder={t('home.search')}
                         placeholderTextColor="#666666"
                         value={albumSearchQuery}
                         onChangeText={setAlbumSearchQuery}
