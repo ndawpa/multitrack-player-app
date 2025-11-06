@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Markdown from 'react-native-markdown-display';
 import AIAssistantService, { ChatMessage } from '../services/aiAssistantService';
+import AIAssistantAccessService from '../services/aiAssistantAccessService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types/user';
 
@@ -37,12 +38,36 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
   const [model, setModel] = useState('gpt-4o-mini');
   const [showSettings, setShowSettings] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
+  const [hasAccess, setHasAccess] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
   const aiService = AIAssistantService.getInstance();
+  const accessService = AIAssistantAccessService.getInstance();
 
   useEffect(() => {
     loadSettings();
-  }, []);
+    checkAccess();
+  }, [user]);
+
+  const checkAccess = async () => {
+    if (user?.id) {
+      try {
+        const access = await accessService.checkUserAccess(user.id);
+        setHasAccess(access);
+        if (!access) {
+          Alert.alert(
+            'Access Restricted',
+            'You do not have access to the AI Assistant. Please contact your administrator if you believe this is an error.',
+            [{ text: 'OK', onPress: onBack }]
+          );
+        }
+      } catch (error) {
+        console.error('Error checking AI Assistant access:', error);
+        setHasAccess(false);
+      }
+    } else {
+      setHasAccess(false);
+    }
+  };
 
   useEffect(() => {
     if (scrollViewRef.current && messages.length > 0) {
@@ -122,6 +147,14 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
 
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
+
+    if (!hasAccess) {
+      Alert.alert(
+        'Access Restricted',
+        'You do not have access to the AI Assistant. Please contact your administrator.'
+      );
+      return;
+    }
 
     if (!isConfigured) {
       Alert.alert('Configuration Required', 'Please configure your AI API key in settings first.');

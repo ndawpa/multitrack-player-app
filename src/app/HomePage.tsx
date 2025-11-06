@@ -20,6 +20,7 @@ import * as FileSystem from 'expo-file-system';
 import { User, FilterState } from '../types/user';
 import AuthService from '../services/authService';
 import FavoritesService from '../services/favoritesService';
+import AIAssistantAccessService from '../services/aiAssistantAccessService';
 import PlaylistPlayerService from '../services/playlistPlayerService';
 import PlaylistService from '../services/playlistService';
 import TrackStateService, { TrackState, SongTrackStates } from '../services/trackStateService';
@@ -370,6 +371,27 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
     loadUserGroups();
   }, [user?.id]);
+
+  // Check AI Assistant access when user changes
+  useEffect(() => {
+    const checkAIAssistantAccess = async () => {
+      if (user?.id) {
+        try {
+          const accessService = AIAssistantAccessService.getInstance();
+          const hasAccess = await accessService.checkUserAccess(user.id);
+          setHasAIAssistantAccess(hasAccess);
+          console.log('AI Assistant access:', hasAccess);
+        } catch (error) {
+          console.error('Error checking AI Assistant access:', error);
+          setHasAIAssistantAccess(false); // Default to no access on error for security
+        }
+      } else {
+        setHasAIAssistantAccess(false);
+      }
+    };
+
+    checkAIAssistantAccess();
+  }, [user?.id]);
   
   // Song operation password protection states
   const [showSongPasswordDialog, setShowSongPasswordDialog] = useState(false);
@@ -409,6 +431,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [favoritesService] = useState(() => FavoritesService.getInstance());
   const [authService] = useState(() => AuthService.getInstance());
+  
+  // AI Assistant access state
+  const [hasAIAssistantAccess, setHasAIAssistantAccess] = useState(true); // Default to true for backward compatibility
 
   // Load filter state from user preferences
   const loadFilterState = () => {
@@ -7154,7 +7179,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 />
               </TouchableOpacity>
             )}
-            {onNavigateToAIAssistant && (
+            {onNavigateToAIAssistant && hasAIAssistantAccess && (
               <TouchableOpacity
                 style={styles.bottomNavButton}
                 onPress={onNavigateToAIAssistant}

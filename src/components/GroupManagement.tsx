@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import GroupService from '../services/groupService';
+import AIAssistantAccessService from '../services/aiAssistantAccessService';
 import { UserGroup, AdminUserView, GroupFormData } from '../types/group';
 import { normalizeSearchText, matchesSearch } from '../utils/textNormalization';
 
@@ -24,7 +25,7 @@ interface GroupManagementProps {
 }
 
 const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserId = 'admin' }) => {
-  const [activeTab, setActiveTab] = useState<'groups' | 'users' | 'assignments'>('groups');
+  const [activeTab, setActiveTab] = useState<'groups' | 'users' | 'assignments' | 'aiAccess'>('groups');
   const [groups, setGroups] = useState<UserGroup[]>([]);
   const [users, setUsers] = useState<AdminUserView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,10 +60,21 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
   const [bulkAssignmentAction, setBulkAssignmentAction] = useState<'add' | 'remove'>('add');
   const [bulkAssignmentGroups, setBulkAssignmentGroups] = useState<string[]>([]);
 
+  // AI Assistant access state
+  const [aiAccessConfig, setAiAccessConfig] = useState<{
+    enabled: boolean;
+    allowedGroups: string[];
+    visibility: 'public' | 'group_restricted' | 'private';
+  } | null>(null);
+  const [aiAccessLoading, setAiAccessLoading] = useState(false);
+  const [selectedAiGroups, setSelectedAiGroups] = useState<string[]>([]);
+
   const groupService = GroupService.getInstance();
+  const aiAccessService = AIAssistantAccessService.getInstance();
 
   useEffect(() => {
     loadData();
+    loadAIAccessConfig();
     
     // Set up real-time listeners
     const unsubscribeGroups = groupService.onGroupsChange(setGroups);
@@ -73,6 +85,60 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
       unsubscribeUsers();
     };
   }, []);
+
+  const loadAIAccessConfig = async () => {
+    try {
+      setAiAccessLoading(true);
+      const config = await aiAccessService.getAccessConfig();
+      if (config) {
+        setAiAccessConfig({
+          enabled: config.enabled,
+          allowedGroups: config.allowedGroups || [],
+          visibility: config.visibility || 'public'
+        });
+        setSelectedAiGroups(config.allowedGroups || []);
+      } else {
+        // Default config
+        setAiAccessConfig({
+          enabled: true,
+          allowedGroups: [],
+          visibility: 'public'
+        });
+        setSelectedAiGroups([]);
+      }
+    } catch (error) {
+      console.error('Error loading AI access config:', error);
+      Alert.alert('Error', 'Failed to load AI Assistant access configuration');
+    } finally {
+      setAiAccessLoading(false);
+    }
+  };
+
+  const handleToggleAiAccess = async (enabled: boolean) => {
+    try {
+      await aiAccessService.setEnabled(enabled);
+      setAiAccessConfig(prev => prev ? { ...prev, enabled } : null);
+      Alert.alert('Success', `AI Assistant ${enabled ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      console.error('Error toggling AI access:', error);
+      Alert.alert('Error', 'Failed to update AI Assistant access');
+    }
+  };
+
+  const handleUpdateAiAccessGroups = async () => {
+    try {
+      await aiAccessService.setAllowedGroups(selectedAiGroups);
+      setAiAccessConfig(prev => prev ? {
+        ...prev,
+        allowedGroups: selectedAiGroups,
+        visibility: selectedAiGroups.length > 0 ? 'group_restricted' : 'public'
+      } : null);
+      Alert.alert('Success', 'AI Assistant access groups updated');
+    } catch (error) {
+      console.error('Error updating AI access groups:', error);
+      Alert.alert('Error', 'Failed to update AI Assistant access groups');
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -557,6 +623,14 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
             Assignments
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'aiAccess' && styles.activeTab]}
+          onPress={() => setActiveTab('aiAccess')}
+        >
+          <Text style={[styles.tabText, activeTab === 'aiAccess' && styles.activeTabText]}>
+            AI Access
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {activeTab === 'groups' && (
@@ -667,6 +741,126 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
               </View>
             }
           />
+        </View>
+      )}
+
+      {activeTab === 'aiAccess' && (
+        <View style={styles.content}>
+          {aiAccessLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#BB86FC" />
+              <Text style={styles.loadingText}>Loading AI Assistant access configuration...</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>AI Assistant Status</Text>
+                  <Switch
+                    value={aiAccessConfig?.enabled ?? true}
+                    onValueChange={handleToggleAiAccess}
+                    trackColor={{ false: '#767577', true: '#BB86FC' }}
+                    thumbColor={aiAccessConfig?.enabled ? '#FFFFFF' : '#f4f3f4'}
+                  />
+                </View>
+                <Text style={styles.sectionDescription}>
+                  {aiAccessConfig?.enabled 
+                    ? 'AI Assistant is enabled. Configure which groups have access below.'
+                    : 'AI Assistant is disabled. No users can access it.'}
+                </Text>
+              </View>
+
+              {aiAccessConfig?.enabled && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Allowed Groups</Text>
+                  <Text style={styles.sectionDescription}>
+                    Select which groups can access the AI Assistant. If no groups are selected, all users have access.
+                  </Text>
+                  
+                  {groups.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                      <Ionicons name="people-outline" size={48} color="#666" />
+                      <Text style={styles.emptyText}>No groups available</Text>
+                      <Text style={styles.emptySubtext}>Create groups first to manage access</Text>
+                    </View>
+                  ) : (
+                    <ScrollView 
+                      style={styles.groupsScrollView}
+                      nestedScrollEnabled={true}
+                      showsVerticalScrollIndicator={true}
+                    >
+                      {groups.map((item) => {
+                        const isSelected = selectedAiGroups.includes(item.id);
+                        return (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[
+                              styles.groupItem,
+                              isSelected && styles.selectedGroupItem
+                            ]}
+                            onPress={() => {
+                              console.log('Group pressed:', item.id, 'Currently selected:', isSelected);
+                              if (isSelected) {
+                                setSelectedAiGroups(prev => {
+                                  const newSelection = prev.filter(id => id !== item.id);
+                                  console.log('Removed group, new selection:', newSelection);
+                                  return newSelection;
+                                });
+                              } else {
+                                setSelectedAiGroups(prev => {
+                                  const newSelection = [...prev, item.id];
+                                  console.log('Added group, new selection:', newSelection);
+                                  return newSelection;
+                                });
+                              }
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <View style={styles.groupItemContent}>
+                              <View style={[styles.groupColorIndicator, { backgroundColor: item.color || '#BB86FC' }]} />
+                              <View style={styles.groupItemTextContainer}>
+                                <Text style={styles.groupItemName}>{item.name}</Text>
+                                {item.description && (
+                                  <Text style={styles.groupItemDescription}>{item.description}</Text>
+                                )}
+                              </View>
+                            </View>
+                            <Ionicons
+                              name={isSelected ? 'checkbox' : 'checkbox-outline'}
+                              size={24}
+                              color={isSelected ? '#BB86FC' : '#666'}
+                            />
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+
+                  {selectedAiGroups.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.saveButton}
+                      onPress={handleUpdateAiAccessGroups}
+                    >
+                      <Text style={styles.saveButtonText}>
+                        Save Access Configuration ({selectedAiGroups.length} group{selectedAiGroups.length > 1 ? 's' : ''} selected)
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {selectedAiGroups.length === 0 && aiAccessConfig?.allowedGroups && aiAccessConfig.allowedGroups.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.saveButton}
+                      onPress={handleUpdateAiAccessGroups}
+                    >
+                      <Text style={styles.saveButtonText}>
+                        Remove All Restrictions (Make Public)
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </>
+          )}
         </View>
       )}
 
@@ -1882,6 +2076,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 12,
+  },
+  section: {
+    backgroundColor: '#1E1E1E',
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  groupItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupItemTextContainer: {
+    flex: 1,
+  },
+  groupColorIndicator: {
+    width: 4,
+    height: 40,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  groupItemName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  groupItemDescription: {
+    color: '#BBBBBB',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  groupsScrollView: {
+    maxHeight: 300,
+    marginTop: 12,
+  },
+  saveButton: {
+    backgroundColor: '#BB86FC',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

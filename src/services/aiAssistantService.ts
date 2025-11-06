@@ -3,6 +3,7 @@ import { database } from '../config/firebase';
 import { Song } from '../types/song';
 import AuthService from './authService';
 import SongAccessService from './songAccessService';
+import AIAssistantAccessService from './aiAssistantAccessService';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -21,6 +22,7 @@ class AIAssistantService {
   private static instance: AIAssistantService;
   private authService: AuthService;
   private songAccessService: SongAccessService;
+  private accessService: AIAssistantAccessService;
   private config: AIConfig = {
     provider: 'openai',
     model: 'gpt-4o-mini', // Using a cost-effective model
@@ -29,6 +31,7 @@ class AIAssistantService {
   private constructor() {
     this.authService = AuthService.getInstance();
     this.songAccessService = SongAccessService.getInstance();
+    this.accessService = AIAssistantAccessService.getInstance();
   }
 
   public static getInstance(): AIAssistantService {
@@ -439,10 +442,27 @@ class AIAssistantService {
   }
 
   /**
+   * Check if user has access to AI Assistant
+   */
+  public async checkAccess(): Promise<boolean> {
+    const user = this.authService.getCurrentUser();
+    if (!user) {
+      return false;
+    }
+    return await this.accessService.checkUserAccess(user.id);
+  }
+
+  /**
    * Query AI with user question and smart song context selection
    * Only sends relevant songs instead of all songs for better performance and cost
    */
   public async askQuestion(question: string, chatHistory: ChatMessage[] = []): Promise<string> {
+    // Check access first
+    const hasAccess = await this.checkAccess();
+    if (!hasAccess) {
+      throw new Error('You do not have access to the AI Assistant. Please contact your administrator if you believe this is an error.');
+    }
+
     if (!this.config.apiKey) {
       throw new Error('AI API key not configured. Please set your API key in the settings.');
     }

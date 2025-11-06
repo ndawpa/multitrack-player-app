@@ -55,6 +55,15 @@
         ".read": "auth != null",
         ".write": "auth != null"
       }
+    },
+    
+    "aiAssistantAccess": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'admin'",
+      "config": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'admin'"
+      }
     }
   }
 }
