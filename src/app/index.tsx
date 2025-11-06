@@ -242,6 +242,7 @@ const App = () => {
         <AIAssistantScreen 
           onBack={handleBackToMain}
           user={user}
+          isAdminMode={isAdminMode}
         />
       );
     

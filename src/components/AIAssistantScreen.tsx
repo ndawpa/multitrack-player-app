@@ -22,23 +22,25 @@ import { User } from '../types/user';
 interface AIAssistantScreenProps {
   onBack: () => void;
   user: User | null;
+  isAdminMode?: boolean;
 }
 
 const AI_ASSISTANT_API_KEY_KEY = 'ai_assistant_api_key';
 const AI_ASSISTANT_PROVIDER_KEY = 'ai_assistant_provider';
 const AI_ASSISTANT_MODEL_KEY = 'ai_assistant_model';
 
-const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) => {
+const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user, isAdminMode = false }) => {
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [apiKey, setApiKey] = useState('');
-  const [provider, setProvider] = useState<'openai' | 'anthropic' | 'google'>('openai');
-  const [model, setModel] = useState('gpt-4o-mini');
+  const [provider, setProvider] = useState<'openai' | 'anthropic' | 'google'>('google');
+  const [model, setModel] = useState('gemini-2.5-flash-lite');
   const [showSettings, setShowSettings] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [hasAccess, setHasAccess] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const aiService = AIAssistantService.getInstance();
   const accessService = AIAssistantAccessService.getInstance();
@@ -46,7 +48,8 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
   useEffect(() => {
     loadSettings();
     checkAccess();
-  }, [user]);
+    checkAdminStatus();
+  }, [user, isAdminMode]);
 
   const checkAccess = async () => {
     if (user?.id) {
@@ -69,6 +72,20 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
     }
   };
 
+  const checkAdminStatus = async () => {
+    try {
+      // Check both database role and admin mode
+      const hasDbRole = await accessService.isAdmin();
+      const isAdminUser = hasDbRole || isAdminMode;
+      setIsAdmin(isAdminUser);
+      console.log('Admin status check:', { hasDbRole, isAdminMode, isAdminUser });
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      // Fallback to admin mode if available
+      setIsAdmin(isAdminMode);
+    }
+  };
+
   useEffect(() => {
     if (scrollViewRef.current && messages.length > 0) {
       setTimeout(() => {
@@ -79,31 +96,35 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
 
   const loadSettings = async () => {
     try {
-      const savedApiKey = await AsyncStorage.getItem(AI_ASSISTANT_API_KEY_KEY);
-      const savedProvider = await AsyncStorage.getItem(AI_ASSISTANT_PROVIDER_KEY) as 'openai' | 'anthropic' | 'google' | null;
-      const savedModel = await AsyncStorage.getItem(AI_ASSISTANT_MODEL_KEY);
+      // Load from Firebase (centralized config)
+      await aiService.loadConfigFromFirebase();
+      const aiConfig = await accessService.getAIConfig();
 
-      console.log('Loading AI Assistant settings:', {
-        hasApiKey: !!savedApiKey,
-        apiKeyLength: savedApiKey?.length || 0,
-        provider: savedProvider,
-        model: savedModel
+      console.log('Loading AI Assistant settings from Firebase:', {
+        hasApiKey: !!aiConfig?.apiKey,
+        apiKeyLength: aiConfig?.apiKey?.length || 0,
+        provider: aiConfig?.provider,
+        model: aiConfig?.model
       });
 
-      if (savedApiKey) {
-        setApiKey(savedApiKey);
-        setProvider(savedProvider || 'openai');
-        setModel(savedModel || 'gpt-4o-mini');
-        aiService.configure({
-          apiKey: savedApiKey,
-          provider: savedProvider || 'openai',
-          model: savedModel || 'gpt-4o-mini'
-        });
+      if (aiConfig && aiConfig.apiKey) {
+        setApiKey(aiConfig.apiKey);
+        setProvider(aiConfig.provider || 'google');
+        setModel(aiConfig.model || 'gemini-2.5-flash-lite');
         setIsConfigured(true);
-        console.log('AI Assistant configured successfully');
+        console.log('AI Assistant configured successfully from Firebase');
       } else {
-        console.log('No API key found, showing settings');
-        setShowSettings(true);
+        console.log('No API key found in Firebase');
+        // Only show settings if user is admin
+        const admin = await accessService.isAdmin();
+        if (admin) {
+          setShowSettings(true);
+        } else {
+          Alert.alert(
+            'Configuration Required',
+            'The AI Assistant has not been configured yet. Please contact your administrator to set up the API key.'
+          );
+        }
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -116,19 +137,29 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
       return;
     }
 
+    // Check if user is admin
+    if (!isAdmin) {
+      Alert.alert('Permission Denied', 'Only administrators can configure the AI Assistant API key.');
+      return;
+    }
+
     try {
       const trimmedApiKey = apiKey.trim();
-      console.log('Saving AI Assistant settings:', {
+      console.log('Saving AI Assistant settings to Firebase:', {
         provider,
         model,
         apiKeyLength: trimmedApiKey.length,
         apiKeyPrefix: trimmedApiKey.substring(0, 7) + '...'
       });
 
-      await AsyncStorage.setItem(AI_ASSISTANT_API_KEY_KEY, trimmedApiKey);
-      await AsyncStorage.setItem(AI_ASSISTANT_PROVIDER_KEY, provider);
-      await AsyncStorage.setItem(AI_ASSISTANT_MODEL_KEY, model);
+      // Save to Firebase (allow admin mode users to save)
+      await accessService.updateAIConfig({
+        apiKey: trimmedApiKey,
+        provider,
+        model
+      }, isAdminMode);
       
+      // Configure the service
       aiService.configure({
         apiKey: trimmedApiKey,
         provider,
@@ -138,10 +169,10 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
       setIsConfigured(true);
       setShowSettings(false);
       console.log('Settings saved and configured successfully');
-      Alert.alert('Success', 'AI Assistant configured successfully!');
-    } catch (error) {
+      Alert.alert('Success', 'AI Assistant configured successfully! All users with access can now use it.');
+    } catch (error: any) {
       console.error('Error saving settings:', error);
-      Alert.alert('Error', 'Failed to save settings');
+      Alert.alert('Error', error.message || 'Failed to save settings');
     }
   };
 
@@ -255,24 +286,34 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
         style={styles.input}
         value={model}
         onChangeText={setModel}
-        placeholder="e.g., gpt-4o-mini, claude-3-haiku-20240307, gemini-pro"
+        placeholder="e.g., gemini-2.5-flash-lite, gemini-1.5-pro, gpt-4o-mini"
         placeholderTextColor="#999"
       />
 
-      <Text style={styles.label}>API Key</Text>
-      <TextInput
-        style={styles.input}
-        value={apiKey}
-        onChangeText={setApiKey}
-        placeholder="Enter your API key"
-        placeholderTextColor="#999"
-        secureTextEntry
-        autoCapitalize="none"
-      />
+      <Text style={styles.label}>API Key {isAdmin ? '(Admin Only)' : ''}</Text>
+      {isAdmin ? (
+        <TextInput
+          style={styles.input}
+          value={apiKey}
+          onChangeText={setApiKey}
+          placeholder="Enter your API key"
+          placeholderTextColor="#999"
+          secureTextEntry
+          autoCapitalize="none"
+        />
+      ) : (
+        <View style={styles.disabledInput}>
+          <Text style={styles.disabledInputText}>
+            Only administrators can configure the API key. Please contact your administrator.
+          </Text>
+        </View>
+      )}
 
-      <TouchableOpacity style={styles.saveButton} onPress={saveSettings}>
-        <Text style={styles.saveButtonText}>Save Configuration</Text>
-      </TouchableOpacity>
+      {isAdmin && (
+        <TouchableOpacity style={styles.saveButton} onPress={saveSettings}>
+          <Text style={styles.saveButtonText}>Save Configuration</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.cancelButton} onPress={() => setShowSettings(false)}>
         <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -600,6 +641,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     backgroundColor: '#121212',
     color: '#FFFFFF',
+  },
+  disabledInput: {
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    backgroundColor: '#121212',
+    opacity: 0.6,
+  },
+  disabledInputText: {
+    color: '#BBBBBB',
+    fontSize: 14,
+    fontStyle: 'italic',
   },
   saveButton: {
     backgroundColor: '#BB86FC',

@@ -12,6 +12,14 @@ interface AIAssistantAccessConfig {
   updatedAt: Date;
 }
 
+interface AIConfig {
+  apiKey?: string;
+  provider?: 'openai' | 'anthropic' | 'google';
+  model?: string;
+  updatedBy: string;
+  updatedAt: Date;
+}
+
 class AIAssistantAccessService {
   private static instance: AIAssistantAccessService;
   private authService: AuthService;
@@ -213,8 +221,95 @@ class AIAssistantAccessService {
   public async setEnabled(enabled: boolean): Promise<void> {
     await this.updateAccessConfig({ enabled });
   }
+
+  /**
+   * Check if current user is admin
+   */
+  public async isAdmin(): Promise<boolean> {
+    try {
+      const user = this.authService.getCurrentUser();
+      if (!user) {
+        return false;
+      }
+
+      const userRef = ref(database, `users/${user.id}/role`);
+      const snapshot = await get(userRef);
+      
+      return snapshot.exists() && snapshot.val() === 'admin';
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get AI configuration (API key, provider, model) - readable by all authenticated users
+   */
+  public async getAIConfig(): Promise<AIConfig | null> {
+    try {
+      const configRef = ref(database, `${this.CONFIG_PATH}/aiConfig`);
+      const snapshot = await get(configRef);
+      
+      if (!snapshot.exists()) {
+        return null;
+      }
+
+      return snapshot.val() as AIConfig;
+    } catch (error) {
+      console.error('Error getting AI config:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update AI configuration (API key, provider, model) - admin only
+   * @param config - Configuration to update
+   * @param allowAdminMode - If true, allows update even if user doesn't have database admin role (for password-based admin mode)
+   */
+  public async updateAIConfig(config: Partial<AIConfig>, allowAdminMode: boolean = false): Promise<void> {
+    const user = this.authService.getCurrentUser();
+    if (!user) {
+      throw new Error('User must be logged in to update AI config');
+    }
+
+    // Check if user is admin (either database role or admin mode)
+    const isAdmin = await this.isAdmin();
+    if (!isAdmin && !allowAdminMode) {
+      throw new Error('Only administrators can update AI configuration');
+    }
+
+    try {
+      const configRef = ref(database, `${this.CONFIG_PATH}/aiConfig`);
+      const currentSnapshot = await get(configRef);
+      
+      const currentConfig = currentSnapshot.exists() 
+        ? (currentSnapshot.val() as AIConfig)
+        : {
+            apiKey: '',
+            provider: 'google' as const,
+            model: 'gemini-2.5-flash-lite',
+            updatedBy: user.id,
+            updatedAt: new Date()
+          };
+
+      const updatedConfig: AIConfig = {
+        ...currentConfig,
+        ...config,
+        updatedBy: user.id,
+        updatedAt: new Date()
+      };
+
+      await set(configRef, {
+        ...updatedConfig,
+        updatedAt: updatedConfig.updatedAt.toISOString()
+      });
+    } catch (error) {
+      console.error('Error updating AI config:', error);
+      throw error;
+    }
+  }
 }
 
 export default AIAssistantAccessService;
-export type { AIAssistantAccessConfig };
+export type { AIAssistantAccessConfig, AIConfig };
 

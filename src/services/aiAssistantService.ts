@@ -24,8 +24,8 @@ class AIAssistantService {
   private songAccessService: SongAccessService;
   private accessService: AIAssistantAccessService;
   private config: AIConfig = {
-    provider: 'openai',
-    model: 'gpt-4o-mini', // Using a cost-effective model
+    provider: 'google',
+    model: 'gemini-2.5-flash-lite', // Using Google Gemini
   };
 
   private constructor() {
@@ -46,6 +46,31 @@ class AIAssistantService {
    */
   public configure(config: AIConfig): void {
     this.config = { ...this.config, ...config };
+  }
+
+  /**
+   * Load AI configuration from Firebase
+   */
+  public async loadConfigFromFirebase(): Promise<void> {
+    try {
+      const aiConfig = await this.accessService.getAIConfig();
+      if (aiConfig && aiConfig.apiKey) {
+        this.config = {
+          apiKey: aiConfig.apiKey,
+          provider: aiConfig.provider || 'google',
+          model: aiConfig.model || 'gemini-2.5-flash-lite'
+        };
+        console.log('AI configuration loaded from Firebase:', {
+          provider: this.config.provider,
+          model: this.config.model,
+          hasApiKey: !!this.config.apiKey
+        });
+      } else {
+        console.log('No AI configuration found in Firebase');
+      }
+    } catch (error) {
+      console.error('Error loading AI config from Firebase:', error);
+    }
   }
 
   /**
@@ -139,7 +164,7 @@ class AIAssistantService {
       // OpenAI: ~128k tokens (gpt-4o), ~16k tokens (gpt-3.5-turbo)
       // Google Gemini: ~1M tokens (gemini-1.5-pro), ~32k tokens (gemini-pro) - can handle ALL songs!
       // Anthropic: ~200k tokens (claude-3-opus), ~100k tokens (claude-3-sonnet)
-      const provider = this.config.provider || 'openai';
+      const provider = this.config.provider || 'google';
       let maxSongs: number;
       
       switch (provider) {
@@ -429,7 +454,7 @@ class AIAssistantService {
     
     // If we found relevant songs, return top matches (limit based on provider)
     if (relevantSongs.length > 0) {
-      const provider = this.config.provider || 'openai';
+      const provider = this.config.provider || 'google';
       const maxRelevant = provider === 'google' ? 50 : provider === 'anthropic' ? 30 : 20;
       const topRelevant = relevantSongs.slice(0, maxRelevant);
       console.log(`Found ${relevantSongs.length} relevant songs, using top ${topRelevant.length}`);
@@ -463,12 +488,17 @@ class AIAssistantService {
       throw new Error('You do not have access to the AI Assistant. Please contact your administrator if you believe this is an error.');
     }
 
+    // Load config from Firebase if not already configured
     if (!this.config.apiKey) {
-      throw new Error('AI API key not configured. Please set your API key in the settings.');
+      await this.loadConfigFromFirebase();
+    }
+
+    if (!this.config.apiKey) {
+      throw new Error('AI API key not configured. Please contact your administrator to set up the API key.');
     }
 
     if (!this.config.provider) {
-      throw new Error('AI provider not configured. Please select a provider in the settings.');
+      throw new Error('AI provider not configured. Please contact your administrator to configure the AI Assistant.');
     }
 
     console.log('AI Assistant - askQuestion called:', {
