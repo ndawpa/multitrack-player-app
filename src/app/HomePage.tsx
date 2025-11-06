@@ -6948,11 +6948,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             {/* Filtered songs navigation controls section */}
             {!isPlaylistMode && selectedSong && filteredSongs.length > 0 && currentFilteredIndex >= 0 && showNavigationControls && (
               <View style={styles.playlistControlsSection}>
-                <View style={styles.playlistTrackInfo}>
+                <TouchableOpacity 
+                  style={styles.playlistTrackInfo}
+                  onPress={handleRestartFilteredSong}
+                >
                   <Text style={styles.playlistTrackCount}>
                     {currentFilteredIndex + 1} of {filteredSongs.length}
                   </Text>
-                </View>
+                </TouchableOpacity>
                 
                 <View style={styles.playlistControls}>
                   <TouchableOpacity
