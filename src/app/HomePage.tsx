@@ -184,6 +184,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   // Filtered songs navigation state
   const [currentFilteredIndex, setCurrentFilteredIndex] = useState(-1);
   const [showNavigationControls, setShowNavigationControls] = useState(true);
+  const [showFilteredSongsModal, setShowFilteredSongsModal] = useState(false);
+  const [isFilteredRepeating, setIsFilteredRepeating] = useState(false);
   // Playlist controls toggle state
   const [showPlaylistControls, setShowPlaylistControls] = useState(true);
   // Playlist player removed - using main audio system
@@ -5651,7 +5653,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const handleNextFilteredSong = async () => {
     if (filteredSongs.length > 0 && currentFilteredIndex >= 0) {
       try {
-        const newIndex = currentFilteredIndex < filteredSongs.length - 1 ? currentFilteredIndex + 1 : 0;
+        let newIndex = currentFilteredIndex < filteredSongs.length - 1 ? currentFilteredIndex + 1 : 0;
+        
+        // If repeating is enabled and we're at the end, restart from beginning
+        if (newIndex === 0 && currentFilteredIndex === filteredSongs.length - 1 && !isFilteredRepeating) {
+          // Don't loop if repeat is not enabled
+          return;
+        }
+        
         const nextSong = filteredSongs[newIndex];
         
         if (nextSong) {
@@ -5672,6 +5681,71 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         Alert.alert('Error', 'Failed to go to next song');
       }
     }
+  };
+
+  const handleJumpToFilteredSong = async (songIndex: number) => {
+    if (filteredSongs.length === 0 || songIndex < 0 || songIndex >= filteredSongs.length) {
+      return;
+    }
+
+    try {
+      const targetSong = filteredSongs[songIndex];
+      console.log('Jumping to filtered song:', targetSong.title, 'at index:', songIndex);
+      
+      // Stop current playback
+      await stopLocalPlayback();
+      
+      // Update filtered index
+      setCurrentFilteredIndex(songIndex);
+      setSelectedSong(targetSong);
+      setIsFinished(false);
+      setIsPlaying(false);
+      setIsInitialized(false);
+      
+      // Close modal
+      setShowFilteredSongsModal(false);
+      
+      // Small delay to ensure proper cleanup before loading new song
+      setTimeout(() => {
+        handleSongSelect(targetSong);
+      }, 100);
+    } catch (error) {
+      console.error('Error jumping to filtered song:', error);
+      Alert.alert('Error', 'Failed to jump to song');
+    }
+  };
+
+  const handleRestartFilteredSong = async () => {
+    if (filteredSongs.length === 0 || currentFilteredIndex < 0) {
+      Alert.alert('Info', 'No song to restart.');
+      return;
+    }
+
+    console.log('Restarting filtered song');
+    try {
+      // Stop current playback first
+      await stopLocalPlayback();
+      
+      // Reset to first song in filtered list
+      const firstSong = filteredSongs[0];
+      setCurrentFilteredIndex(0);
+      setSelectedSong(firstSong);
+      setIsFinished(false);
+      setIsPlaying(false);
+      setIsInitialized(false);
+      
+      // Small delay to ensure proper cleanup before loading new song
+      setTimeout(() => {
+        handleSongSelect(firstSong);
+      }, 100);
+    } catch (error) {
+      console.error('Error restarting filtered song:', error);
+      Alert.alert('Error', 'Failed to restart song');
+    }
+  };
+
+  const handleToggleFilteredRepeat = () => {
+    setIsFilteredRepeating(!isFilteredRepeating);
   };
 
   const handleJumpToSong = async (songIndex: number) => {
@@ -5860,6 +5934,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       setSelectedSong(null);
                       setCurrentFilteredIndex(-1);
                       setShowNavigationControls(true);
+                      setIsFilteredRepeating(false);
                     }}
                   >
                     <Ionicons name="chevron-back" size={24} color="#BB86FC" />
@@ -5902,6 +5977,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 
                 <View style={styles.playlistControls}>
                   <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistListBtn]}
+                    onPress={() => setShowFilteredSongsModal(true)}
+                  >
+                    <Ionicons name="list" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
                     style={[styles.playlistControlBtn, styles.playlistPrevBtn]}
                     onPress={handlePreviousFilteredSong}
                   >
@@ -5910,16 +5992,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
                   <TouchableOpacity
                     style={[styles.playlistControlBtn, styles.playlistPauseBtn]}
-                    onPress={async () => {
-                      console.log('Pause/resume pressed, isPlaying:', isPlaying);
-                      if (isPlaying) {
-                        console.log('Stopping playback...');
-                        await stopLocalPlayback();
-                      } else {
-                        console.log('Starting playback...');
-                        await startLocalPlayback();
-                      }
-                    }}
+                    onPress={togglePlayback}
                   >
                     <Ionicons 
                       name={isPlaying ? 'pause' : 'play'} 
@@ -5933,6 +6006,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     onPress={handleNextFilteredSong}
                   >
                     <Ionicons name="play-skip-forward" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.playlistControlBtn, styles.playlistRestartBtn, isFilteredRepeating && styles.playlistRepeatActive]}
+                    onPress={handleToggleFilteredRepeat}
+                  >
+                    <Ionicons name="repeat" size={18} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -6212,6 +6292,63 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     </View>
                   </View>
                   {index === currentPlaylistIndex && (
+                    <Ionicons name="play" size={20} color="#BB86FC" />
+                  )}
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Filtered Songs Modal */}
+      <Modal
+        visible={showFilteredSongsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.playlistModalContainer}>
+          <View style={styles.playlistModalHeader}>
+            <TouchableOpacity onPress={() => setShowFilteredSongsModal(false)}>
+              <Text style={styles.playlistModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.playlistModalTitle}>Filtered Songs</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          
+          <View style={styles.playlistModalContent}>
+            <FlatList
+              data={filteredSongs}
+              keyExtractor={(item, index) => `filtered-song-${item.id}-${index}`}
+              renderItem={({ item, index }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.playlistSongItem,
+                    index === currentFilteredIndex && styles.playlistSongItemActive
+                  ]}
+                  onPress={() => handleJumpToFilteredSong(index)}
+                >
+                  <View style={styles.playlistSongInfo}>
+                    <Text style={[
+                      styles.playlistSongNumber,
+                      index === currentFilteredIndex && styles.playlistSongNumberActive
+                    ]}>
+                      {index + 1}
+                    </Text>
+                    <View style={styles.playlistSongDetails}>
+                      <Text style={[
+                        styles.playlistSongTitle,
+                        index === currentFilteredIndex && styles.playlistSongTitleActive
+                      ]}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.playlistSongArtist}>
+                        {item.artist}
+                      </Text>
+                    </View>
+                  </View>
+                  {index === currentFilteredIndex && (
                     <Ionicons name="play" size={20} color="#BB86FC" />
                   )}
                 </TouchableOpacity>
