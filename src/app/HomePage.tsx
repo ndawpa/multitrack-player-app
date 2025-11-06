@@ -380,6 +380,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [editingResourceDescription, setEditingResourceDescription] = useState('');
   const [editingResourceType, setEditingResourceType] = useState<'youtube' | 'download' | 'link' | 'pdf'>('link');
   const [showFilterDialog, setShowFilterDialog] = useState(false);
+  const [expandedFilterSections, setExpandedFilterSections] = useState({
+    artist: true,
+    album: true,
+    content: true
+  });
   const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
   const [selectedAlbums, setSelectedAlbums] = useState<Set<string>>(new Set());
   
@@ -2120,9 +2125,21 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             <Text style={styles.dialogTitle}>Filters</Text>
             <ScrollView style={styles.dialogScrollView}>
               {/* Artist Filter Section */}
-              <View style={styles.filterSection}>
-                <Text style={styles.filterSectionTitle}>Filter by Artist</Text>
-                {uniqueArtists.map(artist => (
+              <View style={styles.filterSectionBox}>
+                <TouchableOpacity 
+                  style={styles.filterSectionHeader}
+                  onPress={() => setExpandedFilterSections(prev => ({ ...prev, artist: !prev.artist }))}
+                >
+                  <Text style={styles.filterSectionTitle}>Filter by Artist</Text>
+                  <Ionicons 
+                    name={expandedFilterSections.artist ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color="#BB86FC" 
+                  />
+                </TouchableOpacity>
+                {expandedFilterSections.artist && (
+                  <View style={styles.filterSectionContent}>
+                    {uniqueArtists.map(artist => (
                   <TouchableOpacity
                     key={artist}
                     style={styles.artistFilterOption}
@@ -2140,21 +2157,35 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       ]}>{artist}</Text>
                     </View>
                   </TouchableOpacity>
-                ))}
-                {uniqueArtists.length > 0 && (
-                  <TouchableOpacity 
-                    style={styles.clearSectionButton}
-                    onPress={clearArtistFilters}
-                  >
-                    <Text style={styles.clearSectionButtonText}>Clear Artists</Text>
-                  </TouchableOpacity>
+                    ))}
+                    {uniqueArtists.length > 0 && (
+                      <TouchableOpacity 
+                        style={styles.clearSectionButton}
+                        onPress={clearArtistFilters}
+                      >
+                        <Text style={styles.clearSectionButtonText}>Clear Artists</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 )}
               </View>
 
               {/* Album Filter Section */}
-              <View style={styles.filterSection}>
-                <Text style={styles.filterSectionTitle}>Filter by Album</Text>
-                {uniqueAlbums.length > 0 ? (
+              <View style={styles.filterSectionBox}>
+                <TouchableOpacity 
+                  style={styles.filterSectionHeader}
+                  onPress={() => setExpandedFilterSections(prev => ({ ...prev, album: !prev.album }))}
+                >
+                  <Text style={styles.filterSectionTitle}>Filter by Album</Text>
+                  <Ionicons 
+                    name={expandedFilterSections.album ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color="#BB86FC" 
+                  />
+                </TouchableOpacity>
+                {expandedFilterSections.album && (
+                  <View style={styles.filterSectionContent}>
+                    {uniqueAlbums.length > 0 ? (
                   <>
                     {uniqueAlbums.map(album => (
                       <TouchableOpacity
@@ -2183,20 +2214,34 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         <Text style={styles.clearSectionButtonText}>Clear Albums</Text>
                       </TouchableOpacity>
                     )}
-                  </>
-                ) : (
-                  <Text style={styles.emptyFilterText}>
-                    {selectedArtists.size > 0 
-                      ? "No albums found for selected artists" 
-                      : "No albums available"}
-                  </Text>
+                    </>
+                  ) : (
+                    <Text style={styles.emptyFilterText}>
+                      {selectedArtists.size > 0 
+                        ? "No albums found for selected artists" 
+                        : "No albums available"}
+                    </Text>
+                  )}
+                  </View>
                 )}
               </View>
 
               {/* Content Filter Section */}
-              <View style={styles.filterSection}>
-                <Text style={styles.filterSectionTitle}>Filter by Content</Text>
-                <TouchableOpacity
+              <View style={styles.filterSectionBox}>
+                <TouchableOpacity 
+                  style={styles.filterSectionHeader}
+                  onPress={() => setExpandedFilterSections(prev => ({ ...prev, content: !prev.content }))}
+                >
+                  <Text style={styles.filterSectionTitle}>Filter by Content</Text>
+                  <Ionicons 
+                    name={expandedFilterSections.content ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color="#BB86FC" 
+                  />
+                </TouchableOpacity>
+                {expandedFilterSections.content && (
+                  <View style={styles.filterSectionContent}>
+                    <TouchableOpacity
                   style={styles.artistFilterOption}
                   onPress={toggleHasTracks}
                 >
@@ -2267,13 +2312,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     ]}>Links</Text>
                   </View>
                 </TouchableOpacity>
-                {hasActiveContentFilters() && (
-                  <TouchableOpacity 
-                    style={styles.clearSectionButton}
-                    onPress={clearContentFilters}
-                  >
-                    <Text style={styles.clearSectionButtonText}>Clear Content</Text>
-                  </TouchableOpacity>
+                    {hasActiveContentFilters() && (
+                      <TouchableOpacity 
+                        style={styles.clearSectionButton}
+                        onPress={clearContentFilters}
+                      >
+                        <Text style={styles.clearSectionButtonText}>Clear Content</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 )}
               </View>
             </ScrollView>
@@ -8354,12 +8401,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
+  filterSectionBox: {
+    marginBottom: 12,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    overflow: 'hidden',
+  },
+  filterSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#252525',
+  },
   filterSectionTitle: {
     color: '#BB86FC',
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
-    paddingHorizontal: 16,
+    flex: 1,
+  },
+  filterSectionContent: {
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   clearSectionButton: {
     marginTop: 8,
