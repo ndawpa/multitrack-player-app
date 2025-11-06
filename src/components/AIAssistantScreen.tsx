@@ -9,7 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert
+  Alert,
+  SafeAreaView
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Markdown from 'react-native-markdown-display';
@@ -248,8 +249,8 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
 
   if (showSettings) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <TouchableOpacity onPress={() => setShowSettings(false)}>
             <Text style={styles.backButton}>← Back</Text>
           </TouchableOpacity>
@@ -259,17 +260,13 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
         <ScrollView style={styles.settingsScrollView}>
           {renderSettings()}
         </ScrollView>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={90}
-    >
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity onPress={onBack}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
@@ -279,86 +276,97 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user }) =
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.messagesContainer}
-        contentContainerStyle={styles.messagesContent}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 60 : 0}
       >
-        {messages.length === 0 && (
-          <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeTitle}>🎵 AI Music Assistant</Text>
-            <Text style={styles.welcomeText}>
-              Ask me anything about your music library! I can help you:
-            </Text>
-            <Text style={styles.welcomeBullet}>• Find songs by theme or topic</Text>
-            <Text style={styles.welcomeBullet}>• Search lyrics for specific content</Text>
-            <Text style={styles.welcomeBullet}>• Get insights about your songs</Text>
-            <Text style={styles.welcomeBullet}>• Discover songs based on mood or theme</Text>
-            <Text style={styles.exampleText}>
-              Try asking: "Find songs about love" or "What songs mention the word 'dream'?"
-            </Text>
-          </View>
-        )}
-
-        {messages.map((message, index) => (
-          <View
-            key={index}
-            style={[
-              styles.messageContainer,
-              message.role === 'user' ? styles.userMessage : styles.assistantMessage
-            ]}
-          >
-            <Text style={[styles.messageRole, message.role === 'user' && styles.userMessageRole]}>
-              {message.role === 'user' ? 'You' : 'Assistant'}
-            </Text>
-            {message.role === 'user' ? (
-              <Text style={styles.userMessageText}>
-                {message.content}
-              </Text>
-            ) : (
-              <Markdown style={markdownStyles}>
-                {message.content}
-              </Markdown>
-            )}
-          </View>
-        ))}
-
-        {isLoading && (
-          <View style={[styles.messageContainer, styles.assistantMessage]}>
-            <Text style={styles.messageRole}>Assistant</Text>
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#BB86FC" />
-              <Text style={styles.loadingText}>Thinking...</Text>
-            </View>
-          </View>
-        )}
-      </ScrollView>
-
-      <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 12 }]}>
-        <TextInput
-          style={styles.textInput}
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Ask about your songs..."
-          placeholderTextColor="#888"
-          multiline
-          onSubmitEditing={handleSend}
-          returnKeyType="send"
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={!inputText.trim() || isLoading}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.messagesContainer}
+          contentContainerStyle={styles.messagesContent}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.sendButtonText}>Send</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          {messages.length === 0 && (
+            <View style={styles.welcomeContainer}>
+              <Text style={styles.welcomeTitle}>🎵 AI Music Assistant</Text>
+              <Text style={styles.welcomeText}>
+                Ask me anything about your music library! I can help you:
+              </Text>
+              <Text style={styles.welcomeBullet}>• Find songs by theme or topic</Text>
+              <Text style={styles.welcomeBullet}>• Search lyrics for specific content</Text>
+              <Text style={styles.welcomeBullet}>• Get insights about your songs</Text>
+              <Text style={styles.welcomeBullet}>• Discover songs based on mood or theme</Text>
+              <Text style={styles.exampleText}>
+                Try asking: "Find songs about love" or "What songs mention the word 'dream'?"
+              </Text>
+            </View>
+          )}
+
+          {messages.map((message, index) => (
+            <View
+              key={index}
+              style={[
+                styles.messageContainer,
+                message.role === 'user' ? styles.userMessage : styles.assistantMessage
+              ]}
+            >
+              <Text style={[styles.messageRole, message.role === 'user' && styles.userMessageRole]}>
+                {message.role === 'user' ? 'You' : 'Assistant'}
+              </Text>
+              {message.role === 'user' ? (
+                <Text style={styles.userMessageText}>
+                  {message.content}
+                </Text>
+              ) : (
+                <Markdown style={markdownStyles}>
+                  {message.content}
+                </Markdown>
+              )}
+            </View>
+          ))}
+
+          {isLoading && (
+            <View style={[styles.messageContainer, styles.assistantMessage]}>
+              <Text style={styles.messageRole}>Assistant</Text>
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#BB86FC" />
+                <Text style={styles.loadingText}>Thinking...</Text>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+
+        <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 12 }]}>
+          <TextInput
+            style={styles.textInput}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Ask about your songs..."
+            placeholderTextColor="#888"
+            multiline
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || isLoading}
+          >
+            <Text style={styles.sendButtonText}>Send</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#121212',
+  },
+  keyboardView: {
     flex: 1,
     backgroundColor: '#121212',
   },
