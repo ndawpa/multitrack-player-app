@@ -7160,7 +7160,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 onPress={onNavigateToAIAssistant}
               >
                 <Ionicons 
-                  name="chatbubble-ellipses" 
+                  name="sparkles" 
                   size={24} 
                   color="#BB86FC" 
                 />
