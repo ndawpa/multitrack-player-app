@@ -132,6 +132,59 @@ const MarqueeText = ({ text, style }: { text: string; style: any }) => {
   );
 };
 
+// Right-to-left marquee text component (text appears from right and scrolls left)
+const RightToLeftMarqueeText = ({ text, style }: { text: string; style: any }) => {
+  const scrollX = React.useRef(new Animated.Value(0)).current;
+  const [textWidth, setTextWidth] = React.useState(0);
+  const [containerWidth, setContainerWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    if (textWidth > containerWidth && containerWidth > 0) {
+      // Start from the right (positive value = text off-screen to the right)
+      scrollX.setValue(containerWidth);
+      
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scrollX, {
+            toValue: -(textWidth),
+            duration: Math.max(3000, (textWidth + containerWidth) * 20), // Duration based on text length
+            easing: Easing.linear,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scrollX, {
+            toValue: containerWidth,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      // Reset if text fits
+      scrollX.setValue(0);
+    }
+  }, [textWidth, containerWidth]);
+
+  return (
+    <View 
+      style={[{ overflow: 'hidden' }, style]} 
+      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+    >
+      <Animated.Text
+        style={[
+          style,
+          {
+            transform: [{ translateX: scrollX }],
+            width: 'auto',
+          },
+        ]}
+        onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
+      >
+        {text}
+      </Animated.Text>
+    </View>
+  );
+};
+
 interface HomePageProps {
   onNavigateToProfile: () => void;
   onNavigateToPlaylists?: (songs: Song[]) => void;
@@ -1246,6 +1299,25 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     saveFilterState({ selectedAlbums: [] });
   };
 
+  // Clear all filters function
+  const clearAllFilters = () => {
+    setSelectedArtists(new Set());
+    setSelectedAlbums(new Set());
+    setHasTracks(false);
+    setHasLyrics(false);
+    setHasScores(false);
+    setHasLinks(false);
+    // Save to user preferences
+    saveFilterState({ 
+      selectedArtists: [], 
+      selectedAlbums: [],
+      hasTracks: false, 
+      hasLyrics: false, 
+      hasScores: false, 
+      hasLinks: false 
+    });
+  };
+
   // Content filter toggle functions
   const toggleHasTracks = () => {
     const newValue = !hasTracks;
@@ -1424,7 +1496,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             {renderTitleWithHighlight()}
           </View>
           <View style={styles.artistContainer}>
-            <Text style={styles.songArtist} numberOfLines={1} ellipsizeMode="tail">{item.artist}</Text>
+            <Text style={styles.songArtist} numberOfLines={1} ellipsizeMode="tail">
+              {item.album ? `${item.artist} - ${item.album}` : item.artist}
+            </Text>
             {item.matchInfo?.artistMatch && (
               <View style={styles.matchBadge}>
                 <Text style={styles.matchBadgeText}>Artist</Text>
@@ -2203,7 +2277,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 )}
               </View>
             </ScrollView>
-            <View style={[styles.dialogButtonContainer, { justifyContent: 'flex-end' }]}>
+            <View style={[styles.dialogButtonContainer, { justifyContent: 'space-between' }]}>
+              <TouchableOpacity 
+                style={[styles.dialogButton, styles.dialogButtonSecondary]}
+                onPress={clearAllFilters}
+              >
+                <Text style={styles.dialogButtonText}>Clear All</Text>
+              </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.dialogButton, styles.dialogButtonSecondary]}
                 onPress={() => setShowFilterDialog(false)}
@@ -6525,9 +6605,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       text={selectedSong.title} 
                       style={[styles.title, { textAlign: 'center' }]}
                     />
-                    <Text style={[styles.artist, { textAlign: 'center' }]} numberOfLines={1}>
-                      {selectedSong.artist}
-                    </Text>
+                    <RightToLeftMarqueeText 
+                      text={selectedSong.artist}
+                      style={[styles.artist, { textAlign: 'center' }]}
+                    />
+                    {selectedSong.album && (
+                      <RightToLeftMarqueeText 
+                        text={selectedSong.album}
+                        style={[styles.album, { textAlign: 'center' }]}
+                      />
+                    )}
                   </View>
                   
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 80 }}>
@@ -6634,8 +6721,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                      text={selectedSong.title} 
                      style={styles.playlistSongTitle}
                    />
-                   <Text style={styles.playlistSongArtist} numberOfLines={1}>
-                     {selectedSong.artist}
+                   <Text style={styles.playlistSongArtist} numberOfLines={1} ellipsizeMode="tail">
+                     {selectedSong.album ? `${selectedSong.artist} - ${selectedSong.album}` : selectedSong.artist}
                    </Text>
                  </View>
                 
@@ -6891,8 +6978,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       ]}>
                         {item.title}
                       </Text>
-                      <Text style={styles.playlistSongArtist}>
-                        {item.artist}
+                      <Text style={styles.playlistSongArtist} numberOfLines={1} ellipsizeMode="tail">
+                        {item.album ? `${item.artist} - ${item.album}` : item.artist}
                       </Text>
                     </View>
                   </View>
@@ -6948,8 +7035,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       ]}>
                         {item.title}
                       </Text>
-                      <Text style={styles.playlistSongArtist}>
-                        {item.artist}
+                      <Text style={styles.playlistSongArtist} numberOfLines={1} ellipsizeMode="tail">
+                        {item.album ? `${item.artist} - ${item.album}` : item.artist}
                       </Text>
                     </View>
                   </View>
@@ -7048,6 +7135,11 @@ const styles = StyleSheet.create({
   artist: {
     fontSize: 16,
     color: '#BBBBBB',
+  },
+  album: {
+    fontSize: 14,
+    color: '#888888',
+    marginTop: 2,
   },
   sessionInfo: {
     flexDirection: 'row',
