@@ -2,6 +2,7 @@ export interface Song {
   id: string;
   title: string;
   artist: string;
+  album?: string; // Optional field for filtering only, not displayed elsewhere
   tracks?: Track[];
   lyrics?: string;
   scores?: Score[];

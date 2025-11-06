@@ -43,6 +43,7 @@ const generateId = () => {
 interface NewSongForm {
   title: string;
   artist: string;
+  album?: string;
   tracks: {
     id: string;
     name: string;
@@ -57,6 +58,7 @@ interface EditSongForm {
   id: string;
   title: string;
   artist: string;
+  album?: string;
   tracks: {
     id: string;
     name: string;
@@ -243,6 +245,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [newSong, setNewSong] = useState<NewSongForm>({
     title: '',
     artist: '',
+    album: '',
     tracks: [],
     lyrics: '',
     scores: [],
@@ -323,8 +326,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [editingResourceUrl, setEditingResourceUrl] = useState('');
   const [editingResourceDescription, setEditingResourceDescription] = useState('');
   const [editingResourceType, setEditingResourceType] = useState<'youtube' | 'download' | 'link' | 'pdf'>('link');
-  const [showArtistFilterDialog, setShowArtistFilterDialog] = useState(false);
+  const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
+  const [selectedAlbums, setSelectedAlbums] = useState<Set<string>>(new Set());
   
   // Screen orientation state
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
@@ -342,6 +346,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       const filters = user.preferences.filters;
       setSearchQuery(filters.searchQuery || '');
       setSelectedArtists(new Set(filters.selectedArtists || []));
+      setSelectedAlbums(new Set(filters.selectedAlbums || []));
       setShowFavoritesOnly(filters.showFavoritesOnly || false);
       setHasTracks(filters.hasTracks || false);
       setHasLyrics(filters.hasLyrics || false);
@@ -361,7 +366,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   };
   
   // Content filter states
-  const [showContentFilterDialog, setShowContentFilterDialog] = useState(false);
   const [hasTracks, setHasTracks] = useState(false);
   const [hasLyrics, setHasLyrics] = useState(false);
   const [hasScores, setHasScores] = useState(false);
@@ -1059,6 +1063,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       filtered = filtered.filter(song => selectedArtists.has(song.artist));
     }
     
+    // Apply album filter if selected
+    if (selectedAlbums.size > 0) {
+      filtered = filtered.filter(song => song.album && selectedAlbums.has(song.album));
+    }
+    
     // Apply favorites filter if enabled
     if (showFavoritesOnly) {
       filtered = filtered.filter(song => favoriteSongs.has(song.id));
@@ -1131,7 +1140,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     
     console.log('Filtered songs:', filtered);
     return filtered;
-  }, [searchQuery, selectedArtists, songs, sortOrder, showFavoritesOnly, favoriteSongs, hasTracks, hasLyrics, hasScores, hasLinks, isAdminMode, user, userGroups]);
+  }, [searchQuery, selectedArtists, selectedAlbums, songs, sortOrder, showFavoritesOnly, favoriteSongs, hasTracks, hasLyrics, hasScores, hasLinks, isAdminMode, user, userGroups]);
 
   // Update currentFilteredIndex when filters change or selected song is no longer in filtered list
   useEffect(() => {
@@ -1155,6 +1164,26 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     return Array.from(artists).sort();
   }, [songs]);
 
+  // Get unique albums for the filter dropdown
+  // If artists are selected, only show albums from those artists
+  // Otherwise, show all albums
+  const uniqueAlbums = useMemo(() => {
+    let filteredSongs = songs;
+    
+    // If artists are selected, filter songs by those artists
+    if (selectedArtists.size > 0) {
+      filteredSongs = songs.filter(song => selectedArtists.has(song.artist));
+    }
+    
+    // Extract unique albums (only songs that have an album field)
+    const albums = new Set(
+      filteredSongs
+        .filter(song => song.album && song.album.trim().length > 0)
+        .map(song => song.album!)
+    );
+    return Array.from(albums).sort();
+  }, [songs, selectedArtists]);
+
   const toggleArtistSelection = (artist: string) => {
     setSelectedArtists(prev => {
       const newSet = new Set(prev);
@@ -1165,6 +1194,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       }
       // Save to user preferences
       saveFilterState({ selectedArtists: Array.from(newSet) });
+      // Clear album selection when artists change to avoid invalid selections
+      setSelectedAlbums(new Set());
+      saveFilterState({ selectedAlbums: [] });
+      return newSet;
+    });
+  };
+
+  const toggleAlbumSelection = (album: string) => {
+    setSelectedAlbums(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(album)) {
+        newSet.delete(album);
+      } else {
+        newSet.add(album);
+      }
+      // Save to user preferences
+      saveFilterState({ selectedAlbums: Array.from(newSet) });
       return newSet;
     });
   };
@@ -1188,6 +1234,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     setSelectedArtists(new Set());
     // Save to user preferences
     saveFilterState({ selectedArtists: [] });
+    // Clear albums when clearing artists
+    setSelectedAlbums(new Set());
+    saveFilterState({ selectedAlbums: [] });
+  };
+
+  // Album filter helper functions
+  const clearAlbumFilters = () => {
+    setSelectedAlbums(new Set());
+    // Save to user preferences
+    saveFilterState({ selectedAlbums: [] });
   };
 
   // Content filter toggle functions
@@ -1926,27 +1982,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               </TouchableOpacity>
             ) : null}
             <TouchableOpacity
-              style={[styles.integratedActionButton, selectedArtists.size > 0 && styles.integratedActiveButton]}
+              style={[styles.integratedActionButton, (selectedArtists.size > 0 || selectedAlbums.size > 0 || hasActiveContentFilters()) && styles.integratedActiveButton]}
               onPress={() => {
-                setShowArtistFilterDialog(true);
+                setShowFilterDialog(true);
               }}
             >
               <Ionicons 
                 name="filter" 
                 size={16} 
-                color={selectedArtists.size > 0 ? "#FFFFFF" : "#BBBBBB"} 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.integratedActionButton, hasActiveContentFilters() && styles.integratedActiveButton]}
-              onPress={() => {
-                setShowContentFilterDialog(true);
-              }}
-            >
-              <Ionicons 
-                name="layers-outline" 
-                size={16} 
-                color={hasActiveContentFilters() ? "#FFFFFF" : "#BBBBBB"} 
+                color={(selectedArtists.size > 0 || selectedAlbums.size > 0 || hasActiveContentFilters()) ? "#FFFFFF" : "#BBBBBB"} 
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -1996,136 +2040,173 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         style={styles.songList}
         showsVerticalScrollIndicator={false}
       />
-      {showArtistFilterDialog && (
+      {showFilterDialog && (
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogContainer}>
-            <Text style={styles.dialogTitle}>Filter by Artists</Text>
+            <Text style={styles.dialogTitle}>Filters</Text>
             <ScrollView style={styles.dialogScrollView}>
-              {uniqueArtists.map(artist => (
+              {/* Artist Filter Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Filter by Artist</Text>
+                {uniqueArtists.map(artist => (
+                  <TouchableOpacity
+                    key={artist}
+                    style={styles.artistFilterOption}
+                    onPress={() => toggleArtistSelection(artist)}
+                  >
+                    <View style={styles.artistFilterOptionContent}>
+                      <Ionicons 
+                        name={selectedArtists.has(artist) ? "checkbox" : "square-outline"} 
+                        size={24} 
+                        color={selectedArtists.has(artist) ? "#BB86FC" : "#BBBBBB"} 
+                      />
+                      <Text style={[
+                        styles.artistFilterOptionText,
+                        selectedArtists.has(artist) && styles.artistFilterOptionTextSelected
+                      ]}>{artist}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                {uniqueArtists.length > 0 && (
+                  <TouchableOpacity 
+                    style={styles.clearSectionButton}
+                    onPress={clearArtistFilters}
+                  >
+                    <Text style={styles.clearSectionButtonText}>Clear Artists</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Album Filter Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Filter by Album</Text>
+                {uniqueAlbums.length > 0 ? (
+                  <>
+                    {uniqueAlbums.map(album => (
+                      <TouchableOpacity
+                        key={album}
+                        style={styles.artistFilterOption}
+                        onPress={() => toggleAlbumSelection(album)}
+                      >
+                        <View style={styles.artistFilterOptionContent}>
+                          <Ionicons 
+                            name={selectedAlbums.has(album) ? "checkbox" : "square-outline"} 
+                            size={24} 
+                            color={selectedAlbums.has(album) ? "#BB86FC" : "#BBBBBB"} 
+                          />
+                          <Text style={[
+                            styles.artistFilterOptionText,
+                            selectedAlbums.has(album) && styles.artistFilterOptionTextSelected
+                          ]}>{album}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                    {selectedAlbums.size > 0 && (
+                      <TouchableOpacity 
+                        style={styles.clearSectionButton}
+                        onPress={clearAlbumFilters}
+                      >
+                        <Text style={styles.clearSectionButtonText}>Clear Albums</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.emptyFilterText}>
+                    {selectedArtists.size > 0 
+                      ? "No albums found for selected artists" 
+                      : "No albums available"}
+                  </Text>
+                )}
+              </View>
+
+              {/* Content Filter Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Filter by Content</Text>
                 <TouchableOpacity
-                  key={artist}
                   style={styles.artistFilterOption}
-                  onPress={() => toggleArtistSelection(artist)}
+                  onPress={toggleHasTracks}
                 >
                   <View style={styles.artistFilterOptionContent}>
                     <Ionicons 
-                      name={selectedArtists.has(artist) ? "checkbox" : "square-outline"} 
+                      name={hasTracks ? "checkbox" : "square-outline"} 
                       size={24} 
-                      color={selectedArtists.has(artist) ? "#BB86FC" : "#BBBBBB"} 
+                      color={hasTracks ? "#BB86FC" : "#BBBBBB"} 
                     />
+                    <Ionicons name="musical-notes-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
                     <Text style={[
                       styles.artistFilterOptionText,
-                      selectedArtists.has(artist) && styles.artistFilterOptionTextSelected
-                    ]}>{artist}</Text>
+                      hasTracks && styles.artistFilterOptionTextSelected
+                    ]}>Tracks</Text>
                   </View>
                 </TouchableOpacity>
-              ))}
+                
+                <TouchableOpacity
+                  style={styles.artistFilterOption}
+                  onPress={toggleHasLyrics}
+                >
+                  <View style={styles.artistFilterOptionContent}>
+                    <Ionicons 
+                      name={hasLyrics ? "checkbox" : "square-outline"} 
+                      size={24} 
+                      color={hasLyrics ? "#BB86FC" : "#BBBBBB"} 
+                    />
+                    <Ionicons name="text-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
+                    <Text style={[
+                      styles.artistFilterOptionText,
+                      hasLyrics && styles.artistFilterOptionTextSelected
+                    ]}>Lyrics</Text>
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.artistFilterOption}
+                  onPress={toggleHasScores}
+                >
+                  <View style={styles.artistFilterOptionContent}>
+                    <Ionicons 
+                      name={hasScores ? "checkbox" : "square-outline"} 
+                      size={24} 
+                      color={hasScores ? "#BB86FC" : "#BBBBBB"} 
+                    />
+                    <Ionicons name="musical-note-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
+                    <Text style={[
+                      styles.artistFilterOptionText,
+                      hasScores && styles.artistFilterOptionTextSelected
+                    ]}>Scores</Text>
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.artistFilterOption}
+                  onPress={toggleHasLinks}
+                >
+                  <View style={styles.artistFilterOptionContent}>
+                    <Ionicons 
+                      name={hasLinks ? "checkbox" : "square-outline"} 
+                      size={24} 
+                      color={hasLinks ? "#BB86FC" : "#BBBBBB"} 
+                    />
+                    <Ionicons name="link-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
+                    <Text style={[
+                      styles.artistFilterOptionText,
+                      hasLinks && styles.artistFilterOptionTextSelected
+                    ]}>Links</Text>
+                  </View>
+                </TouchableOpacity>
+                {hasActiveContentFilters() && (
+                  <TouchableOpacity 
+                    style={styles.clearSectionButton}
+                    onPress={clearContentFilters}
+                  >
+                    <Text style={styles.clearSectionButtonText}>Clear Content</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </ScrollView>
-            <View style={[styles.dialogButtonContainer, { justifyContent: 'space-between' }]}>
+            <View style={[styles.dialogButtonContainer, { justifyContent: 'flex-end' }]}>
               <TouchableOpacity 
                 style={[styles.dialogButton, styles.dialogButtonSecondary]}
-                onPress={clearArtistFilters}
-              >
-                <Text style={styles.dialogButtonText}>Clear All</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.dialogButton, styles.dialogButtonSecondary]}
-                onPress={() => setShowArtistFilterDialog(false)}
-              >
-                <Text style={styles.dialogButtonText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
-      
-      {showContentFilterDialog && (
-        <View style={styles.dialogOverlay}>
-          <View style={styles.dialogContainer}>
-            <Text style={styles.dialogTitle}>Filter by Content</Text>
-            <ScrollView style={styles.dialogScrollView}>
-              <TouchableOpacity
-                style={styles.artistFilterOption}
-                onPress={toggleHasTracks}
-              >
-                <View style={styles.artistFilterOptionContent}>
-                  <Ionicons 
-                    name={hasTracks ? "checkbox" : "square-outline"} 
-                    size={24} 
-                    color={hasTracks ? "#BB86FC" : "#BBBBBB"} 
-                  />
-                  <Ionicons name="musical-notes-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
-                  <Text style={[
-                    styles.artistFilterOptionText,
-                    hasTracks && styles.artistFilterOptionTextSelected
-                  ]}>Tracks</Text>
-                </View>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.artistFilterOption}
-                onPress={toggleHasLyrics}
-              >
-                <View style={styles.artistFilterOptionContent}>
-                  <Ionicons 
-                    name={hasLyrics ? "checkbox" : "square-outline"} 
-                    size={24} 
-                    color={hasLyrics ? "#BB86FC" : "#BBBBBB"} 
-                  />
-                  <Ionicons name="text-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
-                  <Text style={[
-                    styles.artistFilterOptionText,
-                    hasLyrics && styles.artistFilterOptionTextSelected
-                  ]}>Lyrics</Text>
-                </View>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.artistFilterOption}
-                onPress={toggleHasScores}
-              >
-                <View style={styles.artistFilterOptionContent}>
-                  <Ionicons 
-                    name={hasScores ? "checkbox" : "square-outline"} 
-                    size={24} 
-                    color={hasScores ? "#BB86FC" : "#BBBBBB"} 
-                  />
-                  <Ionicons name="musical-note-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
-                  <Text style={[
-                    styles.artistFilterOptionText,
-                    hasScores && styles.artistFilterOptionTextSelected
-                  ]}>Scores</Text>
-                </View>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.artistFilterOption}
-                onPress={toggleHasLinks}
-              >
-                <View style={styles.artistFilterOptionContent}>
-                  <Ionicons 
-                    name={hasLinks ? "checkbox" : "square-outline"} 
-                    size={24} 
-                    color={hasLinks ? "#BB86FC" : "#BBBBBB"} 
-                  />
-                  <Ionicons name="link-outline" size={20} color="#BB86FC" style={styles.filterIcon} />
-                  <Text style={[
-                    styles.artistFilterOptionText,
-                    hasLinks && styles.artistFilterOptionTextSelected
-                  ]}>Links</Text>
-                </View>
-              </TouchableOpacity>
-            </ScrollView>
-            <View style={[styles.dialogButtonContainer, { justifyContent: 'space-between' }]}>
-              <TouchableOpacity 
-                style={[styles.dialogButton, styles.dialogButtonSecondary]}
-                onPress={clearContentFilters}
-              >
-                <Text style={styles.dialogButtonText}>Clear All</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.dialogButton, styles.dialogButtonSecondary]}
-                onPress={() => setShowContentFilterDialog(false)}
+                onPress={() => setShowFilterDialog(false)}
               >
                 <Text style={styles.dialogButtonText}>Done</Text>
               </TouchableOpacity>
@@ -2142,6 +2223,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       id: song.id,
       title: song.title,
       artist: song.artist,
+      album: song.album,
       tracks: (song.tracks || []).map(track => ({
         ...track,
         file: null
@@ -2587,6 +2669,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       const songData = {
         title: editingSong.title,
         artist: editingSong.artist,
+        album: editingSong.album || undefined,
         tracks: updatedTracks,
         lyrics: editingSong.lyrics || '',
         scores: editingSong.scores || [],
@@ -2634,6 +2717,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               placeholderTextColor="#666666"
               value={editingSong.artist}
               onChangeText={(text) => setEditingSong(prev => prev ? { ...prev, artist: text } : null)}
+            />
+            <TextInput
+              style={styles.dialogInput}
+              placeholder="Album (optional)"
+              placeholderTextColor="#666666"
+              value={editingSong.album || ''}
+              onChangeText={(text) => setEditingSong(prev => prev ? { ...prev, album: text } : null)}
             />
             
             <View style={styles.tracksHeader}>
@@ -3480,6 +3570,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         id: newId,
         title: newSong.title,
         artist: newSong.artist,
+        album: newSong.album || undefined,
         tracks,
         lyrics: newSong.lyrics,
         scores: newSong.scores,
@@ -3494,6 +3585,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       await set(songRef, {
         title: songToAdd.title,
         artist: songToAdd.artist,
+        album: songToAdd.album,
         tracks: songToAdd.tracks,
         lyrics: songToAdd.lyrics,
         scores: songToAdd.scores,
@@ -3507,6 +3599,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setNewSong({
         title: '',
         artist: '',
+        album: '',
         tracks: [],
         lyrics: '',
         scores: [],
@@ -3592,6 +3685,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             placeholderTextColor="#666666"
             value={newSong.artist}
             onChangeText={(text) => setNewSong(prev => ({ ...prev, artist: text }))}
+          />
+          <TextInput
+            style={styles.dialogInput}
+            placeholder="Album (optional)"
+            placeholderTextColor="#666666"
+            value={newSong.album || ''}
+            onChangeText={(text) => setNewSong(prev => ({ ...prev, album: text }))}
           />
           
           <View style={styles.tracksHeader}>
@@ -8155,6 +8255,37 @@ const styles = StyleSheet.create({
   },
   filterIcon: {
     marginRight: 8,
+  },
+  filterSection: {
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  filterSectionTitle: {
+    color: '#BB86FC',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  clearSectionButton: {
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignSelf: 'flex-start',
+  },
+  clearSectionButtonText: {
+    color: '#BB86FC',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  emptyFilterText: {
+    color: '#666',
+    fontSize: 14,
+    fontStyle: 'italic',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   artistFilterText: {
     flex: 1,

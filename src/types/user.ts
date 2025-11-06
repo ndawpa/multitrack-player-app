@@ -13,6 +13,7 @@ export interface User {
 export interface FilterState {
   searchQuery: string;
   selectedArtists: string[];
+  selectedAlbums: string[];
   showFavoritesOnly: boolean;
   hasTracks: boolean;
   hasLyrics: boolean;
