@@ -385,31 +385,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           </View>
         </View>
 
-        {/* Notifications Section */}
-        <View style={commonStyles.section}>
-          <View style={commonStyles.sectionHeader}>
-            <Ionicons name="notifications-outline" size={20} color="#BB86FC" />
-            <Text style={commonStyles.sectionTitle}>{t('settings.notifications')}</Text>
-          </View>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.switchContainer}>
-              <View>
-                <Text style={styles.settingLabel}>{t('settings.pushNotifications')}</Text>
-                <Text style={styles.settingDescription}>
-                  {t('settings.notificationsDescription')}
-                </Text>
-              </View>
-              <Switch
-                value={preferences.notifications}
-                onValueChange={(value) => handlePreferenceChange('notifications', value)}
-                trackColor={{ false: '#333', true: '#BB86FC' }}
-                thumbColor={preferences.notifications ? '#FFFFFF' : '#BBBBBB'}
-              />
-            </View>
-          </View>
-        </View>
-
         {/* Language Section */}
         <View style={commonStyles.section}>
           <View style={commonStyles.sectionHeader}>

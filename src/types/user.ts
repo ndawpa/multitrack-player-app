@@ -26,7 +26,6 @@ export interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   defaultPlaybackSpeed: number;
   autoPlay: boolean;
-  notifications: boolean;
   language: string;
   filters: FilterState;
 }

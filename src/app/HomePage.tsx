@@ -189,6 +189,7 @@ const RightToLeftMarqueeText = ({ text, style }: { text: string; style: any }) =
 interface HomePageProps {
   onNavigateToProfile: () => void;
   onNavigateToPlaylists?: (songs: Song[]) => void;
+  onNavigateToAIAssistant?: () => void;
   user: User | null;
   playlistToPlay?: {playlist: Playlist, songs: Song[]} | null;
   onPlaylistPlayed?: () => void;
@@ -196,7 +197,7 @@ interface HomePageProps {
   onAdminModeChange?: (isAdmin: boolean) => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPlaylists, user, playlistToPlay, onPlaylistPlayed, isAdminMode: propIsAdminMode, onAdminModeChange }) => {
+const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPlaylists, onNavigateToAIAssistant, user, playlistToPlay, onPlaylistPlayed, isAdminMode: propIsAdminMode, onAdminModeChange }) => {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -7148,6 +7149,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               >
                 <Ionicons 
                   name="musical-notes" 
+                  size={24} 
+                  color="#BB86FC" 
+                />
+              </TouchableOpacity>
+            )}
+            {onNavigateToAIAssistant && (
+              <TouchableOpacity
+                style={styles.bottomNavButton}
+                onPress={onNavigateToAIAssistant}
+              >
+                <Ionicons 
+                  name="chatbubble-ellipses" 
                   size={24} 
                   color="#BB86FC" 
                 />

@@ -177,7 +177,6 @@ class AuthService {
         theme: 'auto',
         defaultPlaybackSpeed: 1.0,
         autoPlay: false,
-        notifications: true,
         language: 'en',
         filters: this.getDefaultFilterState()
       };
@@ -306,7 +305,6 @@ class AuthService {
           theme: 'auto',
           defaultPlaybackSpeed: 1.0,
           autoPlay: false,
-          notifications: true,
           language: 'en',
           filters: this.getDefaultFilterState()
         };
@@ -346,7 +344,6 @@ class AuthService {
           theme: 'auto',
           defaultPlaybackSpeed: 1.0,
           autoPlay: false,
-          notifications: true,
           language: 'en',
           filters: this.getDefaultFilterState()
         };

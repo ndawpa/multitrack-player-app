@@ -8,13 +8,14 @@ import ProfileScreen from '../components/ProfileScreen';
 import SettingsScreen from '../components/SettingsScreen';
 import EmailVerificationScreen from '../components/EmailVerificationScreen';
 import PlaylistScreen from '../components/PlaylistScreen';
+import AIAssistantScreen from '../components/AIAssistantScreen';
 import HomePage from './HomePage';
 import { User } from '../types/user';
 import { Song } from '../types/song';
 import { Playlist } from '../types/playlist';
 import { I18nProvider } from '../contexts/I18nContext';
 
-type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification' | 'playlists';
+type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification' | 'playlists' | 'aiAssistant';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('auth');
@@ -75,6 +76,10 @@ const App = () => {
   const handleNavigateToPlaylists = (songs: Song[]) => {
     setAvailableSongs(songs);
     setCurrentScreen('playlists');
+  };
+
+  const handleNavigateToAIAssistant = () => {
+    setCurrentScreen('aiAssistant');
   };
 
   const handleBackToMain = () => {
@@ -232,12 +237,21 @@ const App = () => {
         />
       );
     
+    case 'aiAssistant':
+      return (
+        <AIAssistantScreen 
+          onBack={handleBackToMain}
+          user={user}
+        />
+      );
+    
     case 'main':
     default:
       return (
         <HomePage 
           onNavigateToProfile={handleNavigateToProfile}
           onNavigateToPlaylists={handleNavigateToPlaylists}
+          onNavigateToAIAssistant={handleNavigateToAIAssistant}
           user={user}
           playlistToPlay={playlistToPlay}
           onPlaylistPlayed={() => setPlaylistToPlay(null)}
