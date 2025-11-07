@@ -3034,7 +3034,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View style={styles.dialogContainer}>
-          <ScrollView style={styles.dialogScrollView}>
+          <ScrollView 
+            style={styles.dialogScrollView}
+            nestedScrollEnabled={true}
+            scrollEventThrottle={16}
+          >
             <Text style={styles.dialogTitle}>Edit Song</Text>
             
             <TextInput
@@ -3084,6 +3088,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       activeOpacity={0.7}
                       onLongPress={drag}
                       disabled={isActive}
+                      delayPressIn={100}
+                      delayLongPress={2000}
                       style={[
                         styles.trackUploadContainer,
                         isActive && (styles as any).trackUploadContainerActive
@@ -3202,7 +3208,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         activeOpacity={0.7}
                         onLongPress={drag}
                         disabled={isActive}
-                          style={styles.scoreItem}
+                        delayPressIn={100}
+                        delayLongPress={2000}
+                        style={styles.scoreItem}
                       >
                         <TouchableOpacity
                           onPress={drag}
@@ -3466,6 +3474,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         activeOpacity={0.7}
                         onLongPress={drag}
                         disabled={isActive}
+                        delayPressIn={100}
+                        delayLongPress={2000}
                         style={[
                           styles.resourceItemContainer,
                           isActive && (styles as any).trackUploadContainerActive
