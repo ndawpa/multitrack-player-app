@@ -29,6 +29,7 @@ import { Song, Track, Score, Resource } from '../types/song';
 import Header from '../components/Header';
 import GroupManagement from '../components/GroupManagement';
 import SongAccessManagement from '../components/SongAccessManagement';
+import Watermark from '../components/Watermark';
 import GroupService from '../services/groupService';
 import { normalizeSearchText, matchesSearch, findMatchesInText } from '../utils/textNormalization';
 import { useI18n } from '../contexts/I18nContext';
@@ -5568,11 +5569,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                 activeOpacity={0.8}
                                         style={styles.scorePageItem}
                               >
-                                <Image
-                                          source={{ uri: pageUrl }}
-                                  style={styles.sheetMusicImage}
-                                  resizeMode="contain"
-                                />
+                                <View style={styles.scoreImageWrapper}>
+                                  <Image
+                                            source={{ uri: pageUrl }}
+                                    style={styles.sheetMusicImage}
+                                    resizeMode="contain"
+                                  />
+                                  <Watermark 
+                                    text="© Multitrack Player" 
+                                    opacity={0.1}
+                                    fontSize={16}
+                                  />
+                                </View>
                               </TouchableOpacity>
                                     ))}
                                   </ScrollView>
@@ -5709,11 +5717,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                             activeOpacity={0.8}
                                     style={styles.scorePageItem}
                           >
-                            <Image
-                                      source={{ uri: pageUrl }}
-                              style={styles.sheetMusicImage}
-                              resizeMode="contain"
-                            />
+                            <View style={styles.scoreImageWrapper}>
+                              <Image
+                                        source={{ uri: pageUrl }}
+                                style={styles.sheetMusicImage}
+                                resizeMode="contain"
+                              />
+                              <Watermark 
+                                text="© Multitrack Player" 
+                                opacity={0.1}
+                                fontSize={16}
+                              />
+                            </View>
                           </TouchableOpacity>
                                 ))}
                               </ScrollView>
@@ -6205,6 +6220,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               ]}
               resizeMode="contain"
             />
+                    <Watermark 
+                      text="© Multitrack Player" 
+                      opacity={0.12}
+                      fontSize={28}
+                    />
                   </View>
                 </GestureDetector>
               </View>
@@ -9441,6 +9461,11 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').width - 48,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  scoreImageWrapper: {
+    width: '100%',
+    height: 400,
+    position: 'relative',
   },
   fullScreenLyricsContainer: {
     flex: 1,
