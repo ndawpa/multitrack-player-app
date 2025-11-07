@@ -242,12 +242,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   
   // Filtered songs navigation state
   const [currentFilteredIndex, setCurrentFilteredIndex] = useState(-1);
-  const [showNavigationControls, setShowNavigationControls] = useState(true);
+  const [showNavigationControls, setShowNavigationControls] = useState(false);
   const [showFilteredSongsModal, setShowFilteredSongsModal] = useState(false);
   const [isFilteredRepeating, setIsFilteredRepeating] = useState(false);
   const [shouldAutoStartFiltered, setShouldAutoStartFiltered] = useState(false);
   // Playlist controls toggle state
-  const [showPlaylistControls, setShowPlaylistControls] = useState(true);
+  const [showPlaylistControls, setShowPlaylistControls] = useState(false);
   // Playlist player removed - using main audio system
   
   // Add to playlist state
