@@ -410,7 +410,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [editingResourceName, setEditingResourceName] = useState('');
   const [editingResourceUrl, setEditingResourceUrl] = useState('');
   const [editingResourceDescription, setEditingResourceDescription] = useState('');
-  const [editingResourceType, setEditingResourceType] = useState<'youtube' | 'download' | 'link' | 'pdf'>('link');
+  const [editingResourceType, setEditingResourceType] = useState<'youtube' | 'audio' | 'download' | 'link' | 'pdf'>('link');
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [expandedFilterSections, setExpandedFilterSections] = useState({
     artist: true,
@@ -3470,7 +3470,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         <View style={styles.resourceTypeContainer}>
                           <Text style={styles.resourceTypeLabel}>Type:</Text>
                           <View style={styles.resourceTypeButtons}>
-                            {['youtube', 'download', 'link', 'pdf'].map((type) => (
+                            {['youtube', 'audio', 'download', 'link', 'pdf'].map((type) => (
                               <TouchableOpacity
                                 key={type}
                                 style={[
@@ -3490,7 +3490,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                   styles.resourceTypeButtonText,
                                   resource.type === type && styles.resourceTypeButtonTextActive
                                 ]}>
-                                  {type === 'youtube' ? 'Video' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
+                                  {type === 'youtube' ? 'Video' : type === 'audio' ? 'Audio' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
                                 </Text>
                               </TouchableOpacity>
                             ))}
@@ -4417,7 +4417,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   <View style={styles.resourceTypeContainer}>
                     <Text style={styles.resourceTypeLabel}>Type:</Text>
                     <View style={styles.resourceTypeButtons}>
-                      {['youtube', 'download', 'link', 'pdf'].map((type) => (
+                      {['youtube', 'audio', 'download', 'link', 'pdf'].map((type) => (
                         <TouchableOpacity
                           key={type}
                           style={[
@@ -4436,7 +4436,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                             styles.resourceTypeButtonText,
                             resource.type === type && styles.resourceTypeButtonTextActive
                           ]}>
-                            {type === 'youtube' ? 'Video' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
+                            {type === 'youtube' ? 'Video' : type === 'audio' ? 'Audio' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -5496,7 +5496,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                   placeholderTextColor="#666666"
                                 />
                                 <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                                  {['youtube', 'download', 'link', 'pdf'].map((type) => (
+                                  {['youtube', 'audio', 'download', 'link', 'pdf'].map((type) => (
                                     <TouchableOpacity
                                       key={type}
                                       style={[
@@ -5509,7 +5509,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                         styles.resourceTypeButtonText,
                                         editingResourceType === type && styles.resourceTypeButtonTextActive
                                       ]}>
-                                        {type === 'youtube' ? 'Video' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
+                                        {type === 'youtube' ? 'Video' : type === 'audio' ? 'Audio' : type === 'pdf' ? 'PDF' : type.charAt(0).toUpperCase() + type.slice(1)}
                                       </Text>
                                     </TouchableOpacity>
                                   ))}
@@ -5603,65 +5603,32 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                               domStorageEnabled={true}
                             />
                           </View>
+                        ) : resource.type === 'audio' ? (
+                          <View style={styles.sheetMusicView}>
+                            <WebView
+                              source={{ uri: resource.url }}
+                              style={{
+                                height: 150,
+                                width: Dimensions.get('window').width - 48,
+                                backgroundColor: '#000000',
+                              }}
+                              allowsFullscreenVideo={false}
+                              javaScriptEnabled={true}
+                              domStorageEnabled={true}
+                            />
+                          </View>
                         ) : resource.type === 'pdf' ? (
                           <View style={styles.sheetMusicView}>
                             <WebView
-                              source={{ 
-                                uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(resource.url)}`
-                              }}
+                              source={{ uri: resource.url }}
                               style={{
-                                height: 400,
+                                height: (Dimensions.get('window').width - 48) * 1.414, // A4 aspect ratio (297:210)
                                 width: Dimensions.get('window').width - 48,
-                                backgroundColor: '#FFFFFF',
+                                backgroundColor: '#000000',
                               }}
+                              allowsFullscreenVideo={true}
                               javaScriptEnabled={true}
                               domStorageEnabled={true}
-                              startInLoadingState={true}
-                              onError={(syntheticEvent) => {
-                                const { nativeEvent } = syntheticEvent;
-                                console.error('PDF WebView error:', nativeEvent);
-                                console.log('PDF URL:', resource.url);
-                                console.log('Full PDF.js URL:', `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(resource.url)}`);
-                                Alert.alert(
-                                  'PDF Viewing Error',
-                                  `Unable to load PDF: ${resource.url}\n\nThis might be due to CORS restrictions. You can try opening it in your browser.`,
-                                  [
-                                    {
-                                      text: 'Open in Browser',
-                                      onPress: () => {
-                                        Linking.openURL(resource.url);
-                                      }
-                                    },
-                                    {
-                                      text: 'Try Alternative',
-                                      onPress: () => {
-                                        // Try opening with Google Docs viewer as fallback
-                                        const googleDocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(resource.url)}&embedded=true`;
-                                        Linking.openURL(googleDocsUrl);
-                                      }
-                                    },
-                                    {
-                                      text: 'Cancel',
-                                      style: 'cancel'
-                                    }
-                                  ]
-                                );
-                              }}
-                              onLoadStart={() => {
-                                console.log('PDF loading started for:', resource.url);
-                              }}
-                              onLoadEnd={() => {
-                                console.log('PDF loading ended for:', resource.url);
-                              }}
-                              onMessage={(event) => {
-                                console.log('PDF WebView message:', event.nativeEvent.data);
-                              }}
-                              renderLoading={() => (
-                                <View style={styles.loadingContainer}>
-                                  <ActivityIndicator size="large" color="#BB86FC" />
-                                  <Text style={styles.loadingText}>Loading PDF...</Text>
-                                </View>
-                              )}
                             />
                           </View>
                         ) : resource.type === 'download' ? (
@@ -5728,53 +5695,32 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                 domStorageEnabled={true}
                               />
                             </View>
+                          ) : resource.type === 'audio' ? (
+                            <View style={styles.sheetMusicView}>
+                              <WebView
+                                source={{ uri: resource.url }}
+                                style={{
+                                  height: 150,
+                                  width: Dimensions.get('window').width - 48,
+                                  backgroundColor: '#000000',
+                                }}
+                                allowsFullscreenVideo={false}
+                                javaScriptEnabled={true}
+                                domStorageEnabled={true}
+                              />
+                            </View>
                           ) : resource.type === 'pdf' ? (
                             <View style={styles.sheetMusicView}>
                               <WebView
-                                source={{ 
-                                  uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(resource.url)}`
-                                }}
+                                source={{ uri: resource.url }}
                                 style={{
-                                  height: 400,
+                                  height: (Dimensions.get('window').width - 48) * 1.414, // A4 aspect ratio (297:210)
                                   width: Dimensions.get('window').width - 48,
-                                  backgroundColor: '#FFFFFF',
+                                  backgroundColor: '#000000',
                                 }}
+                                allowsFullscreenVideo={true}
                                 javaScriptEnabled={true}
                                 domStorageEnabled={true}
-                                startInLoadingState={true}
-                                onError={(syntheticEvent) => {
-                                  const { nativeEvent } = syntheticEvent;
-                                  console.error('PDF WebView error:', nativeEvent);
-                                  Alert.alert(
-                                    'PDF Viewing Error',
-                                    `Unable to load PDF: ${resource.url}\n\nThis might be due to CORS restrictions. You can try opening it in your browser.`,
-                                    [
-                                      {
-                                        text: 'Open in Browser',
-                                        onPress: () => {
-                                          Linking.openURL(resource.url);
-                                        }
-                                      },
-                                      {
-                                        text: 'Try Alternative',
-                                        onPress: () => {
-                                          const googleDocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(resource.url)}&embedded=true`;
-                                          Linking.openURL(googleDocsUrl);
-                                        }
-                                      },
-                                      {
-                                        text: 'Cancel',
-                                        style: 'cancel'
-                                      }
-                                    ]
-                                  );
-                                }}
-                                renderLoading={() => (
-                                  <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color="#BB86FC" />
-                                    <Text style={styles.loadingText}>Loading PDF...</Text>
-                                  </View>
-                                )}
                               />
                             </View>
                           ) : resource.type === 'download' ? (

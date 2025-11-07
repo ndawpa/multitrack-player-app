@@ -34,7 +34,7 @@ export interface Score {
 export interface Resource {
   id: string;
   name: string;
-  type: 'youtube' | 'download' | 'link' | 'pdf';
+  type: 'youtube' | 'audio' | 'download' | 'link' | 'pdf';
   url: string;
   description?: string;
 }
