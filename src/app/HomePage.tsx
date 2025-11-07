@@ -4955,9 +4955,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 20, 40) }}
               keyboardShouldPersistTaps="handled"
             >
-            {activeView === 'tracks' ? (
-              // Tracks view content
-              <View style={isLandscape ? styles.tracksLandscapeContainer : styles.tracksPortraitContainer}>
+            {/* Tracks view - always rendered but hidden when not active */}
+            <View style={[
+              isLandscape ? styles.tracksLandscapeContainer : styles.tracksPortraitContainer,
+              activeView !== 'tracks' && { 
+                position: 'absolute' as any, 
+                left: -9999, 
+                width: 1, 
+                height: 1, 
+                opacity: 0, 
+                pointerEvents: 'none' as any,
+                overflow: 'hidden' as any
+              }
+            ]}>
                 {isLoadingTrackStates && (
                   <View style={styles.trackStateLoadingContainer}>
                     <ActivityIndicator size="small" color="#BB86FC" />
@@ -5192,9 +5202,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   ))
                 )}
               </View>
-            ) : activeView === 'lyrics' ? (
-              // Lyrics view content
-              <View style={styles.lyricsContainer}>
+            {/* Lyrics view - always rendered but hidden when not active */}
+            <View style={[
+              styles.lyricsContainer,
+              activeView !== 'lyrics' && { 
+                position: 'absolute' as any, 
+                left: -9999, 
+                width: 1, 
+                height: 1, 
+                opacity: 0, 
+                pointerEvents: 'none' as any,
+                overflow: 'hidden' as any
+              }
+            ]}>
                 <View style={styles.lyricsHeader}>
                   <View style={styles.lyricsHeaderLeft}>
                     {isAdminMode && (
@@ -5314,9 +5334,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   </View>
                 )}
               </View>
-            ) : activeView === 'score' ? (
-              // Scores view content
-              <View style={styles.sheetMusicContainer}>
+            {/* Scores view - always rendered but hidden when not active */}
+            <View style={[
+              styles.sheetMusicContainer,
+              activeView !== 'score' && { 
+                position: 'absolute' as any, 
+                left: -9999, 
+                width: 1, 
+                height: 1, 
+                opacity: 0, 
+                pointerEvents: 'none' as any,
+                overflow: 'hidden' as any
+              }
+            ]}>
                 {isAdminMode && (
                   <TouchableOpacity
                     style={styles.addButton}
@@ -5740,9 +5770,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   ))
                 )}
               </View>
-            ) : (
-              // Resources view content
-              <View style={styles.sheetMusicContainer}>
+            {/* Resources view - always rendered but hidden when not active */}
+            <View style={[
+              styles.sheetMusicContainer,
+              activeView !== 'resources' && { 
+                position: 'absolute' as any, 
+                left: -9999, 
+                width: 1, 
+                height: 1, 
+                opacity: 0, 
+                pointerEvents: 'none' as any,
+                overflow: 'hidden' as any
+              }
+            ]}>
                 {isAdminMode && (
                   <TouchableOpacity
                     style={styles.addButton}
@@ -6056,7 +6096,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   ))
                 )}
               </View>
-            )}
           </ScrollView>
           </KeyboardAvoidingView>
         </View>
