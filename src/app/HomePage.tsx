@@ -9369,7 +9369,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     paddingVertical: 15,
     paddingHorizontal: 20,
     paddingBottom: 40, // Extra padding for safe area and device home indicators
