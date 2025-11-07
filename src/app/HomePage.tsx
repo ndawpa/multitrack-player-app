@@ -325,6 +325,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [isAdminMode, setIsAdminMode] = useState(propIsAdminMode || false);
   const [userGroups, setUserGroups] = useState<string[]>([]);
   const [password, setPassword] = useState('');
+  const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
 
   // Sync fullscreen page index when fullScreenImage changes
@@ -370,6 +371,27 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     };
 
     loadUserGroups();
+  }, [user?.id]);
+
+  // Check admin access when user changes
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      if (user?.id) {
+        try {
+          const accessService = AIAssistantAccessService.getInstance();
+          const isAdmin = await accessService.isAdmin();
+          setHasAdminAccess(isAdmin);
+          console.log('Admin access:', isAdmin);
+        } catch (error) {
+          console.error('Error checking admin access:', error);
+          setHasAdminAccess(false);
+        }
+      } else {
+        setHasAdminAccess(false);
+      }
+    };
+
+    checkAdminAccess();
   }, [user?.id]);
 
   // Check AI Assistant access when user changes
@@ -7035,28 +7057,32 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   </View>
                   
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 80 }}>
-                    {isAdminMode ? (
-                      <TouchableOpacity 
-                        style={[styles.iconButton, { marginRight: 8 }]}
-                        onPress={() => {
-                          setIsAdminMode(false);
-                          onAdminModeChange?.(false);
-                        }}
-                      >
-                        <Ionicons name="lock-open-outline" size={24} color="#BB86FC" />
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity 
-                        style={[styles.iconButton, { marginRight: 8 }]}
-                        onPress={() => {
-                          setPendingSongOperation('admin');
-                          setShowSongPasswordDialog(true);
-                          setSongPassword('');
-                          setSongPasswordError('');
-                        }}
-                      >
-                        <Ionicons name="lock-closed-outline" size={24} color="#BB86FC" />
-                      </TouchableOpacity>
+                    {hasAdminAccess && (
+                      <>
+                        {isAdminMode ? (
+                          <TouchableOpacity 
+                            style={[styles.iconButton, { marginRight: 8 }]}
+                            onPress={() => {
+                              setIsAdminMode(false);
+                              onAdminModeChange?.(false);
+                            }}
+                          >
+                            <Ionicons name="lock-open-outline" size={24} color="#BB86FC" />
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity 
+                            style={[styles.iconButton, { marginRight: 8 }]}
+                            onPress={() => {
+                              setPendingSongOperation('admin');
+                              setShowSongPasswordDialog(true);
+                              setSongPassword('');
+                              setSongPasswordError('');
+                            }}
+                          >
+                            <Ionicons name="lock-closed-outline" size={24} color="#BB86FC" />
+                          </TouchableOpacity>
+                        )}
+                      </>
                     )}
                     {filteredSongs.length > 0 && currentFilteredIndex >= 0 && (
                       <TouchableOpacity 

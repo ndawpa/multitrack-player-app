@@ -224,6 +224,7 @@ class AIAssistantAccessService {
 
   /**
    * Check if current user is admin
+   * Returns true if user has admin role OR belongs to an admin group
    */
   public async isAdmin(): Promise<boolean> {
     try {
@@ -232,10 +233,19 @@ class AIAssistantAccessService {
         return false;
       }
 
+      // Check database role first
       const userRef = ref(database, `users/${user.id}/role`);
       const snapshot = await get(userRef);
       
-      return snapshot.exists() && snapshot.val() === 'admin';
+      if (snapshot.exists() && snapshot.val() === 'admin') {
+        return true;
+      }
+
+      // Check if user belongs to any admin group
+      const userGroups = await this.groupService.getUserGroups(user.id);
+      const isInAdminGroup = userGroups.some(group => group.isAdmin === true);
+      
+      return isInAdminGroup;
     } catch (error) {
       console.error('Error checking admin status:', error);
       return false;

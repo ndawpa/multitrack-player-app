@@ -258,7 +258,8 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
         name: groupData.name,
         description: groupData.description,
         color: groupData.color,
-        icon: groupData.icon
+        icon: groupData.icon,
+        isAdmin: groupData.isAdmin || false
       });
       setShowEditGroupModal(false);
       setEditingGroup(null);
@@ -440,7 +441,15 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
     >
       <View style={styles.groupInfo}>
         <View style={styles.groupDetails}>
-          <Text style={styles.groupName}>{item.name}</Text>
+          <View style={styles.groupNameRow}>
+            <Text style={styles.groupName}>{item.name}</Text>
+            {item.isAdmin && (
+              <View style={styles.adminBadge}>
+                <Ionicons name="shield-checkmark" size={14} color="#4CAF50" />
+                <Text style={styles.adminBadgeText}>Admin</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.groupDescription}>{item.description}</Text>
           <Text style={styles.memberCount}>{item.members?.length || 0} members</Text>
         </View>
@@ -946,7 +955,8 @@ const CreateGroupModal: React.FC<{
     name: '',
     description: '',
     color: '#BB86FC',
-    icon: 'people'
+    icon: 'people',
+    isAdmin: false
   });
 
   const handleSubmit = () => {
@@ -955,7 +965,7 @@ const CreateGroupModal: React.FC<{
       return;
     }
     onCreateGroup(formData);
-    setFormData({ name: '', description: '', color: '#BB86FC', icon: 'people' });
+    setFormData({ name: '', description: '', color: '#BB86FC', icon: 'people', isAdmin: false });
   };
 
   return (
@@ -989,6 +999,16 @@ const CreateGroupModal: React.FC<{
             value={formData.color}
             onChangeText={(text) => setFormData({ ...formData, color: text })}
           />
+          <View style={styles.switchContainer}>
+            <Text style={styles.switchLabel}>Admin Group</Text>
+            <Text style={styles.switchDescription}>Members of this group will have admin access</Text>
+            <Switch
+              value={formData.isAdmin || false}
+              onValueChange={(value) => setFormData({ ...formData, isAdmin: value })}
+              trackColor={{ false: '#767577', true: '#BB86FC' }}
+              thumbColor={formData.isAdmin ? '#FFFFFF' : '#f4f3f4'}
+            />
+          </View>
         </ScrollView>
 
         <View style={styles.modalFooter}>
@@ -1015,7 +1035,8 @@ const EditGroupModal: React.FC<{
     name: '',
     description: '',
     color: '#BB86FC',
-    icon: 'people'
+    icon: 'people',
+    isAdmin: false
   });
 
   useEffect(() => {
@@ -1024,7 +1045,8 @@ const EditGroupModal: React.FC<{
         name: group.name || '',
         description: group.description || '',
         color: group.color || '#BB86FC',
-        icon: group.icon || 'people'
+        icon: group.icon || 'people',
+        isAdmin: group.isAdmin || false
       });
     }
   }, [group]);
@@ -1108,6 +1130,21 @@ const EditGroupModal: React.FC<{
                   />
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <View style={styles.switchContainer}>
+              <View style={styles.switchLabelContainer}>
+                <Text style={styles.label}>Admin Group</Text>
+                <Text style={styles.switchDescription}>Members of this group will have admin access</Text>
+              </View>
+              <Switch
+                value={formData.isAdmin || false}
+                onValueChange={(value) => setFormData({ ...formData, isAdmin: value })}
+                trackColor={{ false: '#767577', true: '#BB86FC' }}
+                thumbColor={formData.isAdmin ? '#FFFFFF' : '#f4f3f4'}
+              />
             </View>
           </View>
         </ScrollView>
@@ -1555,10 +1592,29 @@ const styles = StyleSheet.create({
   groupDetails: {
     flex: 1,
   },
+  groupNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   groupName: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  adminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1B5E20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  adminBadgeText: {
+    color: '#4CAF50',
+    fontSize: 11,
+    fontWeight: '600',
   },
   groupDescription: {
     color: '#666',
@@ -2135,6 +2191,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  switchLabelContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  switchLabel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  switchDescription: {
+    color: '#BBBBBB',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

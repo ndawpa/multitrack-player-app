@@ -29,6 +29,7 @@ class GroupService {
         createdAt: new Date(),
         updatedAt: new Date(),
         isActive: true,
+        isAdmin: groupData.isAdmin || false,
         color: groupData.color,
         icon: groupData.icon
       };

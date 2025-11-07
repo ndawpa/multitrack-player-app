@@ -9,6 +9,7 @@ export interface UserGroup {
   createdAt: Date;
   updatedAt: Date;
   isActive: boolean;
+  isAdmin?: boolean; // If true, members of this group have admin access
   color?: string; // For UI display
   icon?: string; // For UI display
 }
@@ -46,6 +47,7 @@ export interface GroupFormData {
   description: string;
   color: string;
   icon: string;
+  isAdmin?: boolean; // If true, members of this group have admin access
 }
 
 // User assignment form data

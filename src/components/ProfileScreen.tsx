@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
+import AIAssistantAccessService from '../services/aiAssistantAccessService';
 import { User } from '../types/user';
 import Header from './Header';
 import Button from './Button';
@@ -41,8 +42,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [hasAdminAccess, setHasAdminAccess] = useState(false);
 
   const authService = AuthService.getInstance();
+  const accessService = AIAssistantAccessService.getInstance();
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
 
   useEffect(() => {
@@ -50,9 +53,24 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setUser(currentUser);
     setLoading(false);
 
+    // Check if user has admin access
+    const checkAdminAccess = async () => {
+      try {
+        const isAdmin = await accessService.isAdmin();
+        setHasAdminAccess(isAdmin);
+      } catch (error) {
+        console.error('Error checking admin access:', error);
+        setHasAdminAccess(false);
+      }
+    };
+
+    checkAdminAccess();
+
     // Listen for auth state changes
     const unsubscribe = authService.onAuthStateChange((user) => {
       setUser(user);
+      // Re-check admin access when user changes
+      checkAdminAccess();
     });
 
     return unsubscribe;
@@ -211,17 +229,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
         <View style={commonStyles.section}>
           <Text style={commonStyles.sectionTitle}>{t('profile.quickActions')}</Text>
           
-          <TouchableOpacity style={styles.actionButton} onPress={handleAdminModeToggle}>
-            <Ionicons 
-              name={isAdminMode ? "shield-checkmark" : "shield"} 
-              size={20} 
-              color={isAdminMode ? "#4CAF50" : "#BB86FC"} 
-            />
-            <Text style={[styles.actionText, isAdminMode && { color: '#4CAF50' }]}>
-              {isAdminMode ? t('profile.adminModeActive') : t('profile.adminMode')}
-            </Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
-          </TouchableOpacity>
+          {hasAdminAccess && (
+            <TouchableOpacity style={styles.actionButton} onPress={handleAdminModeToggle}>
+              <Ionicons 
+                name={isAdminMode ? "shield-checkmark" : "shield"} 
+                size={20} 
+                color={isAdminMode ? "#4CAF50" : "#BB86FC"} 
+              />
+              <Text style={[styles.actionText, isAdminMode && { color: '#4CAF50' }]}>
+                {isAdminMode ? t('profile.adminModeActive') : t('profile.adminMode')}
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color="#666" />
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity style={styles.actionButton} onPress={onNavigateToSettings}>
             <Ionicons name="settings" size={20} color="#BB86FC" />
