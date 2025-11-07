@@ -841,7 +841,21 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
     try {
       console.log('Stopping local playback');
-      await Promise.all(players.map(player => player.pauseAsync()));
+      await Promise.all(
+        players
+          .filter(player => player != null)
+          .map(async (player) => {
+            try {
+              const status = await player.getStatusAsync();
+              if (status.isLoaded) {
+                await player.pauseAsync();
+              }
+            } catch (playerError) {
+              // Silently handle individual player errors
+              console.warn('Error pausing individual player:', playerError);
+            }
+          })
+      );
       setIsPlaying(false);
       console.log('Local playback stopped successfully');
     } catch (error) {
@@ -1020,7 +1034,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         setLoadingTracks(initialLoadingState);
 
         // Unload previous players
-        await Promise.all(players.map(player => player.unloadAsync()));
+        await Promise.all(
+          players
+            .filter(player => player != null)
+            .map(async (player) => {
+              try {
+                const status = await player.getStatusAsync();
+                if (status.isLoaded) {
+                  await player.unloadAsync();
+                }
+              } catch (error) {
+                console.warn('Error unloading player:', error);
+              }
+            })
+        );
 
         const audioStorage = AudioStorageService.getInstance();
         const loadedPlayers = await Promise.all(
@@ -6226,7 +6253,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     
     try {
       // First stop all players
-      await Promise.all(players.map(player => player.stopAsync()));
+      await Promise.all(
+        players
+          .filter(player => player != null)
+          .map(async (player) => {
+            try {
+              const status = await player.getStatusAsync();
+              if (status.isLoaded) {
+                await player.stopAsync();
+              }
+            } catch (error) {
+              console.warn('Error stopping player in restart:', error);
+            }
+          })
+      );
       
       // Reset states
       setIsFinished(false);
@@ -6234,14 +6274,36 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setTrackProgress({});
       
       // Reset all tracks to beginning
-      await Promise.all(players.map(player => player.setPositionAsync(0)));
+      await Promise.all(
+        players
+          .filter(player => player != null)
+          .map(async (player) => {
+            try {
+              const status = await player.getStatusAsync();
+              if (status.isLoaded) {
+                await player.setPositionAsync(0);
+              }
+            } catch (error) {
+              console.warn('Error resetting player position:', error);
+            }
+          })
+      );
       
       // Start playback
-      const playPromises = players.map(async (player, index) => {
-        if (selectedSong.tracks && selectedSong.tracks[index] && activeTrackIds.includes(selectedSong.tracks[index].id)) {
-          await player.playAsync();
-        }
-      });
+      const playPromises = players
+        .filter(player => player != null)
+        .map(async (player, index) => {
+          if (selectedSong.tracks && selectedSong.tracks[index] && activeTrackIds.includes(selectedSong.tracks[index].id)) {
+            try {
+              const status = await player.getStatusAsync();
+              if (status.isLoaded) {
+                await player.playAsync();
+              }
+            } catch (error) {
+              console.warn(`Error playing track ${selectedSong.tracks[index]?.name}:`, error);
+            }
+          }
+        });
       await Promise.all(playPromises);
       setIsPlaying(true);
 
@@ -6265,7 +6327,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     
     try {
       // Stop all players
-      await Promise.all(players.map(player => player.stopAsync()));
+      await Promise.all(
+        players
+          .filter(player => player != null)
+          .map(async (player) => {
+            try {
+              const status = await player.getStatusAsync();
+              if (status.isLoaded) {
+                await player.stopAsync();
+              }
+            } catch (error) {
+              console.warn('Error stopping player:', error);
+            }
+          })
+      );
       
       // Reset states
       setIsFinished(false);
@@ -6274,7 +6349,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setTrackProgress({});
       
       // Reset all tracks to beginning
-      await Promise.all(players.map(player => player.setPositionAsync(0)));
+      await Promise.all(
+        players
+          .filter(player => player != null)
+          .map(async (player) => {
+            try {
+              const status = await player.getStatusAsync();
+              if (status.isLoaded) {
+                await player.setPositionAsync(0);
+              }
+            } catch (error) {
+              console.warn('Error resetting player position:', error);
+            }
+          })
+      );
 
       // Sync with remote clients if admin
       if (sessionId && isAdmin) {
