@@ -428,10 +428,12 @@ const GroupManagement: React.FC<GroupManagementProps> = ({ onClose, currentUserI
     matchesSearch(assignmentSearchQuery, assignment.groupName)
   );
 
-  const filteredUsers = users.filter(user =>
-    matchesSearch(searchQuery, user.displayName || '') ||
-    matchesSearch(searchQuery, user.email || '')
-  );
+  const filteredUsers = searchQuery.trim() === '' 
+    ? users 
+    : users.filter(user =>
+        matchesSearch(searchQuery, user.displayName || '') ||
+        matchesSearch(searchQuery, user.email || '')
+      );
 
   const renderGroupItem = ({ item }: { item: UserGroup }) => (
     <TouchableOpacity
