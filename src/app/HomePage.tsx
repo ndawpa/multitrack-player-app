@@ -7027,17 +7027,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             ) : (
               <View style={[styles.header, isLandscape && styles.headerLandscape]}>
                 <View style={[styles.headerTop, isLandscape && styles.headerTopLandscape]}>
-                  <TouchableOpacity 
-                    style={styles.backButton}
-                    onPress={() => {
-                      setSelectedSong(null);
-                      setCurrentFilteredIndex(-1);
-                      setShowNavigationControls(true);
-                      setIsFilteredRepeating(false);
-                    }}
-                  >
-                    <Ionicons name="chevron-back" size={24} color="#BB86FC" />
-                  </TouchableOpacity>
+                  <View style={styles.headerLeftContainer}>
+                    <TouchableOpacity 
+                      style={styles.backButton}
+                      onPress={() => {
+                        setSelectedSong(null);
+                        setCurrentFilteredIndex(-1);
+                        setShowNavigationControls(true);
+                        setIsFilteredRepeating(false);
+                      }}
+                    >
+                      <Ionicons name="chevron-back" size={24} color="#BB86FC" />
+                    </TouchableOpacity>
+                  </View>
                   
                   <View style={styles.songHeaderText}>
                     <MarqueeText 
@@ -7056,7 +7058,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     )}
                   </View>
                   
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 80 }}>
+                  <View style={styles.headerRightContainer}>
                     {hasAdminAccess && (
                       <>
                         {isAdminMode ? (
@@ -7575,6 +7577,17 @@ const styles = StyleSheet.create({
   headerTopLandscape: {
     marginBottom: 8,
   },
+  headerLeftContainer: {
+    width: 80,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerRightContainer: {
+    width: 80,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
   songHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -7583,6 +7596,7 @@ const styles = StyleSheet.create({
   songHeaderText: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 20,
@@ -7734,9 +7748,7 @@ const styles = StyleSheet.create({
     color: '#BBBBBB',
   },
   backButton: {
-    position: 'absolute',
-    left: 0,
-    zIndex: 1,
+    // Position handled by parent container
   },
   toggleButton: {
     padding: 4,
