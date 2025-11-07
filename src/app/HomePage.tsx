@@ -2665,14 +2665,36 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     }
   };
 
+  // Helper function to remove undefined values from an object (Firebase doesn't accept undefined)
+  const removeUndefinedValues = (obj: any): any => {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(item => removeUndefinedValues(item));
+    }
+    if (typeof obj === 'object') {
+      const cleaned: any = {};
+      for (const key in obj) {
+        if (obj[key] !== undefined) {
+          cleaned[key] = removeUndefinedValues(obj[key]);
+        }
+      }
+      return cleaned;
+    }
+    return obj;
+  };
+
   // Function to update song in Firebase
   const updateSongInFirebase = async (updates: Partial<Song>) => {
     if (!selectedSong) return;
     try {
       const updatedSong = { ...selectedSong, ...updates };
+      // Remove undefined values before saving to Firebase
+      const cleanedSong = removeUndefinedValues(updatedSong);
       setSelectedSong(updatedSong);
       const songRef = ref(database, `songs/${selectedSong.id}`);
-      await set(songRef, updatedSong);
+      await set(songRef, cleanedSong);
     } catch (error) {
       console.error('Error updating song:', error);
       Alert.alert('Error', 'Failed to save changes');
@@ -2940,6 +2962,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         })
       );
 
+      // Clean scores to remove undefined values (Firebase doesn't accept undefined)
+      const cleanedScores = (editingSong.scores || []).map(score => {
+        const cleaned: any = { id: score.id, name: score.name };
+        if (score.url !== undefined) cleaned.url = score.url;
+        if (score.pages !== undefined && score.pages !== null) cleaned.pages = score.pages;
+        return cleaned;
+      });
+
       // Create song data object with explicit values
       const songData = {
         title: editingSong.title,
@@ -2947,13 +2977,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         album: editingSong.album || undefined,
         tracks: updatedTracks,
         lyrics: editingSong.lyrics || '',
-        scores: editingSong.scores || [],
+        scores: cleanedScores,
         resources: editingSong.resources || []
       };
 
+      // Remove undefined values before saving to Firebase
+      const cleanedSongData = removeUndefinedValues(songData);
+
       // Update song in Firebase
       const songRef = ref(database, `songs/${editingSong.id}`);
-      await set(songRef, songData);
+      await set(songRef, cleanedSongData);
 
       // Reset and close dialog
       setEditingSong(null);
@@ -3187,87 +3220,142 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         </TouchableOpacity>
                       </TouchableOpacity>
                         {hasPages && !isUploading && (
-                          <TouchableOpacity
-                            style={styles.addPageButton}
-                            onPress={async () => {
-                              try {
-                                const result = await DocumentPicker.getDocumentAsync({
-                                  type: ['image/*'],
-                                  copyToCacheDirectory: true
-                                });
-                                
-                                if (result.assets && result.assets[0]) {
-                                  const file = result.assets[0];
-                                  const currentPages = pages;
-                                  
-                                  // Add uploading placeholder
-                                  setEditingSong(prev => {
-                                    if (!prev) return null;
-                                    const newScores = [...prev.scores];
-                                    if (newScores[index].pages) {
-                                      newScores[index] = {
-                                        ...newScores[index],
-                                        pages: [...currentPages, 'uploading']
-                                      };
-                                    } else if (newScores[index].url) {
-                                      newScores[index] = {
-                                        ...newScores[index],
-                                        pages: [currentPages[0], 'uploading']
-                                      };
-                                      delete (newScores[index] as any).url;
-                                    }
-                                    return { ...prev, scores: newScores };
-                                  });
-
-                                  try {
-                                    // Upload the new page
-                                    const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, editingSong.title);
-                                    
-                                    // Update the score with the new page URL
-                                    setEditingSong(prev => {
-                                      if (!prev) return null;
-                                      const newScores = [...prev.scores];
-                                      if (newScores[index].pages) {
-                                        const updatedPages = [...newScores[index].pages!];
-                                        const uploadingIndex = updatedPages.indexOf('uploading');
-                                        if (uploadingIndex !== -1) {
-                                          updatedPages[uploadingIndex] = downloadURL;
+                          <View style={styles.pagesListContainer}>
+                            {pages.map((pageUrl, pageIndex) => (
+                              <View key={pageIndex} style={styles.pageItemRow}>
+                                <Text style={styles.pageItemText}>Page {pageIndex + 1}</Text>
+                                <TouchableOpacity
+                                  style={styles.removePageButton}
+                                  onPress={() => {
+                                    Alert.alert(
+                                      'Remove Page',
+                                      `Are you sure you want to remove page ${pageIndex + 1}?`,
+                                      [
+                                        {
+                                          text: 'Cancel',
+                                          style: 'cancel'
+                                        },
+                                        {
+                                          text: 'Remove',
+                                          style: 'destructive',
+                                          onPress: () => {
+                                            setEditingSong(prev => {
+                                              if (!prev) return null;
+                                              const newScores = [...prev.scores];
+                                              if (newScores[index].pages) {
+                                                const updatedPages = newScores[index].pages!.filter((_, i) => i !== pageIndex);
+                                                // If only one page left, convert back to url format
+                                                if (updatedPages.length === 1) {
+                                                  const { pages, ...scoreWithoutPages } = newScores[index];
+                                                  newScores[index] = {
+                                                    ...scoreWithoutPages,
+                                                    url: updatedPages[0]
+                                                  };
+                                                } else {
+                                                  newScores[index] = {
+                                                    ...newScores[index],
+                                                    pages: updatedPages
+                                                  };
+                                                }
+                                              } else if (newScores[index].url) {
+                                                // If it was a single page score, remove it entirely
+                                                const { url, ...scoreWithoutUrl } = newScores[index];
+                                                newScores[index] = scoreWithoutUrl as Score;
+                                              }
+                                              return { ...prev, scores: newScores };
+                                            });
+                                          }
                                         }
-                                        newScores[index] = {
-                                          ...newScores[index],
-                                          pages: updatedPages
-                                        };
-                                      }
-                                      return { ...prev, scores: newScores };
-                                    });
-                                  } catch (uploadError) {
-                                    console.error('Error uploading page:', uploadError);
-                                    Alert.alert('Error', 'Failed to upload page');
-                                    // Remove the uploading placeholder
+                                      ]
+                                    );
+                                  }}
+                                >
+                                  <Ionicons name="trash-outline" size={18} color="#FF5252" />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                            <TouchableOpacity
+                              style={styles.addPageButton}
+                              onPress={async () => {
+                                try {
+                                  const result = await DocumentPicker.getDocumentAsync({
+                                    type: ['image/*'],
+                                    copyToCacheDirectory: true
+                                  });
+                                  
+                                  if (result.assets && result.assets[0]) {
+                                    const file = result.assets[0];
+                                    const currentPages = pages;
+                                    
+                                    // Add uploading placeholder
                                     setEditingSong(prev => {
                                       if (!prev) return null;
                                       const newScores = [...prev.scores];
                                       if (newScores[index].pages) {
                                         newScores[index] = {
                                           ...newScores[index],
-                                          pages: newScores[index].pages!.filter((p: string) => p !== 'uploading')
+                                          pages: [...currentPages, 'uploading']
                                         };
+                                      } else if (newScores[index].url) {
+                                        newScores[index] = {
+                                          ...newScores[index],
+                                          pages: [currentPages[0], 'uploading']
+                                        };
+                                        delete (newScores[index] as any).url;
                                       }
                                       return { ...prev, scores: newScores };
                                     });
+
+                                    try {
+                                      // Upload the new page
+                                      const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, editingSong.title);
+                                      
+                                      // Update the score with the new page URL
+                                      setEditingSong(prev => {
+                                        if (!prev) return null;
+                                        const newScores = [...prev.scores];
+                                        if (newScores[index].pages) {
+                                          const updatedPages = [...newScores[index].pages!];
+                                          const uploadingIndex = updatedPages.indexOf('uploading');
+                                          if (uploadingIndex !== -1) {
+                                            updatedPages[uploadingIndex] = downloadURL;
+                                          }
+                                          newScores[index] = {
+                                            ...newScores[index],
+                                            pages: updatedPages
+                                          };
+                                        }
+                                        return { ...prev, scores: newScores };
+                                      });
+                                    } catch (uploadError) {
+                                      console.error('Error uploading page:', uploadError);
+                                      Alert.alert('Error', 'Failed to upload page');
+                                      // Remove the uploading placeholder
+                                      setEditingSong(prev => {
+                                        if (!prev) return null;
+                                        const newScores = [...prev.scores];
+                                        if (newScores[index].pages) {
+                                          newScores[index] = {
+                                            ...newScores[index],
+                                            pages: newScores[index].pages!.filter((p: string) => p !== 'uploading')
+                                          };
+                                        }
+                                        return { ...prev, scores: newScores };
+                                      });
+                                    }
+                                  }
+                                } catch (error: any) {
+                                  if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
+                                    console.error('Error selecting file:', error);
+                                    Alert.alert('Error', 'Failed to select file');
                                   }
                                 }
-                              } catch (error: any) {
-                                if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
-                                  console.error('Error selecting file:', error);
-                                  Alert.alert('Error', 'Failed to select file');
-                                }
-                              }
-                            }}
-                          >
-                            <Ionicons name="add-circle-outline" size={20} color="#BB86FC" />
-                            <Text style={styles.addPageButtonText}>Add Page</Text>
-                          </TouchableOpacity>
+                              }}
+                            >
+                              <Ionicons name="add-circle-outline" size={20} color="#BB86FC" />
+                              <Text style={styles.addPageButtonText}>Add Page</Text>
+                            </TouchableOpacity>
+                          </View>
                         )}
                       </View>
                     </ScaleDecorator>
@@ -3840,6 +3928,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           })
       );
 
+      // Clean scores to remove undefined values (Firebase doesn't accept undefined)
+      const cleanedScores = (newSong.scores || []).map(score => {
+        const cleaned: any = { id: score.id, name: score.name };
+        if (score.url !== undefined) cleaned.url = score.url;
+        if (score.pages !== undefined && score.pages !== null) cleaned.pages = score.pages;
+        return cleaned;
+      });
+
       // Create new song object
       const songToAdd: Song = {
         id: newId,
@@ -3848,27 +3944,33 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         album: newSong.album || undefined,
         tracks,
         lyrics: newSong.lyrics,
-        scores: newSong.scores,
+        scores: cleanedScores as Score[],
         resources: newSong.resources,
         createdBy: user?.id,
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
-      // Add to Firebase
-      const songRef = ref(database, `songs/${newId}`);
-      await set(songRef, {
+      // Prepare data for Firebase (remove undefined values)
+      const songData = {
         title: songToAdd.title,
         artist: songToAdd.artist,
         album: songToAdd.album,
         tracks: songToAdd.tracks,
         lyrics: songToAdd.lyrics,
-        scores: songToAdd.scores,
+        scores: cleanedScores,
         resources: songToAdd.resources,
         createdBy: songToAdd.createdBy,
         createdAt: songToAdd.createdAt?.toISOString(),
         updatedAt: songToAdd.updatedAt?.toISOString()
-      });
+      };
+
+      // Remove undefined values before saving to Firebase
+      const cleanedSongData = removeUndefinedValues(songData);
+
+      // Add to Firebase
+      const songRef = ref(database, `songs/${newId}`);
+      await set(songRef, cleanedSongData);
 
       // Reset form and close dialog
       setNewSong({
@@ -4097,84 +4199,138 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   </TouchableOpacity>
                 </View>
                     {hasPages && !isUploading && (
-                      <TouchableOpacity
-                        style={styles.addPageButton}
-                        onPress={async () => {
-                          try {
-                            const result = await DocumentPicker.getDocumentAsync({
-                              type: ['image/*'],
-                              copyToCacheDirectory: true
-                            });
-                            
-                            if (result.assets && result.assets[0]) {
-                              const file = result.assets[0];
-                              const currentPages = pages;
-                              
-                              // Add uploading placeholder
-                              setNewSong(prev => {
-                                const newScores = [...prev.scores];
-                                if (newScores[index].pages) {
-                                  newScores[index] = {
-                                    ...newScores[index],
-                                    pages: [...currentPages, 'uploading']
-                                  };
-                                } else if (newScores[index].url) {
-                                  newScores[index] = {
-                                    ...newScores[index],
-                                    pages: [currentPages[0], 'uploading']
-                                  };
-                                  delete (newScores[index] as any).url;
-                                }
-                                return { ...prev, scores: newScores };
-                              });
-
-                              try {
-                                // Upload the new page
-                                const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, newSong.title);
-                                
-                                // Update the score with the new page URL
-                                setNewSong(prev => {
-                                  const newScores = [...prev.scores];
-                                  if (newScores[index].pages) {
-                                    const updatedPages = [...newScores[index].pages!];
-                                    const uploadingIndex = updatedPages.indexOf('uploading');
-                                    if (uploadingIndex !== -1) {
-                                      updatedPages[uploadingIndex] = downloadURL;
+                      <View style={styles.pagesListContainer}>
+                        {pages.map((pageUrl, pageIndex) => (
+                          <View key={pageIndex} style={styles.pageItemRow}>
+                            <Text style={styles.pageItemText}>Page {pageIndex + 1}</Text>
+                            <TouchableOpacity
+                              style={styles.removePageButton}
+                              onPress={() => {
+                                Alert.alert(
+                                  'Remove Page',
+                                  `Are you sure you want to remove page ${pageIndex + 1}?`,
+                                  [
+                                    {
+                                      text: 'Cancel',
+                                      style: 'cancel'
+                                    },
+                                    {
+                                      text: 'Remove',
+                                      style: 'destructive',
+                                      onPress: () => {
+                                        setNewSong(prev => {
+                                          const newScores = [...prev.scores];
+                                          if (newScores[index].pages) {
+                                            const updatedPages = newScores[index].pages!.filter((_, i) => i !== pageIndex);
+                                            // If only one page left, convert back to url format
+                                            if (updatedPages.length === 1) {
+                                              const { pages, ...scoreWithoutPages } = newScores[index];
+                                              newScores[index] = {
+                                                ...scoreWithoutPages,
+                                                url: updatedPages[0]
+                                              };
+                                            } else {
+                                              newScores[index] = {
+                                                ...newScores[index],
+                                                pages: updatedPages
+                                              };
+                                            }
+                                          } else if (newScores[index].url) {
+                                            // If it was a single page score, remove it entirely
+                                            const { url, ...scoreWithoutUrl } = newScores[index];
+                                            newScores[index] = scoreWithoutUrl as Score;
+                                          }
+                                          return { ...prev, scores: newScores };
+                                        });
+                                      }
                                     }
-                                    newScores[index] = {
-                                      ...newScores[index],
-                                      pages: updatedPages
-                                    };
-                                  }
-                                  return { ...prev, scores: newScores };
-                                });
-                              } catch (uploadError) {
-                                console.error('Error uploading page:', uploadError);
-                                Alert.alert('Error', 'Failed to upload page');
-                                // Remove the uploading placeholder
+                                  ]
+                                );
+                              }}
+                            >
+                              <Ionicons name="trash-outline" size={18} color="#FF5252" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                        <TouchableOpacity
+                          style={styles.addPageButton}
+                          onPress={async () => {
+                            try {
+                              const result = await DocumentPicker.getDocumentAsync({
+                                type: ['image/*'],
+                                copyToCacheDirectory: true
+                              });
+                              
+                              if (result.assets && result.assets[0]) {
+                                const file = result.assets[0];
+                                const currentPages = pages;
+                                
+                                // Add uploading placeholder
                                 setNewSong(prev => {
                                   const newScores = [...prev.scores];
                                   if (newScores[index].pages) {
                                     newScores[index] = {
                                       ...newScores[index],
-                                      pages: newScores[index].pages!.filter((p: string) => p !== 'uploading')
+                                      pages: [...currentPages, 'uploading']
                                     };
+                                  } else if (newScores[index].url) {
+                                    newScores[index] = {
+                                      ...newScores[index],
+                                      pages: [currentPages[0], 'uploading']
+                                    };
+                                    delete (newScores[index] as any).url;
                                   }
                                   return { ...prev, scores: newScores };
                                 });
+
+                                try {
+                                  // Upload the new page
+                                  const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, newSong.title);
+                                  
+                                  // Update the score with the new page URL
+                                  setNewSong(prev => {
+                                    const newScores = [...prev.scores];
+                                    if (newScores[index].pages) {
+                                      const updatedPages = [...newScores[index].pages!];
+                                      const uploadingIndex = updatedPages.indexOf('uploading');
+                                      if (uploadingIndex !== -1) {
+                                        updatedPages[uploadingIndex] = downloadURL;
+                                      }
+                                      newScores[index] = {
+                                        ...newScores[index],
+                                        pages: updatedPages
+                                      };
+                                    }
+                                    return { ...prev, scores: newScores };
+                                  });
+                                } catch (uploadError) {
+                                  console.error('Error uploading page:', uploadError);
+                                  Alert.alert('Error', 'Failed to upload page');
+                                  // Remove the uploading placeholder
+                                  setNewSong(prev => {
+                                    const newScores = [...prev.scores];
+                                    if (newScores[index].pages) {
+                                      newScores[index] = {
+                                        ...newScores[index],
+                                        pages: newScores[index].pages!.filter((p: string) => p !== 'uploading')
+                                      };
+                                    }
+                                    return { ...prev, scores: newScores };
+                                  });
+                                }
+                              }
+                            } catch (error: any) {
+                              if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
+                                console.error('Error selecting file:', error);
+                                Alert.alert('Error', 'Failed to select file');
                               }
                             }
-                          } catch (error: any) {
-                            if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
-                              console.error('Error selecting file:', error);
-                              Alert.alert('Error', 'Failed to select file');
-                            }
-                          }
-                        }}
-                      >
-                        <Ionicons name="add-circle-outline" size={20} color="#BB86FC" />
-                        <Text style={styles.addPageButtonText}>Add Page</Text>
-                      </TouchableOpacity>
+                          }}
+                        >
+                          <Ionicons name="add-circle-outline" size={20} color="#BB86FC" />
+                          <Text style={styles.addPageButtonText}>Add Page</Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
                   </View>
                 );
@@ -8396,6 +8552,31 @@ const styles = StyleSheet.create({
     color: '#BB86FC',
     fontSize: 12,
     fontWeight: '500',
+  },
+  pagesListContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 6,
+  },
+  pageItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    marginBottom: 4,
+    backgroundColor: '#121212',
+    borderRadius: 4,
+  },
+  pageItemText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    flex: 1,
+  },
+  removePageButton: {
+    padding: 4,
+    borderRadius: 4,
   },
   scoreView: {
     marginBottom: 8,
