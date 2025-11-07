@@ -436,6 +436,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [editingTrackName, setEditingTrackName] = useState('');
   const [editingScoreId, setEditingScoreId] = useState<string | null>(null);
   const [editingScoreName, setEditingScoreName] = useState('');
+  const songViewScrollRef = useRef<ScrollView>(null);
+  const scoreInputRef = useRef<View>(null);
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
   const [editingResourceName, setEditingResourceName] = useState('');
   const [editingResourceUrl, setEditingResourceUrl] = useState('');
@@ -1133,6 +1135,25 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     lyricsLastPanXRef.current = 0;
     lyricsLastPanYRef.current = 0;
   }, [selectedSong?.id]);
+
+  // Scroll to score input when editing starts
+  useEffect(() => {
+    if (editingScoreId && activeView === 'score' && scoreInputRef.current && songViewScrollRef.current) {
+      // Wait for the input to render and keyboard to appear
+      setTimeout(() => {
+        scoreInputRef.current?.measureLayout(
+          songViewScrollRef.current as any,
+          (x, y) => {
+            songViewScrollRef.current?.scrollTo({
+              y: Math.max(0, y - 200),
+              animated: true
+            });
+          },
+          () => {}
+        );
+      }, 400);
+    }
+  }, [editingScoreId, activeView]);
 
   const handleSongSelect = async (song: Song) => {
     setIsPlaying(false);
@@ -2848,6 +2869,91 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setEditingScoreId(null);
     } catch (error) {
       Alert.alert('Error', 'Failed to update score name');
+    }
+  };
+
+  // Function to add pages to an existing score
+  const handleAddPagesToScore = async (scoreId: string) => {
+    if (!selectedSong || !selectedSong.scores) return;
+    
+    const score = selectedSong.scores.find(s => s.id === scoreId);
+    if (!score) return;
+
+    try {
+      // Allow file selection (user can select multiple times to add multiple pages)
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/*'],
+        copyToCacheDirectory: true
+      });
+      
+      if (result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        const currentPages = getScorePages(score);
+        const pageCount = currentPages.length;
+        
+        // Initialize pages array if it doesn't exist
+        const updatedScores = selectedSong.scores.map(s => {
+          if (s.id === scoreId) {
+            // Convert single-page score (url) to multi-page (pages array)
+            const existingPages = s.pages || (s.url ? [s.url] : []);
+            // Add 'uploading' placeholder for the new page
+            const newPages = [...existingPages, 'uploading'];
+            return {
+              ...s,
+              pages: newPages,
+              // Keep url for backward compatibility, but pages takes precedence
+              url: s.url
+            };
+          }
+          return s;
+        });
+        
+        setSelectedSong({ ...selectedSong, scores: updatedScores });
+        
+        try {
+          const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, selectedSong.title);
+          
+          // Update the score with the new page URL
+          const finalScores = updatedScores.map(s => {
+            if (s.id === scoreId) {
+              const finalPages = [...(s.pages || [])];
+              // Replace the uploading placeholder with the actual URL
+              const uploadingIndex = finalPages.indexOf('uploading');
+              if (uploadingIndex !== -1) {
+                finalPages[uploadingIndex] = downloadURL;
+              }
+              return {
+                ...s,
+                pages: finalPages
+              };
+            }
+            return s;
+          });
+          
+          setSelectedSong({ ...selectedSong, scores: finalScores });
+          await updateSongInFirebase({ scores: finalScores });
+        } catch (uploadError) {
+          console.error('Error uploading page:', uploadError);
+          Alert.alert('Error', 'Failed to upload page');
+          // Remove the uploading placeholder
+          const revertedScores = updatedScores.map(s => {
+            if (s.id === scoreId && s.pages) {
+              return {
+                ...s,
+                pages: s.pages.filter((p: string) => p !== 'uploading')
+              };
+            }
+            return s;
+          });
+          setSelectedSong({ ...selectedSong, scores: revertedScores });
+          await updateSongInFirebase({ scores: revertedScores });
+        }
+      }
+    } catch (error: any) {
+      if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
+        console.error('Error adding pages to score:', error);
+        Alert.alert('Error', 'Failed to add pages to score');
+      }
     }
   };
 
@@ -4837,10 +4943,17 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           )}
         </View>
         <View style={{ flex: 1 }}>
-          <ScrollView 
-            style={styles.contentScrollView}
-            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 20, 40) }}
+          <KeyboardAvoidingView 
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
+            <ScrollView 
+              ref={songViewScrollRef}
+              style={styles.contentScrollView}
+              contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 20, 40) }}
+              keyboardShouldPersistTaps="handled"
+            >
             {activeView === 'tracks' ? (
               // Tracks view content
               <View style={isLandscape ? styles.tracksLandscapeContainer : styles.tracksPortraitContainer}>
@@ -5240,7 +5353,27 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                               onPress={() => toggleScoreExpansion(score.id)}
                             >
                               {editingScoreId === score.id ? (
-                                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+                                <View 
+                                  ref={scoreInputRef}
+                                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 8 }}
+                                  onLayout={() => {
+                                    // Scroll to show the input above the keyboard when it appears
+                                    setTimeout(() => {
+                                      if (scoreInputRef.current && songViewScrollRef.current) {
+                                        scoreInputRef.current.measureLayout(
+                                          songViewScrollRef.current as any,
+                                          (x, y) => {
+                                            songViewScrollRef.current?.scrollTo({
+                                              y: Math.max(0, y - 200), // Offset to show input above keyboard
+                                              animated: true
+                                            });
+                                          },
+                                          () => {}
+                                        );
+                                      }
+                                    }, 300);
+                                  }}
+                                >
                                   <TextInput
                                     style={[styles.dialogInput, { flex: 1, marginRight: 8 }]}
                                     value={editingScoreName}
@@ -5248,6 +5381,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                     placeholder="Score name"
                                     placeholderTextColor="#666666"
                                     autoFocus
+                                    onFocus={() => {
+                                      // Scroll on focus to ensure visibility when keyboard appears
+                                      setTimeout(() => {
+                                        if (scoreInputRef.current && songViewScrollRef.current) {
+                                          scoreInputRef.current.measureLayout(
+                                            songViewScrollRef.current as any,
+                                            (x, y) => {
+                                              songViewScrollRef.current?.scrollTo({
+                                                y: Math.max(0, y - 200),
+                                                animated: true
+                                              });
+                                            },
+                                            () => {}
+                                          );
+                                        }
+                                      }, 300);
+                                    }}
                                   />
                                   <TouchableOpacity
                                     style={styles.iconButton}
@@ -5281,6 +5431,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                   />
                                   {isAdminMode && (
                                     <View style={{ flexDirection: 'row', marginLeft: 8 }}>
+                                      <TouchableOpacity
+                                        style={styles.iconButton}
+                                        onPress={() => handleAddPagesToScore(score.id)}
+                                      >
+                                        <Ionicons name="add-outline" size={20} color="#4CAF50" />
+                                      </TouchableOpacity>
                                       <TouchableOpacity
                                         style={styles.iconButton}
                                         onPress={() => {
@@ -5887,6 +6043,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               </View>
             )}
           </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </View>
     );

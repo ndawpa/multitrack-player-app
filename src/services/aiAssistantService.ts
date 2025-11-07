@@ -1,9 +1,13 @@
 import { ref, get } from 'firebase/database';
 import { database } from '../config/firebase';
 import { Song } from '../types/song';
+import { Playlist } from '../types/playlist';
+import { UserGroup } from '../types/group';
 import AuthService from './authService';
 import SongAccessService from './songAccessService';
 import AIAssistantAccessService from './aiAssistantAccessService';
+import PlaylistService from './playlistService';
+import GroupService from './groupService';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -23,6 +27,8 @@ class AIAssistantService {
   private authService: AuthService;
   private songAccessService: SongAccessService;
   private accessService: AIAssistantAccessService;
+  private playlistService: PlaylistService;
+  private groupService: GroupService;
   private config: AIConfig = {
     provider: 'google',
     model: 'gemini-2.5-flash-lite', // Using Google Gemini
@@ -32,6 +38,8 @@ class AIAssistantService {
     this.authService = AuthService.getInstance();
     this.songAccessService = SongAccessService.getInstance();
     this.accessService = AIAssistantAccessService.getInstance();
+    this.playlistService = PlaylistService.getInstance();
+    this.groupService = GroupService.getInstance();
   }
 
   public static getInstance(): AIAssistantService {
@@ -197,6 +205,116 @@ class AIAssistantService {
       console.error('Error fetching songs with lyrics:', error);
       return [];
     }
+  }
+
+  /**
+   * Get all playlists for the current user
+   */
+  private async getUserPlaylists(): Promise<Playlist[]> {
+    const user = this.authService.getCurrentUser();
+    if (!user) {
+      return [];
+    }
+
+    try {
+      const playlists = await this.playlistService.getUserPlaylists(user.id);
+      console.log(`Found ${playlists.length} playlists for user`);
+      return playlists;
+    } catch (error) {
+      console.error('Error fetching playlists:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all user groups the current user belongs to
+   */
+  private async getUserGroups(): Promise<UserGroup[]> {
+    const user = this.authService.getCurrentUser();
+    if (!user) {
+      return [];
+    }
+
+    try {
+      const groups = await this.groupService.getUserGroups(user.id);
+      console.log(`Found ${groups.length} groups for user`);
+      return groups;
+    } catch (error) {
+      console.error('Error fetching user groups:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Format playlists data for AI context
+   */
+  private formatPlaylistsForContext(playlists: Playlist[]): string {
+    if (playlists.length === 0) {
+      return 'No playlists are available.';
+    }
+
+    let context = `The user has ${playlists.length} playlist(s):\n\n`;
+    
+    playlists.forEach((playlist, index) => {
+      context += `Playlist ${index + 1}:\n`;
+      context += `- ID: ${playlist.id}\n`;
+      context += `- Name: "${playlist.name}"\n`;
+      if (playlist.description) {
+        context += `- Description: "${playlist.description}"\n`;
+      }
+      context += `- Created: ${playlist.createdAt instanceof Date ? playlist.createdAt.toISOString() : playlist.createdAt}\n`;
+      context += `- Updated: ${playlist.updatedAt instanceof Date ? playlist.updatedAt.toISOString() : playlist.updatedAt}\n`;
+      context += `- Public: ${playlist.isPublic ? 'Yes' : 'No'}\n`;
+      context += `- Play Count: ${playlist.playCount}\n`;
+      if (playlist.lastPlayedAt) {
+        context += `- Last Played: ${playlist.lastPlayedAt instanceof Date ? playlist.lastPlayedAt.toISOString() : playlist.lastPlayedAt}\n`;
+      }
+      
+      if (playlist.songs && playlist.songs.length > 0) {
+        context += `- Songs (${playlist.songs.length}):\n`;
+        playlist.songs.forEach((item, songIndex) => {
+          context += `  ${songIndex + 1}. "${item.songTitle}" by ${item.songArtist} (Song ID: ${item.songId}, Position: ${item.position})`;
+          if (item.notes) {
+            context += ` - Notes: ${item.notes}`;
+          }
+          context += `\n`;
+        });
+      } else {
+        context += `- Songs: (no songs in playlist)\n`;
+      }
+      
+      context += `\n`;
+    });
+
+    return context;
+  }
+
+  /**
+   * Format user groups data for AI context
+   */
+  private formatUserGroupsForContext(groups: UserGroup[]): string {
+    if (groups.length === 0) {
+      return 'The user is not a member of any groups.';
+    }
+
+    let context = `The user is a member of ${groups.length} group(s):\n\n`;
+    
+    groups.forEach((group, index) => {
+      context += `Group ${index + 1}:\n`;
+      context += `- ID: ${group.id}\n`;
+      context += `- Name: "${group.name}"\n`;
+      if (group.description) {
+        context += `- Description: "${group.description}"\n`;
+      }
+      context += `- Members: ${group.members?.length || 0} member(s)\n`;
+      context += `- Created: ${group.createdAt instanceof Date ? group.createdAt.toISOString() : group.createdAt}\n`;
+      if (group.isAdmin) {
+        context += `- Admin Group: Yes (members have admin access)\n`;
+      }
+      context += `\n`;
+    });
+
+    return context;
   }
 
   /**
@@ -478,8 +596,8 @@ class AIAssistantService {
   }
 
   /**
-   * Query AI with user question and smart song context selection
-   * Only sends relevant songs instead of all songs for better performance and cost
+   * Query AI with user question and full database context
+   * Sends ALL accessible songs, playlists, and user groups for complete context
    */
   public async askQuestion(question: string, chatHistory: ChatMessage[] = []): Promise<string> {
     // Check access first
@@ -510,50 +628,75 @@ class AIAssistantService {
     });
 
     try {
-      // Get all accessible songs first
-      console.log('Fetching all accessible songs...');
+      // Get ALL accessible songs (no filtering for full context)
+      console.log('Fetching all accessible songs for full context...');
       const allSongs = await this.getAccessibleSongs();
       console.log(`Found ${allSongs.length} accessible songs`);
       
-      // Smart filtering: only get relevant songs based on the question
-      console.log('Filtering relevant songs based on question...');
-      const relevantSongs = this.filterRelevantSongs(allSongs, question);
-      console.log(`Selected ${relevantSongs.length} relevant songs (out of ${allSongs.length})`);
+      // Get all playlists for the user
+      console.log('Fetching user playlists...');
+      const playlists = await this.getUserPlaylists();
+      console.log(`Found ${playlists.length} playlists`);
       
-      const songsContext = this.formatSongsForContext(relevantSongs);
-      console.log(`Formatted context length: ${songsContext.length} characters (reduced from potential ${allSongs.length} songs)`);
+      // Get all user groups
+      console.log('Fetching user groups...');
+      const userGroups = await this.getUserGroups();
+      console.log(`Found ${userGroups.length} user groups`);
+      
+      // Format all context data
+      const songsContext = this.formatSongsForContext(allSongs);
+      const playlistsContext = this.formatPlaylistsForContext(playlists);
+      const groupsContext = this.formatUserGroupsForContext(userGroups);
+      
+      const totalContextLength = songsContext.length + playlistsContext.length + groupsContext.length;
+      console.log(`Total context length: ${totalContextLength} characters`);
+      console.log(`- Songs: ${songsContext.length} characters`);
+      console.log(`- Playlists: ${playlistsContext.length} characters`);
+      console.log(`- Groups: ${groupsContext.length} characters`);
 
-      // Build system prompt
-      const totalSongsCount = allSongs.length;
-      const systemPrompt = `You are a specialized AI assistant for a music multitrack player app. Your ONLY purpose is to help users with questions about their song library. The user has a library of ${totalSongsCount} songs, and I'm providing you with the most relevant songs based on their question.
+      // Build comprehensive system prompt with full database context
+      const systemPrompt = `You are a specialized AI assistant for a music multitrack player app. Your purpose is to help users with questions about their complete music library, including songs, playlists, and groups.
 
 STRICT SCOPE LIMITATIONS:
-- You MUST ONLY answer questions about songs in the user's library
+- You MUST ONLY answer questions about the user's music library, playlists, and groups
 - You MUST NOT answer general knowledge questions, trivia, or questions unrelated to the user's music library
 - You MUST NOT provide information about songs not in the user's library
 - You MUST NOT answer questions about music theory, general music history, or artists not in their library
-- If asked about something unrelated to their song library, politely redirect: "I can only help you with questions about songs in your music library. Would you like to search for something specific in your library?"
+- If asked about something unrelated to their music library, politely redirect: "I can only help you with questions about your music library, playlists, and groups. Would you like to search for something specific?"
 
-Your role is LIMITED to:
+Your role includes:
 1. Help users find songs in their library based on themes, topics, lyrics content, or song attributes
 2. Answer questions about songs in their library (metadata, tracks, scores, resources)
 3. Analyze lyrics from songs in their library and provide insights
 4. Suggest songs from their library based on themes, moods, or criteria
 5. Help users understand what resources are available for each song (tracks, scores, links)
 6. Provide information about audio tracks, PDF scores, and external resources for songs in their library
+7. Answer questions about playlists (contents, organization, song order)
+8. Help users understand their group memberships and access permissions
+9. Suggest playlist organization or song groupings based on themes
 
 IMPORTANT RULES: 
-- ONLY reference songs that are in the user's library (provided below)
+- You have access to COMPLETE information from the user's database including ALL songs, playlists, and groups
+- ONLY reference songs, playlists, or groups that are in the provided context below
 - You have access to complete song information including tracks, scores, and resources
 - Audio files and PDFs are stored in the cloud - you can reference their names and paths, but cannot access the actual binary content
-- The songs provided below are the most relevant matches. If you need to search more broadly, mention that the user can refine their question
-- If a song is not in the provided context, politely let the user know it's not in their library
-- If asked about anything outside the scope of their song library, politely decline and redirect to their library
+- If a song, playlist, or group is not in the provided context, politely let the user know it's not available
+- If asked about anything outside the scope of their music library, politely decline and redirect to their library
 
-Here are the most relevant songs from the user's library (${relevantSongs.length} out of ${totalSongsCount} total songs):
+=== COMPLETE DATABASE CONTEXT ===
+
+SONGS (${allSongs.length} total songs):
 ${songsContext}
 
-Remember: You are a music library assistant. Only answer questions about the songs provided above. For any other questions, politely redirect the user to ask about their music library.`;
+PLAYLISTS:
+${playlistsContext}
+
+USER GROUPS:
+${groupsContext}
+
+=== END OF DATABASE CONTEXT ===
+
+Remember: You have access to the complete database context above. Use this full information to answer the user's questions accurately and comprehensively.`;
 
       // Build messages array
       const messages: Array<{ role: string; content: string }> = [
