@@ -9,6 +9,8 @@ import {
   Image,
   Alert,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -263,7 +265,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
       {/* Admin Mode Password Dialog */}
       {showPasswordDialog && (
-        <View style={styles.passwordDialogOverlay}>
+        <KeyboardAvoidingView 
+          style={styles.passwordDialogOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.passwordDialog}>
             <View style={styles.passwordDialogHeader}>
               <Ionicons name="lock-closed" size={32} color="#BB86FC" />
@@ -304,7 +310,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
               />
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       )}
     </SafeAreaView>
   );

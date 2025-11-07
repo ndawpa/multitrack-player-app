@@ -2248,7 +2248,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         showsVerticalScrollIndicator={false}
       />
       {showFilterDialog && (
-        <View style={styles.dialogOverlay}>
+        <KeyboardAvoidingView 
+          style={styles.dialogOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.dialogContainer}>
             <Text style={styles.dialogTitle}>{t('home.filters')}</Text>
             <ScrollView style={styles.dialogScrollView}>
@@ -2509,7 +2513,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       )}
     </View>
   );
@@ -3777,7 +3781,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       animationType="fade"
       onRequestClose={handleSongPasswordCancel}
     >
-      <View style={styles.songPasswordModalContainer}>
+      <KeyboardAvoidingView 
+        style={styles.songPasswordModalContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         <View style={styles.songPasswordModal}>
           <View style={styles.songPasswordHeader}>
             <Ionicons name="lock-closed" size={32} color="#BB86FC" />
@@ -3818,7 +3826,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 
@@ -6527,7 +6535,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           setNewPlaylist({ name: '', description: '', isPublic: false });
         }}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Create New Playlist</Text>
@@ -6594,7 +6606,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

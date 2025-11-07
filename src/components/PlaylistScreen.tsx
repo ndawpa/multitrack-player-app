@@ -11,6 +11,8 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -348,7 +350,12 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <SafeAreaView style={commonStyles.modalContainer}>
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <SafeAreaView style={commonStyles.modalContainer}>
           <View style={commonStyles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCreateModal(false)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
@@ -402,6 +409,7 @@ const PlaylistScreen: React.FC<PlaylistScreenProps> = ({
             </View>
           </ScrollView>
         </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Playlist Details Modal */}

@@ -10,7 +10,9 @@ import {
   Modal,
   FlatList,
   Switch,
-  ActivityIndicator
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -1461,7 +1463,11 @@ const EditGroupModal: React.FC<{
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.dialogOverlay}>
+      <KeyboardAvoidingView 
+        style={styles.dialogOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         <View style={styles.dialog}>
           <Text style={styles.dialogTitle}>Edit Group</Text>
           <TextInput
@@ -1489,7 +1495,7 @@ const EditGroupModal: React.FC<{
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
