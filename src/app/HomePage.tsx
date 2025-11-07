@@ -282,6 +282,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const imageTranslateYRef = useRef(0);
   const imageLastPanXRef = useRef(0);
   const imageLastPanYRef = useRef(0);
+  const imageScaleAnimated = useRef(new Animated.Value(1)).current;
   const [isLyricsFullscreen, setIsLyricsFullscreen] = useState(false);
   
   // Sync state
@@ -328,6 +329,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const ADMIN_PASSWORD = 'admin123'; // You should change this to a more secure password
 
+  // Zoom constants for finer control
+  const ZOOM_INCREMENT = 0.1; // Small increment for granular control
+  const MAX_ZOOM = 12.0; // Maximum zoom level
+  const MIN_ZOOM = 0.1; // Minimum zoom level
+
   // Sync fullscreen page index when fullScreenImage changes
   useEffect(() => {
     if (fullScreenImage?.currentPageIndex !== undefined) {
@@ -343,6 +349,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       imageScaleRef.current = 1;
       imageTranslateXRef.current = 0;
       imageTranslateYRef.current = 0;
+      // Sync animated value
+      imageScaleAnimated.setValue(1);
     }
   }, [fullScreenImage]);
 
@@ -4662,6 +4670,64 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     }
   };
 
+  // Zoom control functions - using smaller increments for finer control
+  const handleZoomIn = () => {
+    const newScale = Math.min(MAX_ZOOM, imageScaleRef.current + ZOOM_INCREMENT);
+    imageScaleRef.current = newScale;
+    
+    // Animate the scale change smoothly
+    Animated.timing(imageScaleAnimated, {
+      toValue: newScale,
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setImageScale(newScale);
+    });
+    // Update state immediately for button disabled state
+    setImageScale(newScale);
+  };
+
+  const handleZoomOut = () => {
+    const newScale = Math.max(MIN_ZOOM, imageScaleRef.current - ZOOM_INCREMENT);
+    imageScaleRef.current = newScale;
+    
+    // Animate the scale change smoothly
+    Animated.timing(imageScaleAnimated, {
+      toValue: newScale,
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setImageScale(newScale);
+    });
+    // Update state immediately for button disabled state
+    setImageScale(newScale);
+  };
+
+  const handleResetZoom = () => {
+    imageScaleRef.current = 1;
+    imageTranslateXRef.current = 0;
+    imageTranslateYRef.current = 0;
+    
+    // Animate the reset smoothly
+    Animated.parallel([
+      Animated.timing(imageScaleAnimated, {
+        toValue: 1,
+        duration: 200,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setImageScale(1);
+      setImageTranslateX(0);
+      setImageTranslateY(0);
+    });
+    setImageScale(1); // Update immediately for button state
+    setImageTranslateX(0);
+    setImageTranslateY(0);
+  };
+
   const renderSongView = () => {
     if (!selectedSong) return null;
 
@@ -5821,6 +5887,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           imageScaleRef.current = 1;
           imageTranslateXRef.current = 0;
           imageTranslateYRef.current = 0;
+          imageScaleAnimated.setValue(1);
         }}
       >
         <View style={styles.fullScreenContainer}>
@@ -5836,10 +5903,45 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               imageScaleRef.current = 1;
               imageTranslateXRef.current = 0;
               imageTranslateYRef.current = 0;
+              imageScaleAnimated.setValue(1);
             }}
           >
             <Ionicons name="close" size={30} color="#FFFFFF" />
           </TouchableOpacity>
+
+          {/* Zoom Controls */}
+          <View style={styles.fullScreenZoomControls}>
+            <TouchableOpacity
+              style={[
+                styles.fullScreenZoomButton,
+                imageScale >= 8.0 && styles.fullScreenZoomButtonDisabled
+              ]}
+              onPress={handleZoomIn}
+              disabled={imageScale >= 8.0}
+            >
+              <Ionicons name="add" size={24} color={imageScale >= 8.0 ? "#666" : "#FFFFFF"} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.fullScreenZoomButton,
+                imageScale <= 0.3 && styles.fullScreenZoomButtonDisabled
+              ]}
+              onPress={handleZoomOut}
+              disabled={imageScale <= 0.3}
+            >
+              <Ionicons name="remove" size={24} color={imageScale <= 0.3 ? "#666" : "#FFFFFF"} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.fullScreenZoomButton,
+                Math.abs(imageScale - 1) < 0.01 && Math.abs(imageTranslateX) < 0.01 && Math.abs(imageTranslateY) < 0.01 && styles.fullScreenZoomButtonDisabled
+              ]}
+              onPress={handleResetZoom}
+              disabled={Math.abs(imageScale - 1) < 0.01 && Math.abs(imageTranslateX) < 0.01 && Math.abs(imageTranslateY) < 0.01}
+            >
+              <Ionicons name="refresh" size={24} color={Math.abs(imageScale - 1) < 0.01 && Math.abs(imageTranslateX) < 0.01 && Math.abs(imageTranslateY) < 0.01 ? "#666" : "#FFFFFF"} />
+            </TouchableOpacity>
+          </View>
           
           <ScrollView
             horizontal
@@ -5874,10 +5976,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       })
                       .onUpdate((e) => {
                         const scaleChange = e.scale / imageLastScaleRef.current;
-                        const newScale = Math.max(0.5, Math.min(5.0, imageScaleRef.current * scaleChange));
+                        const newScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, imageScaleRef.current * scaleChange));
                         imageLastScaleRef.current = e.scale;
                         imageScaleRef.current = newScale;
                         runOnJS(setImageScale)(newScale);
+                        // Sync animated value for smooth gesture updates
+                        imageScaleAnimated.setValue(newScale);
                       })
                       .onEnd(() => {
                         imageLastScaleRef.current = 1.0;
@@ -5903,13 +6007,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   )}
                 >
                   <View style={styles.fullScreenImageContainer}>
-            <Image
+            <Animated.Image
                       source={{ uri: pageUrl }}
               style={[
                 styles.fullScreenImage,
                 {
                   transform: [
-                    { scale: imageScale },
+                    { scale: imageScaleAnimated },
                     { translateX: imageTranslateX },
                     { translateY: imageTranslateY }
                   ]
@@ -8979,6 +9083,25 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  fullScreenZoomControls: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 1000,
+    flexDirection: 'column',
+  },
+  fullScreenZoomButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  fullScreenZoomButtonDisabled: {
+    backgroundColor: 'rgba(102, 102, 102, 0.3)',
   },
   fullScreenImageContainer: {
     flex: 1,
