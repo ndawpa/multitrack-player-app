@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image, Linking, Dimensions, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, FlatList, TextInput, Animated, Easing, Alert, Clipboard, ActivityIndicator, Image, Linking, Dimensions, Modal, KeyboardAvoidingView, Platform, InteractionManager, TouchableWithoutFeedback } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
-import Slider from '@react-native-community/slider';
+import PlatformSlider from '../components/PlatformSlider';
 import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -235,6 +235,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [isRepeat, setIsRepeat] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Add playback speed state
   
+  // Scroll position restoration
+  const songsListRef = useRef<FlatList>(null);
+  const savedScrollPosition = useRef<number>(0);
+  const savedScrollIndex = useRef<number>(-1);
+  const shouldRestoreScroll = useRef<boolean>(false);
+  const hasRestoredScroll = useRef<boolean>(false);
+  
   // Playlist state
   const [currentPlaylist, setCurrentPlaylist] = useState<Playlist | null>(null);
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
@@ -285,6 +292,15 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const imageLastPanYRef = useRef(0);
   const imageScaleAnimated = useRef(new Animated.Value(1)).current;
   const [isLyricsFullscreen, setIsLyricsFullscreen] = useState(false);
+  const [showFullScreenControls, setShowFullScreenControls] = useState(true);
+  const showFullScreenControlsRef = useRef(true);
+  const tapStartTimeRef = useRef(0);
+  const tapStartPositionRef = useRef({ x: 0, y: 0 });
+  
+  // Sync ref with state
+  useEffect(() => {
+    showFullScreenControlsRef.current = showFullScreenControls;
+  }, [showFullScreenControls]);
   
   // Sync state
   const [deviceId] = useState(() => generateId());
@@ -352,6 +368,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       imageTranslateYRef.current = 0;
       // Sync animated value
       imageScaleAnimated.setValue(1);
+      // Reset controls visibility when opening fullscreen
+      setShowFullScreenControls(true);
+      showFullScreenControlsRef.current = true;
     }
   }, [fullScreenImage]);
 
@@ -505,6 +524,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [showRecordingControls, setShowRecordingControls] = useState(false);
   const [recordingName, setRecordingName] = useState('Voice Recording');
+
+  // Cantado player state
+  const [cantadoPlayer, setCantadoPlayer] = useState<Audio.Sound | null>(null);
+  const [playingCantadoSongId, setPlayingCantadoSongId] = useState<string | null>(null);
+  const [isCantadoPlaying, setIsCantadoPlaying] = useState(false);
 
   // Listen for orientation changes
   useEffect(() => {
@@ -1124,6 +1148,17 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     };
   }, [selectedSong]);
 
+  // Cleanup Cantado player on unmount
+  useEffect(() => {
+    return () => {
+      if (cantadoPlayer) {
+        cantadoPlayer.unloadAsync().catch(error => {
+          console.warn('Error unloading Cantado player:', error);
+        });
+      }
+    };
+  }, [cantadoPlayer]);
+
   // Reset zoom and translation when song changes
   useEffect(() => {
     setLyricsZoomScale(1.0);
@@ -1156,15 +1191,32 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     }
   }, [editingScoreId, activeView]);
 
+
   const handleSongSelect = async (song: Song) => {
     setIsPlaying(false);
-    setSelectedSong(song);
     
-    // Update current filtered index if not in playlist mode
+    // Save current scroll position and index before navigating away
     if (!isPlaylistMode) {
       const index = filteredSongs.findIndex(s => s.id === song.id);
       setCurrentFilteredIndex(index >= 0 ? index : -1);
+      // Save the index of the selected song for scroll restoration
+      if (index >= 0) {
+        savedScrollIndex.current = index;
+        // Calculate approximate scroll position from index (as fallback)
+        const estimatedOffset = index * 90; // Using same ITEM_HEIGHT as getItemLayout
+        console.log('=== SAVING SCROLL POSITION ===');
+        console.log('Selected song index:', index);
+        console.log('Saved scroll offset:', savedScrollPosition.current);
+        console.log('Estimated offset from index:', estimatedOffset);
+        // If saved position is 0 or seems wrong, use estimated
+        if (savedScrollPosition.current === 0 || savedScrollPosition.current < estimatedOffset * 0.5) {
+          savedScrollPosition.current = estimatedOffset;
+          console.log('Using estimated offset:', estimatedOffset);
+        }
+      }
     }
+    
+    setSelectedSong(song);
     
     // Reset track states for new song
     setPersistedTrackStates({});
@@ -1211,6 +1263,107 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         'Failed to update favorites. Please check your internet connection and try again.',
         [{ text: 'OK' }]
       );
+    }
+  };
+
+  const handleCantadoPlay = async (song: Song, event: any) => {
+    event.stopPropagation(); // Prevent song selection when clicking play button
+    
+    try {
+      // Find the Cantado resource
+      const cantadoResource = song.resources?.find(r => r.name === 'Cantado' && r.type === 'audio');
+      
+      if (!cantadoResource || !cantadoResource.url) {
+        Alert.alert('No Cantado Resource', 'This song does not have a Cantado audio resource.');
+        return;
+      }
+
+      // If the same song is already playing, pause/resume it
+      if (playingCantadoSongId === song.id && cantadoPlayer) {
+        const status = await cantadoPlayer.getStatusAsync();
+        if (status.isLoaded) {
+          if (status.isPlaying) {
+            await cantadoPlayer.pauseAsync();
+            setIsCantadoPlaying(false);
+          } else {
+            await cantadoPlayer.playAsync();
+            setIsCantadoPlaying(true);
+          }
+        }
+        return;
+      }
+
+      // Stop any currently playing Cantado
+      if (cantadoPlayer) {
+        try {
+          const status = await cantadoPlayer.getStatusAsync();
+          if (status.isLoaded) {
+            await cantadoPlayer.stopAsync();
+            await cantadoPlayer.unloadAsync();
+          }
+        } catch (error) {
+          console.warn('Error stopping previous Cantado:', error);
+        }
+      }
+
+      // Load and play the new Cantado resource
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: cantadoResource.url },
+        { shouldPlay: true }
+      );
+
+      // Set up playback status listener
+      sound.setOnPlaybackStatusUpdate(async (status) => {
+        if (status.isLoaded) {
+          setIsCantadoPlaying(status.isPlaying);
+          if (status.didJustFinish) {
+            // Unload the current sound and reset state
+            try {
+              await sound.unloadAsync();
+            } catch (error) {
+              console.warn('Error unloading finished Cantado:', error);
+            }
+            
+            // Reset state first
+            setPlayingCantadoSongId(null);
+            setIsCantadoPlaying(false);
+            setCantadoPlayer(null);
+            
+            // Auto-advance to next song with Cantado resource
+            const currentIndex = filteredSongs.findIndex(s => s.id === song.id);
+            if (currentIndex >= 0 && currentIndex < filteredSongs.length - 1) {
+              // Find next song with Cantado resource
+              for (let i = currentIndex + 1; i < filteredSongs.length; i++) {
+                const nextSong = filteredSongs[i];
+                const nextCantadoResource = nextSong.resources?.find(r => r.name === 'Cantado' && r.type === 'audio');
+                if (nextCantadoResource && nextCantadoResource.url) {
+                  // Small delay before playing next song
+                  setTimeout(() => {
+                    handleCantadoPlay(nextSong, { stopPropagation: () => {} } as any);
+                  }, 500);
+                  return;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      setCantadoPlayer(sound);
+      setPlayingCantadoSongId(song.id);
+      setIsCantadoPlaying(true);
+    } catch (error) {
+      console.error('Error playing Cantado:', error);
+      Alert.alert('Error', 'Failed to play Cantado resource. Please try again.');
+      setPlayingCantadoSongId(null);
+      setIsCantadoPlaying(false);
+      setCantadoPlayer(null);
     }
   };
 
@@ -1357,6 +1510,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       setShouldAutoStartFiltered(false); // Reset auto-start flag when no song selected
     }
   }, [filteredSongs, selectedSong, isPlaylistMode]);
+
+  // Restore scroll position when returning to song list
+  useEffect(() => {
+    if (!selectedSong && filteredSongs.length > 0) {
+      // Mark that we should restore scroll - the actual restoration will happen in onContentSizeChange
+      shouldRestoreScroll.current = true;
+      hasRestoredScroll.current = false; // Reset restoration flag
+      console.log('Should restore - index:', savedScrollIndex.current, 'offset:', savedScrollPosition.current);
+    } else if (selectedSong) {
+      // Reset flags when entering song view
+      shouldRestoreScroll.current = false;
+      hasRestoredScroll.current = false;
+    }
+  }, [selectedSong, filteredSongs.length]);
 
   // Get unique artists for the filter dropdown
   const uniqueArtists = useMemo(() => {
@@ -1662,7 +1829,22 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
         <View style={styles.songInfo}>
           <View style={styles.titleContainer}>
-            {renderTitleWithHighlight()}
+            {/* Cantado play button */}
+            {item.resources?.some(r => r.name === 'Cantado' && r.type === 'audio') && (
+              <TouchableOpacity
+                style={styles.cantadoPlayButton}
+                onPress={(e) => handleCantadoPlay(item, e)}
+              >
+                <Ionicons
+                  name={playingCantadoSongId === item.id && isCantadoPlaying ? "pause" : "play"}
+                  size={20}
+                  color={playingCantadoSongId === item.id ? "#BB86FC" : "#BBBBBB"}
+                />
+              </TouchableOpacity>
+            )}
+            <View style={{ flex: 1 }}>
+              {renderTitleWithHighlight()}
+            </View>
           </View>
           <View style={styles.artistContainer}>
             <Text style={styles.songArtist} numberOfLines={1} ellipsizeMode="tail">
@@ -2298,11 +2480,84 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         </View>
       )}
       <FlatList
+        ref={songsListRef}
         data={filteredSongs}
         renderItem={renderSongItem}
         keyExtractor={item => item.id}
         style={styles.songList}
         showsVerticalScrollIndicator={false}
+        getItemLayout={(data, index) => {
+          // Estimate item height: padding (16*2) + margin (8) + content (~50) = ~90
+          // This helps scrollToIndex work more reliably
+          const ITEM_HEIGHT = 90;
+          return {
+            length: ITEM_HEIGHT,
+            offset: ITEM_HEIGHT * index,
+            index,
+          };
+        }}
+        onScrollToIndexFailed={(info) => {
+          // Fallback if scrollToIndex fails
+          console.log('scrollToIndex failed, info:', info);
+          if (savedScrollPosition.current > 0 && songsListRef.current) {
+            setTimeout(() => {
+              songsListRef.current?.scrollToOffset({
+                offset: savedScrollPosition.current,
+                animated: false
+              });
+            }, 100);
+          }
+        }}
+        onScroll={(event) => {
+          // Always save scroll position as user scrolls
+          // This ensures we have the latest position when navigating away
+          const offset = event.nativeEvent.contentOffset.y;
+          // Only save if we're not currently restoring (to avoid overwriting with restored position)
+          if (!shouldRestoreScroll.current) {
+            savedScrollPosition.current = offset;
+            // Debug: log occasionally to verify it's working
+            if (Math.random() < 0.01) { // Log 1% of scroll events
+              console.log('Scroll position saved:', offset);
+            }
+          }
+        }}
+        scrollEventThrottle={16}
+        onContentSizeChange={() => {
+          // Restore scroll when content size changes (items are rendered) - single attempt only
+          if (shouldRestoreScroll.current && !hasRestoredScroll.current && songsListRef.current) {
+            // Mark as restored immediately to prevent multiple attempts
+            hasRestoredScroll.current = true;
+            shouldRestoreScroll.current = false;
+            
+            // Use requestAnimationFrame to ensure layout is complete, then restore
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                if (songsListRef.current) {
+                  if (savedScrollIndex.current >= 0 && savedScrollIndex.current < filteredSongs.length) {
+                    try {
+                      songsListRef.current.scrollToIndex({
+                        index: savedScrollIndex.current,
+                        animated: false,
+                        viewPosition: 0
+                      });
+                      console.log('Restored to index:', savedScrollIndex.current);
+                      return;
+                    } catch (error) {
+                      console.log('scrollToIndex failed, using offset:', error);
+                    }
+                  }
+                  if (savedScrollPosition.current > 0) {
+                    songsListRef.current.scrollToOffset({
+                      offset: savedScrollPosition.current,
+                      animated: false
+                    });
+                    console.log('Restored to offset:', savedScrollPosition.current);
+                  }
+                }
+              }, 50);
+            });
+          }
+        }}
       />
       {showFilterDialog && (
         <KeyboardAvoidingView 
@@ -5092,7 +5347,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                               size={20} 
                               color="#BBBBBB" 
                             />
-                            <Slider
+                            <PlatformSlider
                               style={styles.volumeSlider}
                               minimumValue={0}
                               maximumValue={1}
@@ -5187,7 +5442,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                           size={20} 
                           color="#BBBBBB" 
                         />
-                        <Slider
+                        <PlatformSlider
                           style={styles.volumeSlider}
                           minimumValue={0}
                           maximumValue={1}
@@ -6130,25 +6385,28 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
       >
         <View style={styles.fullScreenContainer}>
           <StatusBar hidden={true} />
-          <TouchableOpacity
-            style={styles.fullScreenCloseButton}
-            onPress={() => {
-              setFullScreenImage(null);
-              setImageScale(1);
-              setImageTranslateX(0);
-              setImageTranslateY(0);
-              setFullScreenPageIndex(0);
-              imageScaleRef.current = 1;
-              imageTranslateXRef.current = 0;
-              imageTranslateYRef.current = 0;
-              imageScaleAnimated.setValue(1);
-            }}
-          >
-            <Ionicons name="close" size={30} color="#FFFFFF" />
-          </TouchableOpacity>
+          {showFullScreenControls && (
+            <TouchableOpacity
+              style={styles.fullScreenCloseButton}
+              onPress={() => {
+                setFullScreenImage(null);
+                setImageScale(1);
+                setImageTranslateX(0);
+                setImageTranslateY(0);
+                setFullScreenPageIndex(0);
+                imageScaleRef.current = 1;
+                imageTranslateXRef.current = 0;
+                imageTranslateYRef.current = 0;
+                imageScaleAnimated.setValue(1);
+              }}
+            >
+              <Ionicons name="close" size={30} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
 
           {/* Zoom Controls */}
-          <View style={styles.fullScreenZoomControls}>
+          {showFullScreenControls && (
+            <View style={styles.fullScreenZoomControls}>
             <TouchableOpacity
               style={[
                 styles.fullScreenZoomButton,
@@ -6180,6 +6438,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               <Ionicons name="refresh" size={24} color={Math.abs(imageScale - 1) < 0.01 && Math.abs(imageTranslateX) < 0.01 && Math.abs(imageTranslateY) < 0.01 ? "#666" : "#FFFFFF"} />
             </TouchableOpacity>
           </View>
+          )}
           
           <ScrollView
             horizontal
@@ -6203,6 +6462,33 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             }}
             scrollEventThrottle={16}
             contentContainerStyle={styles.fullScreenPagesScrollContent}
+            onTouchStart={(e) => {
+              // Track touch start for tap detection
+              tapStartTimeRef.current = Date.now();
+              tapStartPositionRef.current = {
+                x: e.nativeEvent.pageX,
+                y: e.nativeEvent.pageY,
+              };
+            }}
+            onTouchEnd={(e) => {
+              // Detect if this was a tap (not a scroll)
+              const endTime = Date.now();
+              const timeDiff = endTime - tapStartTimeRef.current;
+              const endPosition = {
+                x: e.nativeEvent.pageX,
+                y: e.nativeEvent.pageY,
+              };
+              const distance = Math.sqrt(
+                Math.pow(endPosition.x - tapStartPositionRef.current.x, 2) +
+                Math.pow(endPosition.y - tapStartPositionRef.current.y, 2)
+              );
+              
+              // Only toggle if it was a quick tap (less than 200ms and less than 15px movement)
+              // and not on a control button
+              if (timeDiff < 200 && distance < 15) {
+                setShowFullScreenControls(!showFullScreenControls);
+              }
+            }}
           >
             {pages.map((pageUrl, index) => (
               <View key={index} style={styles.fullScreenPageContainer}>
@@ -6218,7 +6504,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         imageLastScaleRef.current = e.scale;
                         imageScaleRef.current = newScale;
                         runOnJS(setImageScale)(newScale);
-                        // Sync animated value for smooth gesture updates
                         imageScaleAnimated.setValue(newScale);
                       })
                       .onEnd(() => {
@@ -6227,6 +6512,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     Gesture.Pan()
                       .minPointers(1)
                       .maxPointers(2)
+                      .minDistance(20)
                       .onStart(() => {
                         imageLastPanXRef.current = imageTranslateXRef.current;
                         imageLastPanYRef.current = imageTranslateYRef.current;
@@ -6270,7 +6556,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             ))}
           </ScrollView>
 
-          {hasMultiplePages && (
+          {hasMultiplePages && showFullScreenControls && (
             <View style={[styles.fullScreenPageControls, { paddingBottom: insets.bottom + 15 }]}>
               <TouchableOpacity
                 style={[
@@ -7670,13 +7956,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   <Text style={styles.timeText}>
                     {formatTime(trackProgress[selectedSong.tracks[0]?.id] || 0)}
                   </Text>
-                  <Slider
+                  <PlatformSlider
                     style={styles.seekbar}
                     minimumValue={0}
                     maximumValue={trackDurations[selectedSong.tracks[0]?.id] || 0}
                     value={isSeeking ? seekPosition : (trackProgress[selectedSong.tracks[0]?.id] || 0)}
                     onSlidingStart={() => setIsSeeking(true)}
-                    onSlidingComplete={async (value) => {
+                    onSlidingComplete={async (value: number) => {
                       setIsSeeking(false);
                       await handleSeek(selectedSong.tracks![0].id, value);
                       
@@ -7689,7 +7975,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         });
                       }
                     }}
-                    onValueChange={(value) => {
+                    onValueChange={(value: number) => {
                       setSeekPosition(value);
                     }}
                     minimumTrackTintColor="#BB86FC"
@@ -8756,6 +9042,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  cantadoPlayButton: {
+    marginRight: 8,
+    padding: 4,
   },
   titleButtons: {
     flexDirection: 'row',

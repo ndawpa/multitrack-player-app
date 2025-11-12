@@ -1,0 +1,68 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist
+build
+.expo
+.expo-shared
+
+# Development files
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage
+.nyc_output
+
+# Firebase
+serviceAccountKey.json
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+
+# Scripts (not needed in production)
+scripts
+
+# Audio files and data
+*.mp3
+*.wav
+*.csv
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!app.json
+!eas.json
+
+# IDE
+.vscode
+.idea
+
+# Misc
+IMPLEMENTATION_BACKUPS
+Novo Hinário
+Vocalizes
+
