@@ -2,6 +2,15 @@
 
 This guide explains how to build and run the Multitrack Player App using Docker.
 
+## 🚀 CI/CD Pipeline
+
+This project includes GitHub Actions workflows that automatically build and push Docker images to container registries. See [.github/workflows/README.md](.github/workflows/README.md) for detailed setup instructions.
+
+**Quick Start:**
+- Push to `main`/`master` branch → Image automatically built and pushed
+- Create a version tag (e.g., `v1.0.0`) → Versioned image created
+- No additional setup needed for GitHub Container Registry (uses built-in token)
+
 ## Prerequisites
 
 - Docker installed (version 20.10 or later)
