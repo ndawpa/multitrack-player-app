@@ -21,6 +21,12 @@ This directory contains CI/CD workflows for the Multitrack Player App.
 - Requires Docker Hub credentials in secrets
 - Same triggers as `docker.yml`
 
+### 4. `docker-harbor.yml` - Build and Push to Harbor (Recommended for Production)
+- Builds Docker image and pushes to Harbor registry
+- Requires Harbor credentials in secrets
+- Same triggers as `docker.yml`
+- Configured for: `harbor.guiadodevops.com/core/multitrack-player-app`
+
 ## Setup Instructions
 
 ### Option 1: GitHub Container Registry (Recommended - No Setup Required)
@@ -71,6 +77,33 @@ The `docker.yml` workflow is ready to use out of the box. It uses GitHub Contain
 
 **Image will be available at:**
 `docker.io/YOUR_USERNAME/multitrack-player-app:latest`
+
+### Option 3: Harbor (Recommended for Production)
+
+**Setup steps:**
+
+1. **Get Harbor credentials**
+   - Access your Harbor instance at https://harbor.guiadodevops.com/
+   - Log in with your Harbor account
+   - Ensure you have push permissions to the `core` project
+
+2. **Add GitHub Secrets**
+   - Go to your GitHub repository
+   - Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Add two secrets:
+     - `HARBOR_USERNAME`: Your Harbor username
+     - `HARBOR_PASSWORD`: Your Harbor password (or access token if using tokens)
+
+3. **Enable the workflow**
+   - The `docker-harbor.yml` workflow will automatically use these secrets
+   - Or rename `docker-harbor.yml` to `docker.yml` to make it the default
+
+**Image will be available at:**
+`harbor.guiadodevops.com/core/multitrack-player-app:latest`
+
+**View images in Harbor:**
+- Go to: https://harbor.guiadodevops.com/harbor/projects/core/repositories/multitrack-player-app
 
 ## Workflow Features
 
@@ -129,6 +162,18 @@ docker pull YOUR_USERNAME/multitrack-player-app:latest
 docker run -d -p 3000:80 YOUR_USERNAME/multitrack-player-app:latest
 ```
 
+### From Harbor:
+```bash
+# Login to Harbor (first time only)
+docker login harbor.guiadodevops.com -u YOUR_USERNAME -p YOUR_PASSWORD
+
+# Pull the image
+docker pull harbor.guiadodevops.com/core/multitrack-player-app:latest
+
+# Run the container
+docker run -d -p 3000:80 harbor.guiadodevops.com/core/multitrack-player-app:latest
+```
+
 ## Version Tagging
 
 To create a versioned release:
@@ -162,6 +207,10 @@ This will automatically:
 ### Authentication errors
 - **GitHub Container Registry**: Uses `GITHUB_TOKEN` automatically - no action needed
 - **Docker Hub**: Verify your access token hasn't expired and secrets are correctly set
+- **Harbor**: 
+  - Verify `HARBOR_USERNAME` and `HARBOR_PASSWORD` secrets are correctly set
+  - Ensure your Harbor account has push permissions to the `core` project
+  - Check if Harbor requires HTTPS (some instances require `https://` in the registry URL)
 
 ## Customization
 
@@ -186,4 +235,5 @@ Modify the `tags` section in the metadata action to add custom tags.
 - [Docker Buildx](https://docs.docker.com/buildx/)
 - [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 - [Docker Hub](https://docs.docker.com/docker-hub/)
+- [Harbor Documentation](https://goharbor.io/docs/)
 

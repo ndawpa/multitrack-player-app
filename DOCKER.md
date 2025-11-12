@@ -6,10 +6,15 @@ This guide explains how to build and run the Multitrack Player App using Docker.
 
 This project includes GitHub Actions workflows that automatically build and push Docker images to container registries. See [.github/workflows/README.md](.github/workflows/README.md) for detailed setup instructions.
 
+**Supported Registries:**
+- ✅ **Harbor** (Recommended for Production) - `docker-harbor.yml`
+- ✅ **GitHub Container Registry** - `docker.yml` (no setup required)
+- ✅ **Docker Hub** - `docker-dockerhub.yml`
+
 **Quick Start:**
 - Push to `main`/`master` branch → Image automatically built and pushed
 - Create a version tag (e.g., `v1.0.0`) → Versioned image created
-- No additional setup needed for GitHub Container Registry (uses built-in token)
+- Harbor setup: Add `HARBOR_USERNAME` and `HARBOR_PASSWORD` secrets (see workflow README)
 
 ## Prerequisites
 
