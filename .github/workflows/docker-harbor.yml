@@ -22,7 +22,6 @@ env:
   HARBOR_REGISTRY: harbor.guiadodevops.com
   HARBOR_PROJECT: core
   IMAGE_NAME: multitrack-player-app
-  FULL_IMAGE_NAME: ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}
 
 jobs:
   build-and-push:
@@ -65,7 +64,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.FULL_IMAGE_NAME }}
+          images: ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -97,7 +96,7 @@ jobs:
           echo "**Registry:** Harbor" >> $GITHUB_STEP_SUMMARY
           echo "**Registry URL:** \`${{ env.HARBOR_REGISTRY }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Project:** \`${{ env.HARBOR_PROJECT }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.FULL_IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
@@ -106,7 +105,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Pull command:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.FULL_IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**View in Harbor:**" >> $GITHUB_STEP_SUMMARY
