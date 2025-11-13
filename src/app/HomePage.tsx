@@ -530,6 +530,30 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [playingCantadoSongId, setPlayingCantadoSongId] = useState<string | null>(null);
   const [isCantadoPlaying, setIsCantadoPlaying] = useState(false);
 
+  // Helper function to convert YouTube URL to embed format
+  const getYouTubeEmbedUrl = (url: string): string => {
+    if (!url) return '';
+    
+    // If already an embed URL, return as is
+    if (url.includes('/embed/')) return url;
+    
+    // Extract video ID from various YouTube URL formats
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /youtube\.com\/v\/([^&\n?#]+)/,
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return `https://www.youtube.com/embed/${match[1]}`;
+      }
+    }
+    
+    // If no pattern matches, return original URL
+    return url;
+  };
+
   // Listen for orientation changes
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
@@ -5755,42 +5779,77 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                               const pdfUrl = pages[0];
                               return (
                               <View style={styles.sheetMusicView}>
-                                <WebView
-                                  source={{ 
-                                      uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`
-                                  }}
-                                  style={{
+                                {Platform.OS === 'web' ? (
+                                  <View style={{
                                     height: 400,
                                     width: Dimensions.get('window').width - 48,
                                     backgroundColor: '#FFFFFF',
-                                  }}
-                                  onError={(syntheticEvent) => {
-                                    const { nativeEvent } = syntheticEvent;
-                                    console.error('WebView error:', nativeEvent);
-                                    Alert.alert(
-                                      'PDF Viewing Error',
-                                      'Unable to load PDF. You can try opening it in your browser.',
-                                      [
-                                        {
-                                          text: 'Open in Browser',
-                                          onPress: () => {
-                                              Linking.openURL(pdfUrl);
+                                  }}>
+                                    {React.createElement('iframe', {
+                                      src: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`,
+                                      style: {
+                                        width: '100%',
+                                        height: '100%',
+                                        border: 'none',
+                                      },
+                                      onError: () => {
+                                        Alert.alert(
+                                          'PDF Viewing Error',
+                                          'Unable to load PDF. You can try opening it in your browser.',
+                                          [
+                                            {
+                                              text: 'Open in Browser',
+                                              onPress: () => {
+                                                Linking.openURL(pdfUrl);
+                                              }
+                                            },
+                                            {
+                                              text: 'Cancel',
+                                              style: 'cancel'
+                                            }
+                                          ]
+                                        );
+                                      },
+                                    })}
+                                  </View>
+                                ) : (
+                                  <WebView
+                                    source={{ 
+                                        uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`
+                                    }}
+                                    style={{
+                                      height: 400,
+                                      width: Dimensions.get('window').width - 48,
+                                      backgroundColor: '#FFFFFF',
+                                    }}
+                                    onError={(syntheticEvent) => {
+                                      const { nativeEvent } = syntheticEvent;
+                                      console.error('WebView error:', nativeEvent);
+                                      Alert.alert(
+                                        'PDF Viewing Error',
+                                        'Unable to load PDF. You can try opening it in your browser.',
+                                        [
+                                          {
+                                            text: 'Open in Browser',
+                                            onPress: () => {
+                                                Linking.openURL(pdfUrl);
+                                            }
+                                          },
+                                          {
+                                            text: 'Cancel',
+                                            style: 'cancel'
                                           }
-                                        },
-                                        {
-                                          text: 'Cancel',
-                                          style: 'cancel'
-                                        }
-                                      ]
-                                    );
-                                  }}
-                                  renderLoading={() => (
-                                    <View style={styles.loadingContainer}>
-                                      <ActivityIndicator size="large" color="#BB86FC" />
-                                      <Text style={styles.loadingText}>Loading PDF...</Text>
-                                    </View>
-                                  )}
-                                />
+                                        ]
+                                      );
+                                    }}
+                                    renderLoading={() => (
+                                      <View style={styles.loadingContainer}>
+                                        <ActivityIndicator size="large" color="#BB86FC" />
+                                        <Text style={styles.loadingText}>Loading PDF...</Text>
+                                      </View>
+                                    )}
+                                  />
+                                )}
                               </View>
                               );
                             } else {
@@ -5902,42 +5961,77 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                           const pdfUrl = pages[0];
                           return (
                           <View style={styles.sheetMusicView}>
-                            <WebView
-                              source={{ 
-                                  uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`
-                              }}
-                              style={{
+                            {Platform.OS === 'web' ? (
+                              <View style={{
                                 height: 400,
                                 width: Dimensions.get('window').width - 48,
                                 backgroundColor: '#FFFFFF',
-                              }}
-                              onError={(syntheticEvent) => {
-                                const { nativeEvent } = syntheticEvent;
-                                console.error('WebView error:', nativeEvent);
-                                Alert.alert(
-                                  'PDF Viewing Error',
-                                  'Unable to load PDF. You can try opening it in your browser.',
-                                  [
-                                    {
-                                      text: 'Open in Browser',
-                                      onPress: () => {
-                                          Linking.openURL(pdfUrl);
+                              }}>
+                                {React.createElement('iframe', {
+                                  src: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`,
+                                  style: {
+                                    width: '100%',
+                                    height: '100%',
+                                    border: 'none',
+                                  },
+                                  onError: () => {
+                                    Alert.alert(
+                                      'PDF Viewing Error',
+                                      'Unable to load PDF. You can try opening it in your browser.',
+                                      [
+                                        {
+                                          text: 'Open in Browser',
+                                          onPress: () => {
+                                            Linking.openURL(pdfUrl);
+                                          }
+                                        },
+                                        {
+                                          text: 'Cancel',
+                                          style: 'cancel'
+                                        }
+                                      ]
+                                    );
+                                  },
+                                })}
+                              </View>
+                            ) : (
+                              <WebView
+                                source={{ 
+                                    uri: `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`
+                                }}
+                                style={{
+                                  height: 400,
+                                  width: Dimensions.get('window').width - 48,
+                                  backgroundColor: '#FFFFFF',
+                                }}
+                                onError={(syntheticEvent) => {
+                                  const { nativeEvent } = syntheticEvent;
+                                  console.error('WebView error:', nativeEvent);
+                                  Alert.alert(
+                                    'PDF Viewing Error',
+                                    'Unable to load PDF. You can try opening it in your browser.',
+                                    [
+                                      {
+                                        text: 'Open in Browser',
+                                        onPress: () => {
+                                            Linking.openURL(pdfUrl);
+                                        }
+                                      },
+                                      {
+                                        text: 'Cancel',
+                                        style: 'cancel'
                                       }
-                                    },
-                                    {
-                                      text: 'Cancel',
-                                      style: 'cancel'
-                                    }
-                                  ]
-                                );
-                              }}
-                              renderLoading={() => (
-                                <View style={styles.loadingContainer}>
-                                  <ActivityIndicator size="large" color="#BB86FC" />
-                                  <Text style={styles.loadingText}>Loading PDF...</Text>
-                                </View>
-                              )}
-                            />
+                                    ]
+                                  );
+                                }}
+                                renderLoading={() => (
+                                  <View style={styles.loadingContainer}>
+                                    <ActivityIndicator size="large" color="#BB86FC" />
+                                    <Text style={styles.loadingText}>Loading PDF...</Text>
+                                  </View>
+                                )}
+                              />
+                            )}
                           </View>
                           );
                         } else {
@@ -6190,45 +6284,101 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       <View style={styles.resourceContent}>
                         {resource.type === 'youtube' ? (
                           <View style={styles.sheetMusicView}>
-                            <WebView
-                              source={{ uri: resource.url }}
-                              style={{
+                            {Platform.OS === 'web' ? (
+                              <View style={{
                                 height: 450,
                                 width: Dimensions.get('window').width - 48,
                                 backgroundColor: '#000000',
-                              }}
-                              allowsFullscreenVideo={true}
-                              javaScriptEnabled={true}
-                              domStorageEnabled={true}
-                            />
+                              }}>
+                                {React.createElement('iframe', {
+                                  src: getYouTubeEmbedUrl(resource.url),
+                                  style: {
+                                    width: '100%',
+                                    height: '100%',
+                                    border: 'none',
+                                  },
+                                  allowFullScreen: true,
+                                  allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',
+                                })}
+                              </View>
+                            ) : (
+                              <WebView
+                                source={{ uri: resource.url }}
+                                style={{
+                                  height: 450,
+                                  width: Dimensions.get('window').width - 48,
+                                  backgroundColor: '#000000',
+                                }}
+                                allowsFullscreenVideo={true}
+                                javaScriptEnabled={true}
+                                domStorageEnabled={true}
+                              />
+                            )}
                           </View>
                         ) : resource.type === 'audio' ? (
                           <View style={styles.sheetMusicView}>
-                            <WebView
-                              source={{ uri: resource.url }}
-                              style={{
-                                height: 150,
+                            {Platform.OS === 'web' ? (
+                              <View style={{
                                 width: Dimensions.get('window').width - 48,
+                                height: 50,
                                 backgroundColor: '#000000',
-                              }}
-                              allowsFullscreenVideo={false}
-                              javaScriptEnabled={true}
-                              domStorageEnabled={true}
-                            />
+                              }}>
+                                {React.createElement('audio', {
+                                  controls: true,
+                                  style: {
+                                    width: '100%',
+                                    height: '100%',
+                                  },
+                                  children: React.createElement('source', {
+                                    src: resource.url,
+                                    type: 'audio/mpeg',
+                                  }),
+                                })}
+                              </View>
+                            ) : (
+                              <WebView
+                                source={{ uri: resource.url }}
+                                style={{
+                                  height: 150,
+                                  width: Dimensions.get('window').width - 48,
+                                  backgroundColor: '#000000',
+                                }}
+                                allowsFullscreenVideo={false}
+                                javaScriptEnabled={true}
+                                domStorageEnabled={true}
+                              />
+                            )}
                           </View>
                         ) : resource.type === 'pdf' ? (
                           <View style={styles.sheetMusicView}>
-                            <WebView
-                              source={{ uri: resource.url }}
-                              style={{
+                            {Platform.OS === 'web' ? (
+                              <View style={{
                                 height: (Dimensions.get('window').width - 48) * 1.414, // A4 aspect ratio (297:210)
                                 width: Dimensions.get('window').width - 48,
                                 backgroundColor: '#000000',
-                              }}
-                              allowsFullscreenVideo={true}
-                              javaScriptEnabled={true}
-                              domStorageEnabled={true}
-                            />
+                              }}>
+                                {React.createElement('iframe', {
+                                  src: resource.url,
+                                  style: {
+                                    width: '100%',
+                                    height: '100%',
+                                    border: 'none',
+                                  },
+                                })}
+                              </View>
+                            ) : (
+                              <WebView
+                                source={{ uri: resource.url }}
+                                style={{
+                                  height: (Dimensions.get('window').width - 48) * 1.414, // A4 aspect ratio (297:210)
+                                  width: Dimensions.get('window').width - 48,
+                                  backgroundColor: '#000000',
+                                }}
+                                allowsFullscreenVideo={true}
+                                javaScriptEnabled={true}
+                                domStorageEnabled={true}
+                              />
+                            )}
                           </View>
                         ) : resource.type === 'download' ? (
                           <View style={styles.resourceLinkContainer}>
@@ -6282,45 +6432,101 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                         <View style={styles.resourceContent}>
                           {resource.type === 'youtube' ? (
                             <View style={styles.sheetMusicView}>
-                              <WebView
-                                source={{ uri: resource.url }}
-                                style={{
+                              {Platform.OS === 'web' ? (
+                                <View style={{
                                   height: 450,
                                   width: Dimensions.get('window').width - 48,
                                   backgroundColor: '#000000',
-                                }}
-                                allowsFullscreenVideo={true}
-                                javaScriptEnabled={true}
-                                domStorageEnabled={true}
-                              />
+                                }}>
+                                  {React.createElement('iframe', {
+                                    src: getYouTubeEmbedUrl(resource.url),
+                                    style: {
+                                      width: '100%',
+                                      height: '100%',
+                                      border: 'none',
+                                    },
+                                    allowFullScreen: true,
+                                    allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',
+                                  })}
+                                </View>
+                              ) : (
+                                <WebView
+                                  source={{ uri: resource.url }}
+                                  style={{
+                                    height: 450,
+                                    width: Dimensions.get('window').width - 48,
+                                    backgroundColor: '#000000',
+                                  }}
+                                  allowsFullscreenVideo={true}
+                                  javaScriptEnabled={true}
+                                  domStorageEnabled={true}
+                                />
+                              )}
                             </View>
                           ) : resource.type === 'audio' ? (
                             <View style={styles.sheetMusicView}>
-                              <WebView
-                                source={{ uri: resource.url }}
-                                style={{
-                                  height: 150,
+                              {Platform.OS === 'web' ? (
+                                <View style={{
                                   width: Dimensions.get('window').width - 48,
+                                  height: 50,
                                   backgroundColor: '#000000',
-                                }}
-                                allowsFullscreenVideo={false}
-                                javaScriptEnabled={true}
-                                domStorageEnabled={true}
-                              />
+                                }}>
+                                  {React.createElement('audio', {
+                                    controls: true,
+                                    style: {
+                                      width: '100%',
+                                      height: '100%',
+                                    },
+                                    children: React.createElement('source', {
+                                      src: resource.url,
+                                      type: 'audio/mpeg',
+                                    }),
+                                  })}
+                                </View>
+                              ) : (
+                                <WebView
+                                  source={{ uri: resource.url }}
+                                  style={{
+                                    height: 150,
+                                    width: Dimensions.get('window').width - 48,
+                                    backgroundColor: '#000000',
+                                  }}
+                                  allowsFullscreenVideo={false}
+                                  javaScriptEnabled={true}
+                                  domStorageEnabled={true}
+                                />
+                              )}
                             </View>
                           ) : resource.type === 'pdf' ? (
                             <View style={styles.sheetMusicView}>
-                              <WebView
-                                source={{ uri: resource.url }}
-                                style={{
+                              {Platform.OS === 'web' ? (
+                                <View style={{
                                   height: (Dimensions.get('window').width - 48) * 1.414, // A4 aspect ratio (297:210)
                                   width: Dimensions.get('window').width - 48,
                                   backgroundColor: '#000000',
-                                }}
-                                allowsFullscreenVideo={true}
-                                javaScriptEnabled={true}
-                                domStorageEnabled={true}
-                              />
+                                }}>
+                                  {React.createElement('iframe', {
+                                    src: resource.url,
+                                    style: {
+                                      width: '100%',
+                                      height: '100%',
+                                      border: 'none',
+                                    },
+                                  })}
+                                </View>
+                              ) : (
+                                <WebView
+                                  source={{ uri: resource.url }}
+                                  style={{
+                                    height: (Dimensions.get('window').width - 48) * 1.414, // A4 aspect ratio (297:210)
+                                    width: Dimensions.get('window').width - 48,
+                                    backgroundColor: '#000000',
+                                  }}
+                                  allowsFullscreenVideo={true}
+                                  javaScriptEnabled={true}
+                                  domStorageEnabled={true}
+                                />
+                              )}
                             </View>
                           ) : resource.type === 'download' ? (
                             <View style={styles.resourceLinkContainer}>
