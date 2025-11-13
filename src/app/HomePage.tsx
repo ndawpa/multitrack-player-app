@@ -33,6 +33,7 @@ import Watermark from '../components/Watermark';
 import GroupService from '../services/groupService';
 import { normalizeSearchText, matchesSearch, findMatchesInText } from '../utils/textNormalization';
 import { useI18n } from '../contexts/I18nContext';
+import { convertPdfToImages, isPdfFile, dataUriToBlob } from '../services/pdfConverter';
 
 // Custom ID generator
 const generateId = () => {
@@ -3162,7 +3163,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     try {
       // Allow file selection (user can select multiple times to add multiple pages)
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['image/*'],
+        type: ['image/*', 'application/pdf'],
         copyToCacheDirectory: true
       });
       
@@ -3172,11 +3173,11 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         const pageCount = currentPages.length;
         
         // Initialize pages array if it doesn't exist
-        const updatedScores = selectedSong.scores.map(s => {
+        let updatedScores = selectedSong.scores.map(s => {
           if (s.id === scoreId) {
             // Convert single-page score (url) to multi-page (pages array)
             const existingPages = s.pages || (s.url ? [s.url] : []);
-            // Add 'uploading' placeholder for the new page
+            // Add 'uploading' placeholder for the new page(s)
             const newPages = [...existingPages, 'uploading'];
             return {
               ...s,
@@ -3191,16 +3192,38 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         setSelectedSong({ ...selectedSong, scores: updatedScores });
         
         try {
-          const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, selectedSong.title);
+          let pageUrls: string[] = [];
           
-          // Update the score with the new page URL
+          // Check if the file is a PDF
+          if (isPdfFile(file)) {
+            // Convert PDF to images
+            const imageDataUris = await convertPdfToImages(file);
+            
+            if (imageDataUris.length === 0) {
+              throw new Error('PDF conversion produced no images');
+            }
+            
+            // Upload each page as an image
+            pageUrls = await Promise.all(
+              imageDataUris.map((dataUri, index) =>
+                uploadImageDataUri(dataUri, score.name, selectedSong.title, pageCount + index + 1)
+              )
+            );
+          } else {
+            // Regular image file
+            const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, selectedSong.title);
+            pageUrls = [downloadURL];
+          }
+          
+          // Update the score with the new page URL(s)
           const finalScores = updatedScores.map(s => {
             if (s.id === scoreId) {
               const finalPages = [...(s.pages || [])];
-              // Replace the uploading placeholder with the actual URL
+              // Replace the uploading placeholder(s) with the actual URL(s)
               const uploadingIndex = finalPages.indexOf('uploading');
               if (uploadingIndex !== -1) {
-                finalPages[uploadingIndex] = downloadURL;
+                // Remove the uploading placeholder and insert the new URLs
+                finalPages.splice(uploadingIndex, 1, ...pageUrls);
               }
               return {
                 ...s,
@@ -3266,7 +3289,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     if (!selectedSong) return;
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['image/*'],
+        type: ['image/*', 'application/pdf'],
         copyToCacheDirectory: true
       });
       
@@ -3284,14 +3307,41 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         setSelectedSong({ ...selectedSong, scores: updatedScores });
         
         try {
-          const downloadURL = await uploadSheetMusic(file, scoreName, selectedSong.title);
-          const finalScores = updatedScores.map(score =>
-            score.id === scoreId ? { ...score, url: downloadURL } : score
-          );
-          await updateSongInFirebase({ scores: finalScores });
+          // Check if the file is a PDF
+          if (isPdfFile(file)) {
+            // Convert PDF to images
+            const imageDataUris = await convertPdfToImages(file);
+            
+            if (imageDataUris.length === 0) {
+              throw new Error('PDF conversion produced no images');
+            }
+            
+            // Upload each page as an image
+            const pageUrls = await Promise.all(
+              imageDataUris.map((dataUri, index) =>
+                uploadImageDataUri(dataUri, scoreName, selectedSong.title, index + 1)
+              )
+            );
+            
+            // Update score with page URLs
+            const finalScores = updatedScores.map(score =>
+              score.id === scoreId 
+                ? { ...score, pages: pageUrls, url: pageUrls[0] } // Set first page as url for backward compatibility
+                : score
+            );
+            await updateSongInFirebase({ scores: finalScores });
+          } else {
+            // Regular image file
+            const downloadURL = await uploadSheetMusic(file, scoreName, selectedSong.title);
+            const finalScores = updatedScores.map(score =>
+              score.id === scoreId ? { ...score, url: downloadURL } : score
+            );
+            await updateSongInFirebase({ scores: finalScores });
+          }
         } catch (uploadError) {
           console.error('Error uploading score:', uploadError);
-          Alert.alert('Error', 'Failed to upload score');
+          const errorMessage = uploadError instanceof Error ? uploadError.message : 'Failed to upload score';
+          Alert.alert('Error', errorMessage);
           const revertedScores = updatedScores.filter(s => s.id !== scoreId);
           await updateSongInFirebase({ scores: revertedScores });
         }
@@ -3734,7 +3784,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                               onPress={async () => {
                                 try {
                                   const result = await DocumentPicker.getDocumentAsync({
-                                    type: ['image/*'],
+                                    type: ['image/*', 'application/pdf'],
                                     copyToCacheDirectory: true
                                   });
                                   
@@ -3742,7 +3792,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                     const file = result.assets[0];
                                     const currentPages = pages;
                                     
-                                    // Add uploading placeholder
+                                    // Add uploading placeholder(s)
                                     setEditingSong(prev => {
                                       if (!prev) return null;
                                       const newScores = [...prev.scores];
@@ -3762,10 +3812,30 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                     });
 
                                     try {
-                                      // Upload the new page
-                                      const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, editingSong.title);
+                                      let pageUrls: string[] = [];
                                       
-                                      // Update the score with the new page URL
+                                      // Check if the file is a PDF
+                                      if (isPdfFile(file)) {
+                                        // Convert PDF to images
+                                        const imageDataUris = await convertPdfToImages(file);
+                                        
+                                        if (imageDataUris.length === 0) {
+                                          throw new Error('PDF conversion produced no images');
+                                        }
+                                        
+                                        // Upload each page as an image
+                                        pageUrls = await Promise.all(
+                                          imageDataUris.map((dataUri, imgIndex) =>
+                                            uploadImageDataUri(dataUri, score.name, editingSong.title, pageCount + imgIndex + 1)
+                                          )
+                                        );
+                                      } else {
+                                        // Regular image file
+                                        const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, editingSong.title);
+                                        pageUrls = [downloadURL];
+                                      }
+                                      
+                                      // Update the score with the new page URL(s)
                                       setEditingSong(prev => {
                                         if (!prev) return null;
                                         const newScores = [...prev.scores];
@@ -3773,7 +3843,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                           const updatedPages = [...newScores[index].pages!];
                                           const uploadingIndex = updatedPages.indexOf('uploading');
                                           if (uploadingIndex !== -1) {
-                                            updatedPages[uploadingIndex] = downloadURL;
+                                            // Remove the uploading placeholder and insert the new URLs
+                                            updatedPages.splice(uploadingIndex, 1, ...pageUrls);
                                           }
                                           newScores[index] = {
                                             ...newScores[index],
@@ -3822,7 +3893,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                 onPress={async () => {
                   try {
                     const result = await DocumentPicker.getDocumentAsync({
-                      type: ['image/*'], // Only images, no PDFs
+                      type: ['image/*', 'application/pdf'],
                       copyToCacheDirectory: true
                     });
                     
@@ -3846,23 +3917,52 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                       });
 
                       try {
-                        // Upload single image file
-                      const downloadURL = await uploadSheetMusic(file, scoreName, editingSong.title);
-                      
-                      // Update the score with the download URL
-                      setEditingSong(prev => {
-                        if (!prev) return null;
-                        const newScores = prev.scores.map(score => 
-                            score.id === scoreId && score.url === 'uploading' ? { ...score, url: downloadURL } : score
-                        );
-                        return { ...prev, scores: newScores };
-                      });
+                        // Check if the file is a PDF
+                        if (isPdfFile(file)) {
+                          // Convert PDF to images
+                          const imageDataUris = await convertPdfToImages(file);
+                          
+                          if (imageDataUris.length === 0) {
+                            throw new Error('PDF conversion produced no images');
+                          }
+                          
+                          // Upload each page as an image
+                          const pageUrls = await Promise.all(
+                            imageDataUris.map((dataUri, index) =>
+                              uploadImageDataUri(dataUri, scoreName, editingSong.title, index + 1)
+                            )
+                          );
+                          
+                          // Update score with page URLs
+                          setEditingSong(prev => {
+                            if (!prev) return null;
+                            const newScores = prev.scores.map(score => 
+                              score.id === scoreId && score.url === 'uploading' 
+                                ? { ...score, pages: pageUrls, url: pageUrls[0] } 
+                                : score
+                            );
+                            return { ...prev, scores: newScores };
+                          });
+                        } else {
+                          // Regular image file
+                          const downloadURL = await uploadSheetMusic(file, scoreName, editingSong.title);
+                          
+                          // Update the score with the download URL
+                          setEditingSong(prev => {
+                            if (!prev) return null;
+                            const newScores = prev.scores.map(score => 
+                                score.id === scoreId && score.url === 'uploading' ? { ...score, url: downloadURL } : score
+                            );
+                            return { ...prev, scores: newScores };
+                          });
+                        }
                       } catch (uploadError) {
                         console.error('Error uploading score:', uploadError);
-                    Alert.alert('Error', 'Failed to upload score');
+                        const errorMessage = uploadError instanceof Error ? uploadError.message : 'Failed to upload score';
+                        Alert.alert('Error', errorMessage);
                         // Remove the failed score
-                    setEditingSong(prev => {
-                      if (!prev) return null;
+                        setEditingSong(prev => {
+                          if (!prev) return null;
                           return { ...prev, scores: prev.scores.filter(score => score.id !== scoreId) };
                         });
                       }
@@ -4284,6 +4384,33 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     } catch (error) {
       console.error('Error uploading sheet music:', error);
       throw new Error('Failed to upload sheet music');
+    }
+  };
+
+  // Upload image data URI to Firebase Storage
+  const uploadImageDataUri = async (dataUri: string, fileName: string, songTitle: string, pageNumber?: number): Promise<string> => {
+    try {
+      const storage = getStorage();
+      const safeSongTitle = songTitle.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const filePath = pageNumber 
+        ? `sheet_music/${safeSongTitle}_${fileName}_page${pageNumber}.png`
+        : `sheet_music/${safeSongTitle}_${fileName}.png`;
+      const fileRef = storageRef(storage, filePath);
+
+      // Convert data URI to blob
+      const blob = dataUriToBlob(dataUri);
+
+      // Upload to Firebase Storage
+      await uploadBytes(fileRef, blob, {
+        contentType: 'image/png'
+      });
+      
+      // Get the download URL
+      const downloadURL = await getDownloadURL(fileRef);
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading image data URI:', error);
+      throw new Error('Failed to upload image');
     }
   };
 
@@ -4718,7 +4845,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                           onPress={async () => {
                             try {
                               const result = await DocumentPicker.getDocumentAsync({
-                                type: ['image/*'],
+                                type: ['image/*', 'application/pdf'],
                                 copyToCacheDirectory: true
                               });
                               
@@ -4726,7 +4853,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                 const file = result.assets[0];
                                 const currentPages = pages;
                                 
-                                // Add uploading placeholder
+                                // Add uploading placeholder(s)
                                 setNewSong(prev => {
                                   const newScores = [...prev.scores];
                                   if (newScores[index].pages) {
@@ -4745,17 +4872,38 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                 });
 
                                 try {
-                                  // Upload the new page
-                                  const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, newSong.title);
+                                  let pageUrls: string[] = [];
                                   
-                                  // Update the score with the new page URL
+                                  // Check if the file is a PDF
+                                  if (isPdfFile(file)) {
+                                    // Convert PDF to images
+                                    const imageDataUris = await convertPdfToImages(file);
+                                    
+                                    if (imageDataUris.length === 0) {
+                                      throw new Error('PDF conversion produced no images');
+                                    }
+                                    
+                                    // Upload each page as an image
+                                    pageUrls = await Promise.all(
+                                      imageDataUris.map((dataUri, imgIndex) =>
+                                        uploadImageDataUri(dataUri, score.name, newSong.title, pageCount + imgIndex + 1)
+                                      )
+                                    );
+                                  } else {
+                                    // Regular image file
+                                    const downloadURL = await uploadSheetMusic(file, `${score.name}_page${pageCount + 1}`, newSong.title);
+                                    pageUrls = [downloadURL];
+                                  }
+                                  
+                                  // Update the score with the new page URL(s)
                                   setNewSong(prev => {
                                     const newScores = [...prev.scores];
                                     if (newScores[index].pages) {
                                       const updatedPages = [...newScores[index].pages!];
                                       const uploadingIndex = updatedPages.indexOf('uploading');
                                       if (uploadingIndex !== -1) {
-                                        updatedPages[uploadingIndex] = downloadURL;
+                                        // Remove the uploading placeholder and insert the new URLs
+                                        updatedPages.splice(uploadingIndex, 1, ...pageUrls);
                                       }
                                       newScores[index] = {
                                         ...newScores[index],
@@ -4802,7 +4950,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               onPress={async () => {
                 try {
                   const result = await DocumentPicker.getDocumentAsync({
-                    type: ['image/*'], // Only images, no PDFs
+                    type: ['image/*', 'application/pdf'],
                     copyToCacheDirectory: true
                   });
                   
@@ -4825,21 +4973,49 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     });
 
                     try {
-                      // Upload single image file
-                    const downloadURL = await uploadSheetMusic(file, scoreName, newSong.title);
-                    
-                    // Update the score with the download URL
-                    setNewSong(prev => {
-                      const newScores = prev.scores.map(score => 
-                          score.id === scoreId && score.url === 'uploading' ? { ...score, url: downloadURL } : score
-                      );
-                      return { ...prev, scores: newScores };
-                    });
+                      // Check if the file is a PDF
+                      if (isPdfFile(file)) {
+                        // Convert PDF to images
+                        const imageDataUris = await convertPdfToImages(file);
+                        
+                        if (imageDataUris.length === 0) {
+                          throw new Error('PDF conversion produced no images');
+                        }
+                        
+                        // Upload each page as an image
+                        const pageUrls = await Promise.all(
+                          imageDataUris.map((dataUri, index) =>
+                            uploadImageDataUri(dataUri, scoreName, newSong.title, index + 1)
+                          )
+                        );
+                        
+                        // Update score with page URLs
+                        setNewSong(prev => {
+                          const newScores = prev.scores.map(score => 
+                            score.id === scoreId && score.url === 'uploading' 
+                              ? { ...score, pages: pageUrls, url: pageUrls[0] } 
+                              : score
+                          );
+                          return { ...prev, scores: newScores };
+                        });
+                      } else {
+                        // Regular image file
+                        const downloadURL = await uploadSheetMusic(file, scoreName, newSong.title);
+                        
+                        // Update the score with the download URL
+                        setNewSong(prev => {
+                          const newScores = prev.scores.map(score => 
+                              score.id === scoreId && score.url === 'uploading' ? { ...score, url: downloadURL } : score
+                          );
+                          return { ...prev, scores: newScores };
+                        });
+                      }
                     } catch (uploadError) {
                       console.error('Error uploading score:', uploadError);
-                  Alert.alert('Error', 'Failed to upload score');
+                      const errorMessage = uploadError instanceof Error ? uploadError.message : 'Failed to upload score';
+                      Alert.alert('Error', errorMessage);
                       // Remove the failed score
-                  setNewSong(prev => {
+                      setNewSong(prev => {
                         return { ...prev, scores: prev.scores.filter(score => score.id !== scoreId) };
                       });
                     }
