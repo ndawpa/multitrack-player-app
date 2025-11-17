@@ -5188,6 +5188,21 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     setIsLyricsEditing(true);
   };
 
+  const handleCopyLyrics = async () => {
+    if (!selectedSong?.lyrics) {
+      Alert.alert('No Lyrics', 'There are no lyrics to copy.');
+      return;
+    }
+
+    try {
+      await Clipboard.setString(selectedSong.lyrics);
+      Alert.alert('Success', 'Lyrics copied to clipboard');
+    } catch (error) {
+      console.error('Error copying lyrics:', error);
+      Alert.alert('Error', 'Failed to copy lyrics to clipboard');
+    }
+  };
+
   // Add this function before renderSongView
   const toggleScoreExpansion = (scoreId: string) => {
     setExpandedScores(prev => ({
@@ -5704,12 +5719,20 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     )}
                   </View>
                   {!isLyricsEditing && (
-                    <TouchableOpacity
-                      style={styles.iconButton}
-                      onPress={() => setIsLyricsFullscreen(true)}
-                    >
-                      <Ionicons name="expand-outline" size={24} color="#BB86FC" />
-                    </TouchableOpacity>
+                    <View style={styles.lyricsHeaderRight}>
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={handleCopyLyrics}
+                      >
+                        <Ionicons name="copy-outline" size={24} color="#BB86FC" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => setIsLyricsFullscreen(true)}
+                      >
+                        <Ionicons name="expand-outline" size={24} color="#BB86FC" />
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
                 {isLyricsEditing && isAdminMode ? (
@@ -7050,15 +7073,24 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               </ScrollView>
             </View>
             
-            <TouchableOpacity
-              style={styles.fullScreenCloseButton}
-              onPress={() => {
-                setIsLyricsFullscreen(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="close" size={30} color="#FFFFFF" />
-            </TouchableOpacity>
+            <View style={styles.fullScreenButtonContainer}>
+              <TouchableOpacity
+                style={styles.fullScreenActionButton}
+                onPress={handleCopyLyrics}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="copy-outline" size={30} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.fullScreenCloseButton}
+                onPress={() => {
+                  setIsLyricsFullscreen(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={30} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
         </GestureDetector>
       </Modal>
@@ -10048,11 +10080,23 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  fullScreenCloseButton: {
+  fullScreenButtonContainer: {
     position: 'absolute',
     top: 50,
     right: 20,
     zIndex: 1000,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  fullScreenActionButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenCloseButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 25,
     width: 50,
@@ -10201,6 +10245,11 @@ const styles = StyleSheet.create({
   },
   lyricsHeaderLeft: {
     flex: 1,
+  },
+  lyricsHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   adminButton: {
     backgroundColor: '#BB86FC',
