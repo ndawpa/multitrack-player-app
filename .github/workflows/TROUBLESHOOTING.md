@@ -178,3 +178,4 @@ You can verify in Harbor UI:
 - Go to: https://harbor.guiadodevops.com/harbor/projects/core/repositories/multitrack-player-app
 - You should see your image with the appropriate tags
 
+
