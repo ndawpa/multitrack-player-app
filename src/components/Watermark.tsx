@@ -9,7 +9,7 @@ interface WatermarkProps {
 }
 
 const Watermark: React.FC<WatermarkProps> = ({ 
-  text = '© Kit de Voz',
+  text = '© Ministério de Louvor',
   opacity = 0.15,
   fontSize = 24,
   rotation = -45

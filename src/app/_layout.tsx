@@ -11,7 +11,7 @@ export default function RootLayout() {
           name="index" 
           options={{ 
             headerShown: false,
-            title: 'Kit de Voz'
+            title: 'Ministério de Louvor'
           }} 
         />
       </Stack>

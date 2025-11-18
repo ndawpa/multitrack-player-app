@@ -1,6 +1,6 @@
 export default {
   // App name
-  appName: 'Kit de Voz',
+  appName: 'Ministério de Louvor',
   
   // Auth Screen
   auth: {

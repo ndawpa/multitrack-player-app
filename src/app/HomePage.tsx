@@ -2403,7 +2403,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     <View style={styles.songListContainer}>
       {/* App Title Header */}
       <View style={styles.appTitleContainer}>
-        <Text style={styles.appTitle}>Kit de Voz</Text>
+        <Text style={styles.appTitle}>Ministério de Louvor</Text>
       </View>
       
       {isSessionMenuExpanded && (
@@ -2793,7 +2793,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     <Text style={[
                       styles.artistFilterOptionText,
                       hasTracks && styles.artistFilterOptionTextSelected
-                    ]}>Tracks</Text>
+                    ]}>Pistas</Text>
                   </View>
                 </TouchableOpacity>
                 
@@ -2811,7 +2811,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     <Text style={[
                       styles.artistFilterOptionText,
                       hasLyrics && styles.artistFilterOptionTextSelected
-                    ]}>Lyrics</Text>
+                    ]}>Letra</Text>
                   </View>
                 </TouchableOpacity>
                 
@@ -2829,7 +2829,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     <Text style={[
                       styles.artistFilterOptionText,
                       hasScores && styles.artistFilterOptionTextSelected
-                    ]}>Scores</Text>
+                    ]}>Partitura</Text>
                   </View>
                 </TouchableOpacity>
                 
@@ -2847,7 +2847,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                     <Text style={[
                       styles.artistFilterOptionText,
                       hasLinks && styles.artistFilterOptionTextSelected
-                    ]}>Links</Text>
+                    ]}>Extras</Text>
                   </View>
                 </TouchableOpacity>
                     {hasActiveContentFilters() && (
@@ -3563,13 +3563,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             />
             
             <View style={styles.tracksHeader}>
-              <Text style={styles.tracksTitle}>Tracks</Text>
+              <Text style={styles.tracksTitle}>Pistas</Text>
               <TouchableOpacity
                 style={styles.addTrackButton}
                 onPress={addMultipleTracksToSong}
               >
                 <Ionicons name="add-circle" size={24} color="#BB86FC" />
-                <Text style={styles.addTrackButtonText}>Add Tracks</Text>
+                <Text style={styles.addTrackButtonText}>Adicionar Pistas</Text>
               </TouchableOpacity>
             </View>
 
@@ -3660,7 +3660,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             
             <View style={styles.lyricsSection}>
               <View style={styles.lyricsHeader}>
-                <Text style={styles.sectionTitle}>Lyrics</Text>
+                <Text style={styles.sectionTitle}>Letra</Text>
                 <TouchableOpacity
                   style={styles.uploadButton}
                   onPress={uploadLyricsFromFile}
@@ -4008,7 +4008,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             </View>
             
             <View style={styles.lyricsSection}>
-              <Text style={styles.sectionTitle}>Links</Text>
+              <Text style={styles.sectionTitle}>Extras</Text>
               <DraggableFlatList
                 data={editingSong.resources}
                 onDragEnd={({ data }) => reorderResources(data)}
@@ -4687,13 +4687,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           />
           
           <View style={styles.tracksHeader}>
-            <Text style={styles.tracksTitle}>Tracks</Text>
+            <Text style={styles.tracksTitle}>Pistas</Text>
             <TouchableOpacity
               style={styles.addTrackButton}
               onPress={addMultipleTracks}
             >
               <Ionicons name="add-circle" size={24} color="#BB86FC" />
-              <Text style={styles.addTrackButtonText}>Add Tracks</Text>
+              <Text style={styles.addTrackButtonText}>Adicionar Pistas</Text>
             </TouchableOpacity>
           </View>
 
@@ -4748,7 +4748,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           
           <View style={styles.lyricsSection}>
             <View style={styles.lyricsHeader}>
-              <Text style={styles.sectionTitle}>Lyrics</Text>
+              <Text style={styles.sectionTitle}>Letra</Text>
               <TouchableOpacity
                 style={styles.uploadButton}
                 onPress={uploadLyricsFromFile}
@@ -5061,7 +5061,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           </View>
           
           <View style={styles.lyricsSection}>
-            <Text style={styles.sectionTitle}>Links</Text>
+            <Text style={styles.sectionTitle}>Extras</Text>
             <View style={styles.scoreList}>
               {newSong.resources.map((resource, index) => (
                 <View key={resource.id} style={styles.resourceItemContainer}>
@@ -5217,13 +5217,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
   const handleCopyLyrics = async () => {
     if (!selectedSong?.lyrics) {
-      Alert.alert('No Lyrics', 'There are no lyrics to copy.');
+      Alert.alert('Sem Letra', 'Não há letra para copiar.');
       return;
     }
 
     try {
       await Clipboard.setString(selectedSong.lyrics);
-      Alert.alert('Success', 'Lyrics copied to clipboard');
+      Alert.alert('Sucesso', 'Letra copiada para a área de transferência');
     } catch (error) {
       console.error('Error copying lyrics:', error);
       Alert.alert('Error', 'Failed to copy lyrics to clipboard');
@@ -5381,7 +5381,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               <Text style={[
                 styles.viewToggleText,
                 activeView === 'lyrics' && styles.viewToggleTextActive
-              ]}>Lyrics</Text>
+              ]}>Letra</Text>
             </TouchableOpacity>
           )}
           {selectedSong.scores && selectedSong.scores.length > 0 && (
@@ -5400,7 +5400,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               <Text style={[
                 styles.viewToggleText,
                 activeView === 'score' && styles.viewToggleTextActive
-              ]}>Scores</Text>
+              ]}>Partitura</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity 
@@ -5418,7 +5418,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             <Text style={[
               styles.viewToggleText,
               activeView === 'tracks' && styles.viewToggleTextActive
-            ]}>Tracks</Text>
+            ]}>Pistas</Text>
           </TouchableOpacity>
           {selectedSong.resources && selectedSong.resources.length > 0 && (
             <TouchableOpacity 
@@ -5436,7 +5436,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               <Text style={[
                 styles.viewToggleText,
                 activeView === 'resources' && styles.viewToggleTextActive
-              ]}>Links</Text>
+              ]}>Extras</Text>
             </TouchableOpacity>
           )}
         </View>

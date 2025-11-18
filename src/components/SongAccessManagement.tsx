@@ -658,7 +658,7 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
                 onPress={() => setHasTracks(!hasTracks)}
               >
                 <Ionicons name="musical-notes" size={20} color="#BB86FC" />
-                <Text style={styles.contentFilterText}>Has Tracks</Text>
+                <Text style={styles.contentFilterText}>Tem Pistas</Text>
                 <Switch
                   value={hasTracks}
                   onValueChange={setHasTracks}
@@ -671,7 +671,7 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
                 onPress={() => setHasLyrics(!hasLyrics)}
               >
                 <Ionicons name="document-text" size={20} color="#BB86FC" />
-                <Text style={styles.contentFilterText}>Has Lyrics</Text>
+                <Text style={styles.contentFilterText}>Tem Letra</Text>
                 <Switch
                   value={hasLyrics}
                   onValueChange={setHasLyrics}
@@ -684,7 +684,7 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
                 onPress={() => setHasScores(!hasScores)}
               >
                 <Ionicons name="library" size={20} color="#BB86FC" />
-                <Text style={styles.contentFilterText}>Has Scores</Text>
+                <Text style={styles.contentFilterText}>Tem Partitura</Text>
                 <Switch
                   value={hasScores}
                   onValueChange={setHasScores}
@@ -697,7 +697,7 @@ const SongAccessManagement: React.FC<SongAccessManagementProps> = ({
                 onPress={() => setHasLinks(!hasLinks)}
               >
                 <Ionicons name="link" size={20} color="#BB86FC" />
-                <Text style={styles.contentFilterText}>Has Links</Text>
+                <Text style={styles.contentFilterText}>Tem Extras</Text>
                 <Switch
                   value={hasLinks}
                   onValueChange={setHasLinks}

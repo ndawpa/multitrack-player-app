@@ -1,6 +1,6 @@
 export default {
   // App name
-  appName: 'Kit de Voz',
+  appName: 'Ministério de Louvor',
   
   // Auth Screen
   auth: {
@@ -64,10 +64,10 @@ export default {
     favorites: 'Favoritos',
     showFavoritesOnly: 'Mostrar apenas favoritos',
     content: 'Conteúdo',
-    hasTracks: 'Tem faixas',
-    hasLyrics: 'Tem letras',
-    hasScores: 'Tem partituras',
-    hasLinks: 'Tem links',
+    hasTracks: 'Tem pistas',
+    hasLyrics: 'Tem letra',
+    hasScores: 'Tem partitura',
+    hasLinks: 'Tem extras',
     sortOrder: 'Ordem',
     ascending: 'Crescente',
     descending: 'Decrescente',
@@ -84,10 +84,10 @@ export default {
     volume: 'Volume',
     mute: 'Silenciar',
     solo: 'Solo',
-    lyrics: 'Letras',
-    scores: 'Partituras',
+    lyrics: 'Letra',
+    scores: 'Partitura',
     resources: 'Recursos',
-    tracks: 'Faixas',
+    tracks: 'Pistas',
     addSong: 'Adicionar Música',
     editSong: 'Editar Música',
     deleteSong: 'Excluir Música',
