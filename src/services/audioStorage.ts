@@ -2,6 +2,7 @@ import { ref, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
+import { Platform } from 'react-native';
 import { storage } from '../config/firebase';
 
 interface AudioFile {
@@ -16,9 +17,11 @@ class AudioStorageService {
   private cacheDirectory = `${FileSystem.cacheDirectory}audio/`;
 
   private constructor() {
-    // Initialize cache directory
-    FileSystem.makeDirectoryAsync(this.cacheDirectory, { intermediates: true })
-      .catch(error => console.log('Cache directory already exists:', error));
+    // Initialize cache directory (only on native platforms)
+    if (Platform.OS !== 'web') {
+      FileSystem.makeDirectoryAsync(this.cacheDirectory, { intermediates: true })
+        .catch(error => console.log('Cache directory already exists:', error));
+    }
   }
 
   public static getInstance(): AudioStorageService {
@@ -88,6 +91,20 @@ class AudioStorageService {
 
   async getAudioFile(path: string): Promise<AudioFile> {
     try {
+      // On web, directly use the download URL without caching
+      if (Platform.OS === 'web') {
+        const storageRef = ref(storage, path);
+        const url = await getDownloadURL(storageRef);
+        
+        return {
+          id: path,
+          name: path.split('/').pop() || '',
+          url,
+          // On web, don't use localUri - use the URL directly
+        };
+      }
+
+      // On native platforms, use file system caching
       // Check if file is cached
       const localUri = `${this.cacheDirectory}${path.split('/').pop()}`;
       const fileInfo = await FileSystem.getInfoAsync(localUri);
@@ -134,8 +151,11 @@ class AudioStorageService {
 
   async clearCache(): Promise<void> {
     try {
-      await FileSystem.deleteAsync(this.cacheDirectory, { idempotent: true });
-      await FileSystem.makeDirectoryAsync(this.cacheDirectory, { intermediates: true });
+      // Only clear cache on native platforms
+      if (Platform.OS !== 'web') {
+        await FileSystem.deleteAsync(this.cacheDirectory, { idempotent: true });
+        await FileSystem.makeDirectoryAsync(this.cacheDirectory, { intermediates: true });
+      }
     } catch (error) {
       console.error('Error clearing cache:', error);
       throw error;
