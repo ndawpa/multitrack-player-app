@@ -118,14 +118,21 @@ jobs:
         if: github.event_name != 'pull_request' && steps.meta.outputs.tags != ''
         id: image-tag
         run: |
-          # Extract the primary tag from the metadata output
-          TAGS="${{ steps.meta.outputs.tags }}"
+          # Extract tag names from full image tags (format: registry/project/image:tag)
+          # The metadata output contains full image paths, we need just the tag part
+          FULL_TAGS="${{ steps.meta.outputs.tags }}"
+          
+          # Extract just the tag names (part after the colon)
+          TAG_NAMES=$(echo "$FULL_TAGS" | sed 's/.*://' | tr '\n' ' ')
+          
+          echo "Full tags: $FULL_TAGS"
+          echo "Tag names: $TAG_NAMES"
           
           # For default branches, prefer SHA-based tag (e.g., master-abc1234) for better traceability
           # For other branches, use branch name
           if [[ "${{ github.ref_name }}" == "main" || "${{ github.ref_name }}" == "master" ]]; then
             # Look for SHA-based tag (format: branch-abc1234)
-            SHA_TAG=$(echo "$TAGS" | grep -E "^${{ github.ref_name }}-[a-f0-9]+$" | head -n1 | tr -d '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            SHA_TAG=$(echo "$TAG_NAMES" | tr ' ' '\n' | grep -E "^${{ github.ref_name }}-[a-f0-9]+$" | head -n1 | tr -d '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             if [ -n "$SHA_TAG" ]; then
               PRIMARY_TAG="$SHA_TAG"
             else
@@ -137,7 +144,6 @@ jobs:
           fi
           
           echo "tag=$PRIMARY_TAG" >> $GITHUB_OUTPUT
-          echo "tags=$TAGS" >> $GITHUB_OUTPUT
           echo "Using image tag: $PRIMARY_TAG"
 
   update-argocd:
