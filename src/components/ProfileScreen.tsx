@@ -21,6 +21,7 @@ import Header from './Header';
 import Button from './Button';
 import { commonStyles, spacingStyles } from '../theme/layout';
 import { useI18n } from '../contexts/I18nContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface ProfileScreenProps {
   onNavigateToSettings: () => void;
@@ -39,6 +40,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
+  const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -92,7 +94,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
               await authService.signOut();
               onSignOut();
             } catch (error) {
-              Alert.alert(t('common.error'), t('profile.signOutFailed'));
+              toast.showError(t('common.error'), t('profile.signOutFailed'));
             }
           }
         }

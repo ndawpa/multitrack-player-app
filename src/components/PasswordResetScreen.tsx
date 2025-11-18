@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   SafeAreaView,
   KeyboardAvoidingView,
@@ -19,6 +18,7 @@ import { PasswordResetForm } from '../types/user';
 import Header from './Header';
 import Button from './Button';
 import { useI18n } from '../contexts/I18nContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface PasswordResetScreenProps {
   onBack: () => void;
@@ -29,6 +29,7 @@ interface PasswordResetScreenProps {
 const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuccess, onPasswordResetFromLink }) => {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
+  const toast = useToast();
   const [step, setStep] = useState<'email' | 'instructions'>('email');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -75,13 +76,13 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
       const email = await authService.verifyPasswordResetCode(code);
       onPasswordResetFromLink(code, email);
     } catch (error: any) {
-      Alert.alert(t('passwordReset.invalidLink'), error.message || t('passwordReset.linkExpired'));
+      toast.showError(t('passwordReset.invalidLink'), error.message || t('passwordReset.linkExpired'));
     }
   };
 
   const handleSendResetEmail = async () => {
     if (!resetForm.email) {
-      Alert.alert(t('passwordReset.error'), t('passwordReset.enterEmailAddress'));
+      toast.showError(t('passwordReset.error'), t('passwordReset.enterEmailAddress'));
       return;
     }
 
@@ -91,7 +92,7 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
       setEmailSent(true);
       setStep('instructions');
     } catch (error: any) {
-      Alert.alert(t('passwordReset.error'), error.message || t('passwordReset.failedToSend'));
+      toast.showError(t('passwordReset.error'), error.message || t('passwordReset.failedToSend'));
     } finally {
       setLoading(false);
     }

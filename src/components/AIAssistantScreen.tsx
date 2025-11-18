@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   SafeAreaView
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import AIAssistantService, { ChatMessage } from '../services/aiAssistantService'
 import AIAssistantAccessService from '../services/aiAssistantAccessService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types/user';
+import { useToast } from '../contexts/ToastContext';
 
 interface AIAssistantScreenProps {
   onBack: () => void;
@@ -31,6 +31,7 @@ const AI_ASSISTANT_MODEL_KEY = 'ai_assistant_model';
 
 const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user, isAdminMode = false }) => {
   const insets = useSafeAreaInsets();
+  const toast = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -57,11 +58,11 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user, isA
         const access = await accessService.checkUserAccess(user.id);
         setHasAccess(access);
         if (!access) {
-          Alert.alert(
+          toast.showError(
             'Access Restricted',
-            'You do not have access to the AI Assistant. Please contact your administrator if you believe this is an error.',
-            [{ text: 'OK', onPress: onBack }]
+            'You do not have access to the AI Assistant. Please contact your administrator if you believe this is an error.'
           );
+          setTimeout(() => onBack(), 2000);
         }
       } catch (error) {
         console.error('Error checking AI Assistant access:', error);
@@ -120,7 +121,7 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user, isA
         if (admin) {
           setShowSettings(true);
         } else {
-          Alert.alert(
+          toast.showWarning(
             'Configuration Required',
             'The AI Assistant has not been configured yet. Please contact your administrator to set up the API key.'
           );
@@ -133,13 +134,13 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user, isA
 
   const saveSettings = async () => {
     if (!apiKey.trim()) {
-      Alert.alert('Error', 'Please enter an API key');
+      toast.showError('Error', 'Please enter an API key');
       return;
     }
 
     // Check if user is admin
     if (!isAdmin) {
-      Alert.alert('Permission Denied', 'Only administrators can configure the AI Assistant API key.');
+      toast.showError('Permission Denied', 'Only administrators can configure the AI Assistant API key.');
       return;
     }
 
@@ -169,10 +170,10 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user, isA
       setIsConfigured(true);
       setShowSettings(false);
       console.log('Settings saved and configured successfully');
-      Alert.alert('Success', 'AI Assistant configured successfully! All users with access can now use it.');
+      toast.showSuccess('Success', 'AI Assistant configured successfully! All users with access can now use it.');
     } catch (error: any) {
       console.error('Error saving settings:', error);
-      Alert.alert('Error', error.message || 'Failed to save settings');
+      toast.showError('Error', error.message || 'Failed to save settings');
     }
   };
 
@@ -180,7 +181,7 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user, isA
     if (!inputText.trim() || isLoading) return;
 
     if (!hasAccess) {
-      Alert.alert(
+      toast.showError(
         'Access Restricted',
         'You do not have access to the AI Assistant. Please contact your administrator.'
       );
@@ -188,7 +189,7 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user, isA
     }
 
     if (!isConfigured) {
-      Alert.alert('Configuration Required', 'Please configure your AI API key in settings first.');
+      toast.showWarning('Configuration Required', 'Please configure your AI API key in settings first.');
       setShowSettings(true);
       return;
     }

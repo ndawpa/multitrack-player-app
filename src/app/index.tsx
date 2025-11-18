@@ -14,6 +14,7 @@ import { User } from '../types/user';
 import { Song } from '../types/song';
 import { Playlist } from '../types/playlist';
 import { I18nProvider } from '../contexts/I18nContext';
+import { ToastProvider } from '../contexts/ToastContext';
 
 type AppScreen = 'auth' | 'main' | 'profile' | 'settings' | 'passwordReset' | 'newPassword' | 'emailVerification' | 'playlists' | 'aiAssistant';
 
@@ -143,18 +144,21 @@ const App = () => {
   if (loading) {
     return (
       <I18nProvider>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#BB86FC" />
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
+        <ToastProvider>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#BB86FC" />
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        </ToastProvider>
       </I18nProvider>
     );
   }
 
   return (
     <I18nProvider>
-      {(() => {
-        switch (currentScreen) {
+      <ToastProvider>
+        {(() => {
+          switch (currentScreen) {
     case 'auth':
       return (
         <AuthScreen 
@@ -262,6 +266,7 @@ const App = () => {
       );
         }
       })()}
+      </ToastProvider>
     </I18nProvider>
   );
 };

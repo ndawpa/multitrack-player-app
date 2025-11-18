@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
-  Alert,
   TextInput,
   Animated,
 } from 'react-native';
@@ -19,6 +18,7 @@ import Header from './Header';
 import Button from './Button';
 import { commonStyles, spacingStyles } from '../theme/layout';
 import { useI18n } from '../contexts/I18nContext';
+import { useToast } from '../contexts/ToastContext';
 
 /**
  * SettingsScreen - Enhanced with improved error handling
@@ -38,6 +38,7 @@ interface SettingsScreenProps {
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const insets = useSafeAreaInsets();
   const { t, setLanguage } = useI18n();
+  const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
@@ -173,7 +174,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         errorMessage = error.message;
       }
       
-      Alert.alert(t('common.error'), errorMessage);
+      toast.showError(t('common.error'), errorMessage);
     } finally {
       setSaving(false);
     }

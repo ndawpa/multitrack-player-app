@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   SafeAreaView,
   ActivityIndicator,
   Linking
@@ -15,6 +14,7 @@ import { User } from '../types/user';
 import Header from './Header';
 import Button from './Button';
 import { useI18n } from '../contexts/I18nContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface EmailVerificationScreenProps {
   user: User;
@@ -29,6 +29,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -69,13 +70,16 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
     setLoading(true);
     try {
       await authService.verifyEmail(code);
-      Alert.alert(
+      toast.showSuccess(
         t('emailVerification.emailVerified'),
-        t('emailVerification.emailVerifiedMessage'),
-        [{ text: t('common.done'), onPress: onVerificationComplete }]
+        t('emailVerification.emailVerifiedMessage')
       );
+      // Wait a bit for the toast to show, then call onVerificationComplete
+      setTimeout(() => {
+        onVerificationComplete();
+      }, 1500);
     } catch (error: any) {
-      Alert.alert(t('emailVerification.verificationFailed'), error.message || t('emailVerification.failedToVerify'));
+      toast.showError(t('emailVerification.verificationFailed'), error.message || t('emailVerification.failedToVerify'));
     } finally {
       setLoading(false);
     }
@@ -87,13 +91,13 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
     setResendLoading(true);
     try {
       await authService.sendEmailVerification();
-      Alert.alert(
+      toast.showSuccess(
         t('emailVerification.verificationEmailSent'),
         t('emailVerification.verificationEmailSentMessage')
       );
       setResendCooldown(60); // 60 second cooldown
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('emailVerification.failedToSendVerification'));
+      toast.showError(t('common.error'), error.message || t('emailVerification.failedToSendVerification'));
     } finally {
       setResendLoading(false);
     }

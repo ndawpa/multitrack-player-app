@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   SafeAreaView,
   KeyboardAvoidingView,
@@ -17,6 +16,7 @@ import AuthService from '../services/authService';
 import Header from './Header';
 import Button from './Button';
 import { useI18n } from '../contexts/I18nContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface NewPasswordScreenProps {
   resetCode: string;
@@ -33,6 +33,7 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -44,30 +45,33 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
 
   const handleResetPassword = async () => {
     if (!newPassword || !confirmPassword) {
-      Alert.alert(t('common.error'), t('newPassword.fillAllFields'));
+      toast.showError(t('common.error'), t('newPassword.fillAllFields'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert(t('common.error'), t('newPassword.passwordsDoNotMatch'));
+      toast.showError(t('common.error'), t('newPassword.passwordsDoNotMatch'));
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert(t('common.error'), t('newPassword.passwordMinLength'));
+      toast.showError(t('common.error'), t('newPassword.passwordMinLength'));
       return;
     }
 
     setLoading(true);
     try {
       await authService.confirmPasswordReset(resetCode, newPassword);
-      Alert.alert(
+      toast.showSuccess(
         t('newPassword.resetSuccessful'),
-        t('newPassword.resetSuccessfulMessage'),
-        [{ text: t('common.done'), onPress: onSuccess }]
+        t('newPassword.resetSuccessfulMessage')
       );
+      // Wait a bit for the toast to show, then call onSuccess
+      setTimeout(() => {
+        onSuccess();
+      }, 1500);
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('newPassword.failedToReset'));
+      toast.showError(t('common.error'), error.message || t('newPassword.failedToReset'));
     } finally {
       setLoading(false);
     }

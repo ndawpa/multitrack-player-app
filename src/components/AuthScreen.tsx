@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import AuthService from '../services/authService';
 import { LoginForm, SignupForm } from '../types/user';
 import Button from './Button';
 import { useI18n } from '../contexts/I18nContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface AuthScreenProps {
   onAuthSuccess: () => void;
@@ -27,6 +27,7 @@ interface AuthScreenProps {
 const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword, onEmailVerificationNeeded }) => {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
+  const toast = useToast();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -46,7 +47,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
 
   const handleLogin = async () => {
     if (!loginForm.email || !loginForm.password) {
-      Alert.alert(t('auth.error'), t('auth.fillAllFields'));
+      toast.showError(t('auth.error'), t('auth.fillAllFields'));
       return;
     }
 
@@ -55,7 +56,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
       await authService.signIn(loginForm);
       onAuthSuccess();
     } catch (error: any) {
-      Alert.alert(t('auth.loginFailed'), error.message || t('auth.errorOccurred'));
+      toast.showError(t('auth.loginFailed'), error.message || t('auth.errorOccurred'));
     } finally {
       setLoading(false);
     }
@@ -63,12 +64,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
 
   const handleSignup = async () => {
     if (!signupForm.email || !signupForm.password || !signupForm.displayName) {
-      Alert.alert(t('auth.error'), t('auth.fillAllFields'));
+      toast.showError(t('auth.error'), t('auth.fillAllFields'));
       return;
     }
 
     if (signupForm.password.length < 6) {
-      Alert.alert(t('auth.error'), t('auth.passwordMinLength'));
+      toast.showError(t('auth.error'), t('auth.passwordMinLength'));
       return;
     }
 
@@ -81,7 +82,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onForgotPassword
         onAuthSuccess();
       }
     } catch (error: any) {
-      Alert.alert(t('auth.signupFailed'), error.message || t('auth.errorOccurred'));
+      toast.showError(t('auth.signupFailed'), error.message || t('auth.errorOccurred'));
     } finally {
       setLoading(false);
     }
