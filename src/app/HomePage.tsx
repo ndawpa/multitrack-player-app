@@ -1625,10 +1625,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const toggleArtistSelection = (artist: string) => {
     setSelectedArtists(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(artist)) {
+      const wasSelected = newSet.has(artist);
+      if (wasSelected) {
         newSet.delete(artist);
       } else {
         newSet.add(artist);
+        // Collapse artist section when selecting an item
+        setExpandedFilterSections(prev => ({ ...prev, artist: false }));
       }
       // Save to user preferences
       saveFilterState({ selectedArtists: Array.from(newSet) });
