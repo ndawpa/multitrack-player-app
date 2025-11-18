@@ -234,6 +234,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [expandedResources, setExpandedResources] = useState<{ [key: string]: boolean }>({});
   const [isFinished, setIsFinished] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<'none' | 'track' | 'list'>('none'); // Repeat mode: none, track, or list
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Add playback speed state
   
   // Scroll position restoration
@@ -269,6 +270,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     description: '',
     isPublic: false
   });
+  
+  // Three dots menu state
+  const [showSongViewMenu, setShowSongViewMenu] = useState(false);
   
   // Track state persistence
   const [trackStateService] = useState(() => TrackStateService.getInstance());
@@ -948,8 +952,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           setIsFinished(true);
           setIsPlaying(false);
           
-          // If repeat is enabled, restart the song
-          if (isRepeat) {
+          // If repeat track is enabled, restart the song
+          if (repeatMode === 'track' || isRepeat) {
             handleRestart();
           } else if (isPlaylistMode && currentPlaylist && playlistSongs.length > 0) {
             // Auto-advance to next song in playlist
@@ -7487,10 +7491,31 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     );
   };
 
+  // Toggle repeat mode function
+  const handleToggleRepeatMode = () => {
+    if (repeatMode === 'none') {
+      setRepeatMode('track');
+      setIsRepeat(true);
+      setIsFilteredRepeating(false);
+      setIsPlaylistRepeating(false);
+    } else if (repeatMode === 'track') {
+      setRepeatMode('list');
+      setIsRepeat(false);
+      setIsFilteredRepeating(true);
+      setIsPlaylistRepeating(true);
+    } else {
+      setRepeatMode('none');
+      setIsRepeat(false);
+      setIsFilteredRepeating(false);
+      setIsPlaylistRepeating(false);
+    }
+  };
+
   // Add playback controls to the UI
   const renderPlaybackControls = () => (
     <View style={styles.playbackControlsContainer}>
       <View style={styles.playbackControls}>
+        {/* Add to playlist button */}
         <TouchableOpacity 
           style={[styles.controlButton, styles.smallButton]} 
           onPress={handleShowAddToPlaylist}
@@ -7560,13 +7585,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.controlButton, styles.smallButton]}
-              onPress={() => setIsRepeat(!isRepeat)}
+              style={[
+                styles.controlButton, 
+                styles.smallButton,
+                repeatMode === 'list' && { backgroundColor: '#BB86FC', borderRadius: 18 }
+              ]}
+              onPress={handleToggleRepeatMode}
             >
               <Ionicons
-                name={isRepeat ? 'repeat' : 'repeat-outline'} 
+                name={repeatMode === 'none' ? 'repeat-outline' : 'repeat'} 
                 size={20}
-                color={isRepeat ? '#BB86FC' : '#BBBBBB'} 
+                color={
+                  repeatMode === 'none' 
+                    ? '#BBBBBB' 
+                    : repeatMode === 'track' 
+                    ? '#BB86FC' 
+                    : '#FFFFFF' // white for list mode
+                } 
               />
             </TouchableOpacity>
           </>
@@ -8172,6 +8207,51 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   </View>
                   
                   <View style={styles.songHeaderText}>
+                    {/* Song counter with navigation arrows in header */}
+                    {((isPlaylistMode && currentPlaylist) || (filteredSongs.length > 0 && currentFilteredIndex >= 0)) && (
+                      <View style={styles.headerCounterContainer}>
+                        <TouchableOpacity
+                          style={styles.headerArrowButton}
+                          onPress={() => {
+                            if (isPlaylistMode && currentPlaylist) {
+                              handlePreviousSong();
+                            } else if (filteredSongs.length > 0 && currentFilteredIndex >= 0) {
+                              handlePreviousFilteredSong();
+                            }
+                          }}
+                        >
+                          <Ionicons name="chevron-back" size={20} color="#BB86FC" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (isPlaylistMode && currentPlaylist) {
+                              setShowPlaylistSongsModal(true);
+                            } else {
+                              setShowFilteredSongsModal(true);
+                            }
+                          }}
+                        >
+                          <Text style={styles.headerSongCounter}>
+                            {isPlaylistMode && currentPlaylist 
+                              ? `${currentPlaylistIndex + 1} of ${playlistSongs.length}`
+                              : `${currentFilteredIndex + 1} of ${filteredSongs.length}`
+                            }
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.headerArrowButton}
+                          onPress={() => {
+                            if (isPlaylistMode && currentPlaylist) {
+                              handleNextSong();
+                            } else if (filteredSongs.length > 0 && currentFilteredIndex >= 0) {
+                              handleNextFilteredSong();
+                            }
+                          }}
+                        >
+                          <Ionicons name="chevron-forward" size={20} color="#BB86FC" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
                     <MarqueeText 
                       text={selectedSong.title} 
                       style={[styles.title, { textAlign: 'center' }]}
@@ -8189,169 +8269,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                   </View>
                   
                   <View style={styles.headerRightContainer}>
-                    {hasAdminAccess && (
-                      <>
-                        {isAdminMode ? (
-                          <TouchableOpacity 
-                            style={[styles.iconButton, { marginRight: 8 }]}
-                            onPress={() => {
-                              setIsAdminMode(false);
-                              onAdminModeChange?.(false);
-                            }}
-                          >
-                            <Ionicons name="lock-open-outline" size={24} color="#BB86FC" />
-                          </TouchableOpacity>
-                        ) : (
-                          <TouchableOpacity 
-                            style={[styles.iconButton, { marginRight: 8 }]}
-                            onPress={() => {
-                              setPendingSongOperation('admin');
-                              setShowSongPasswordDialog(true);
-                              setSongPassword('');
-                              setSongPasswordError('');
-                            }}
-                          >
-                            <Ionicons name="lock-closed-outline" size={24} color="#BB86FC" />
-                          </TouchableOpacity>
-                        )}
-                      </>
-                    )}
-                    {filteredSongs.length > 0 && currentFilteredIndex >= 0 && (
-                      <TouchableOpacity 
-                        style={styles.iconButton}
-                        onPress={() => setShowNavigationControls(!showNavigationControls)}
-                      >
-                        <Ionicons 
-                          name={showNavigationControls ? "chevron-up" : "chevron-down"} 
-                          size={24} 
-                          color="#BB86FC" 
-                        />
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity 
+                      style={styles.iconButton}
+                      onPress={() => setShowSongViewMenu(!showSongViewMenu)}
+                    >
+                      <Ionicons name="ellipsis-vertical" size={24} color="#BB86FC" />
+                    </TouchableOpacity>
                   </View>
-                </View>
-              </View>
-            )}
-            
-            {/* Filtered songs navigation controls section */}
-            {!isPlaylistMode && selectedSong && filteredSongs.length > 0 && currentFilteredIndex >= 0 && showNavigationControls && (
-              <View style={styles.playlistControlsSection}>
-                <TouchableOpacity 
-                  style={styles.playlistTrackInfo}
-                  onPress={handleRestartFilteredSong}
-                >
-                  <Text style={styles.playlistTrackCount}>
-                    {currentFilteredIndex + 1} of {filteredSongs.length}
-                  </Text>
-                </TouchableOpacity>
-                
-                <View style={styles.playlistControls}>
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistListBtn]}
-                    onPress={() => setShowFilteredSongsModal(true)}
-                  >
-                    <Ionicons name="list" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistPrevBtn]}
-                    onPress={handlePreviousFilteredSong}
-                  >
-                    <Ionicons name="play-skip-back" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistPauseBtn]}
-                    onPress={togglePlayback}
-                  >
-                    <Ionicons 
-                      name={isPlaying ? 'pause' : 'play'} 
-                      size={18} 
-                      color="#FFFFFF" 
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistNextBtn]}
-                    onPress={handleNextFilteredSong}
-                  >
-                    <Ionicons name="play-skip-forward" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistRestartBtn, isFilteredRepeating && styles.playlistRepeatActive]}
-                    onPress={handleToggleFilteredRepeat}
-                  >
-                    <Ionicons name="repeat" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-            
-            {/* Playlist controls section */}
-             {isPlaylistMode && currentPlaylist && showPlaylistControls && (
-               <View style={styles.playlistControlsSection}>
-                 <View style={styles.playlistTrackInfo}>
-                   <Text style={styles.playlistTrackCount}>
-                     {currentPlaylistIndex + 1} of {playlistSongs.length}
-                   </Text>
-                   <MarqueeText 
-                     text={selectedSong.title} 
-                     style={styles.playlistSongTitle}
-                   />
-                   <Text style={styles.playlistSongArtist} numberOfLines={1} ellipsizeMode="tail">
-                     {selectedSong.album ? `${selectedSong.artist} - ${selectedSong.album}` : selectedSong.artist}
-                   </Text>
-                 </View>
-                
-                <View style={styles.playlistControls}>
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistListBtn]}
-                    onPress={() => setShowPlaylistSongsModal(true)}
-                  >
-                    <Ionicons name="list" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistPrevBtn]}
-                    onPress={handlePreviousSong}
-                  >
-                    <Ionicons name="play-skip-back" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistPauseBtn]}
-                    onPress={async () => {
-                      console.log('Playlist pause/resume pressed, isPlaying:', isPlaying);
-                      if (isPlaying) {
-                        console.log('Stopping playback...');
-                        await stopLocalPlayback();
-                      } else {
-                        console.log('Starting playback...');
-                        await startLocalPlayback();
-                      }
-                    }}
-                  >
-                    <Ionicons 
-                      name={isPlaying ? 'pause' : 'play'} 
-                      size={18} 
-                      color="#FFFFFF" 
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistNextBtn]}
-                    onPress={handleNextSong}
-                  >
-                    <Ionicons name="play-skip-forward" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.playlistControlBtn, styles.playlistRestartBtn, isPlaylistRepeating && styles.playlistRepeatActive]}
-                    onPress={handleTogglePlaylistRepeat}
-                  >
-                    <Ionicons name="repeat" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -8359,8 +8283,10 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             {/* Add spacing between header and playback controls */}
             <View style={styles.headerSpacing} />
             
+            {/* Track Controls - show only when there are tracks */}
             {selectedSong.tracks && selectedSong.tracks.length > 0 && (
               <View style={styles.playbackControlsContainer}>
+                <Text style={styles.trackControlsTitle}>Track Controls</Text>
                 {renderPlaybackControls()}
               </View>
             )}
@@ -8584,6 +8510,50 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         </SafeAreaView>
       </Modal>
 
+      {/* Song View Menu Modal */}
+      <Modal
+        visible={showSongViewMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSongViewMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSongViewMenu(false)}
+        >
+          <View style={styles.songViewMenuContainer}>
+            {hasAdminAccess && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowSongViewMenu(false);
+                  if (isAdminMode) {
+                    setIsAdminMode(false);
+                    onAdminModeChange?.(false);
+                  } else {
+                    setPendingSongOperation('admin');
+                    setShowSongPasswordDialog(true);
+                    setSongPassword('');
+                    setSongPasswordError('');
+                  }
+                }}
+              >
+                <Ionicons
+                  name={isAdminMode ? "lock-open-outline" : "lock-closed-outline"}
+                  size={20}
+                  color={isAdminMode ? "#4CAF50" : "#BB86FC"}
+                  style={{ marginRight: 12 }}
+                />
+                <Text style={[styles.menuItemText, isAdminMode && { color: '#4CAF50' }]}>
+                  {isAdminMode ? 'Disable Admin Mode' : 'Enable Admin Mode'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Filtered Songs Modal */}
       <Modal
         visible={showFilteredSongsModal}
@@ -8727,6 +8697,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerCounterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    gap: 12,
+  },
+  headerArrowButton: {
+    padding: 4,
+  },
+  headerSongCounter: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#BB86FC',
+    textAlign: 'center',
+    minWidth: 60,
   },
   title: {
     fontSize: 20,
@@ -9822,6 +9809,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     marginBottom: 16,
   },
+  trackControlsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#BB86FC',
+    textAlign: 'center',
+    marginBottom: 12,
+    letterSpacing: 0.5,
+  },
   playbackControls: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -10770,6 +10765,44 @@ const styles = StyleSheet.create({
   },
   headerSpacing: {
     height: 40,
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 100,
+    paddingRight: 20,
+  },
+  songViewMenuContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    minWidth: 180,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  menuSeparator: {
+    height: 1,
+    backgroundColor: '#2C2C2C',
+    marginHorizontal: 8,
   },
 });
 
