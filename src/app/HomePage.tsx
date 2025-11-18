@@ -1582,25 +1582,45 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
   // Filtered artists based on search query
   const filteredArtists = useMemo(() => {
-    if (!artistSearchQuery.trim()) {
-      return uniqueArtists;
+    let filtered = uniqueArtists;
+    
+    if (artistSearchQuery.trim()) {
+      const query = normalizeSearchText(artistSearchQuery);
+      filtered = uniqueArtists.filter(artist => 
+        normalizeSearchText(artist).includes(query)
+      );
     }
-    const query = normalizeSearchText(artistSearchQuery);
-    return uniqueArtists.filter(artist => 
-      normalizeSearchText(artist).includes(query)
-    );
-  }, [uniqueArtists, artistSearchQuery]);
+    
+    // Sort so selected artists appear first
+    return [...filtered].sort((a, b) => {
+      const aSelected = selectedArtists.has(a);
+      const bSelected = selectedArtists.has(b);
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return 0; // Keep original order for items with same selection status
+    });
+  }, [uniqueArtists, artistSearchQuery, selectedArtists]);
 
   // Filtered albums based on search query
   const filteredAlbums = useMemo(() => {
-    if (!albumSearchQuery.trim()) {
-      return uniqueAlbums;
+    let filtered = uniqueAlbums;
+    
+    if (albumSearchQuery.trim()) {
+      const query = normalizeSearchText(albumSearchQuery);
+      filtered = uniqueAlbums.filter(album => 
+        normalizeSearchText(album).includes(query)
+      );
     }
-    const query = normalizeSearchText(albumSearchQuery);
-    return uniqueAlbums.filter(album => 
-      normalizeSearchText(album).includes(query)
-    );
-  }, [uniqueAlbums, albumSearchQuery]);
+    
+    // Sort so selected albums appear first
+    return [...filtered].sort((a, b) => {
+      const aSelected = selectedAlbums.has(a);
+      const bSelected = selectedAlbums.has(b);
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return 0; // Keep original order for items with same selection status
+    });
+  }, [uniqueAlbums, albumSearchQuery, selectedAlbums]);
 
   const toggleArtistSelection = (artist: string) => {
     setSelectedArtists(prev => {
