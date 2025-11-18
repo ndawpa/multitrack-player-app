@@ -15,7 +15,7 @@ interface I18nProviderProps {
 }
 
 export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>('pt');
   const authService = AuthService.getInstance();
 
   // Load language from user preferences
@@ -29,8 +29,8 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
         setLanguageState(userLanguage as Language);
         console.log('[I18nContext] Language set to:', userLanguage);
       } else {
-        setLanguageState('en'); // Default to English
-        console.log('[I18nContext] Language defaulted to: en');
+        setLanguageState('pt'); // Default to Portuguese
+        console.log('[I18nContext] Language defaulted to: pt');
       }
     };
 
@@ -44,8 +44,8 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
         setLanguageState(userLanguage as Language);
         console.log('[I18nContext] Language updated from auth state to:', userLanguage);
       } else {
-        setLanguageState('en');
-        console.log('[I18nContext] Language defaulted to: en');
+        setLanguageState('pt');
+        console.log('[I18nContext] Language defaulted to: pt');
       }
     });
 
@@ -75,7 +75,7 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
         if (userLanguage && (userLanguage === 'en' || userLanguage === 'es' || userLanguage === 'pt')) {
           setLanguageState(userLanguage as Language);
         } else {
-          setLanguageState('en');
+          setLanguageState('pt');
         }
       }
     } else {

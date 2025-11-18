@@ -25,6 +25,59 @@ export default {
     errorOccurred: 'Ocorreu um erro',
   },
   
+  // Password Reset Screen
+  passwordReset: {
+    title: 'Redefinir Senha',
+    checkEmail: 'Verifique seu E-mail',
+    description: 'Digite seu endereço de e-mail e enviaremos um link para redefinir sua senha.',
+    emailAddress: 'Endereço de E-mail',
+    enterEmail: 'Digite seu e-mail',
+    sendResetLink: 'Enviar Link de Redefinição',
+    emailSent: 'Enviamos um link de redefinição de senha para:',
+    invalidLink: 'Link Inválido',
+    linkExpired: 'Este link de redefinição é inválido ou expirou.',
+    error: 'Erro',
+    enterEmailAddress: 'Por favor, digite seu endereço de e-mail',
+    failedToSend: 'Falha ao enviar e-mail de redefinição',
+  },
+  
+  // New Password Screen
+  newPassword: {
+    title: 'Definir Nova Senha',
+    resetLinkVerified: 'Link de Redefinição Verificado',
+    description: 'Agora você pode definir uma nova senha para:',
+    newPassword: 'Nova Senha',
+    confirmNewPassword: 'Confirmar Nova Senha',
+    enterNewPassword: 'Digite a nova senha',
+    confirmNewPasswordPlaceholder: 'Confirme a nova senha',
+    resetPassword: 'Redefinir Senha',
+    fillAllFields: 'Por favor, preencha todos os campos',
+    passwordsDoNotMatch: 'As senhas não coincidem',
+    passwordMinLength: 'A senha deve ter pelo menos 6 caracteres',
+    resetSuccessful: 'Senha Redefinida com Sucesso',
+    resetSuccessfulMessage: 'Sua senha foi redefinida com sucesso. Agora você pode entrar com sua nova senha.',
+    failedToReset: 'Falha ao redefinir senha',
+  },
+  
+  // Email Verification Screen
+  emailVerification: {
+    title: 'Verificação de E-mail',
+    verifyYourEmail: 'Verifique seu E-mail',
+    description: 'Enviamos um link de verificação para:',
+    instructions: 'Por favor, verifique seu e-mail e clique no link de verificação para ativar sua conta.',
+    resendVerificationEmail: 'Reenviar E-mail de Verificação',
+    resendIn: 'Reenviar em',
+    backToSignIn: 'Voltar para Entrar',
+    emailVerified: 'E-mail Verificado!',
+    emailVerifiedMessage: 'Seu e-mail foi verificado com sucesso. Agora você pode entrar em sua conta.',
+    verificationFailed: 'Verificação Falhou',
+    failedToVerify: 'Falha ao verificar e-mail. Por favor, tente novamente.',
+    verificationEmailSent: 'E-mail de Verificação Enviado',
+    verificationEmailSentMessage: 'Um novo e-mail de verificação foi enviado para seu endereço de e-mail.',
+    verifyingEmail: 'Verificando e-mail...',
+    failedToSendVerification: 'Falha ao enviar e-mail de verificação. Por favor, tente novamente.',
+  },
+  
   // Settings Screen
   settings: {
     title: 'Configurações',

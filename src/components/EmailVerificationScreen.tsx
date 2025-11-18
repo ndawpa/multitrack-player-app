@@ -14,6 +14,7 @@ import AuthService from '../services/authService';
 import { User } from '../types/user';
 import Header from './Header';
 import Button from './Button';
+import { useI18n } from '../contexts/I18nContext';
 
 interface EmailVerificationScreenProps {
   user: User;
@@ -27,6 +28,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
   onBackToAuth
 }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -68,12 +70,12 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
     try {
       await authService.verifyEmail(code);
       Alert.alert(
-        'Email Verified!',
-        'Your email has been successfully verified. You can now sign in to your account.',
-        [{ text: 'OK', onPress: onVerificationComplete }]
+        t('emailVerification.emailVerified'),
+        t('emailVerification.emailVerifiedMessage'),
+        [{ text: t('common.done'), onPress: onVerificationComplete }]
       );
     } catch (error: any) {
-      Alert.alert('Verification Failed', error.message || 'Failed to verify email. Please try again.');
+      Alert.alert(t('emailVerification.verificationFailed'), error.message || t('emailVerification.failedToVerify'));
     } finally {
       setLoading(false);
     }
@@ -86,12 +88,12 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
     try {
       await authService.sendEmailVerification();
       Alert.alert(
-        'Verification Email Sent',
-        'A new verification email has been sent to your email address.'
+        t('emailVerification.verificationEmailSent'),
+        t('emailVerification.verificationEmailSentMessage')
       );
       setResendCooldown(60); // 60 second cooldown
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to send verification email. Please try again.');
+      Alert.alert(t('common.error'), error.message || t('emailVerification.failedToSendVerification'));
     } finally {
       setResendLoading(false);
     }
@@ -110,27 +112,27 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="Email Verification" onBack={onBackToAuth} />
+      <Header title={t('emailVerification.title')} onBack={onBackToAuth} />
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <Text style={styles.emailIcon}>✉️</Text>
         </View>
 
-        <Text style={styles.title}>Verify Your Email</Text>
+        <Text style={styles.title}>{t('emailVerification.verifyYourEmail')}</Text>
         
         <Text style={styles.description}>
-          We've sent a verification link to:
+          {t('emailVerification.description')}
         </Text>
         
         <Text style={styles.email}>{user.email}</Text>
         
         <Text style={styles.instructions}>
-          Please check your email and click the verification link to activate your account.
+          {t('emailVerification.instructions')}
         </Text>
 
         <View style={styles.buttonContainer}>
           <Button
-            title={resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Verification Email'}
+            title={resendCooldown > 0 ? `${t('emailVerification.resendIn')} ${resendCooldown}s` : t('emailVerification.resendVerificationEmail')}
             onPress={handleResendVerification}
             disabled={resendLoading || resendCooldown > 0}
             loading={resendLoading}
@@ -140,7 +142,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
           />
 
           <Button
-            title="Back to Sign In"
+            title={t('emailVerification.backToSignIn')}
             onPress={onBackToAuth}
             disabled={loading}
             variant="tertiary"
@@ -152,7 +154,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
         {loading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#BB86FC" />
-            <Text style={styles.loadingText}>Verifying email...</Text>
+            <Text style={styles.loadingText}>{t('emailVerification.verifyingEmail')}</Text>
           </View>
         )}
       </View>

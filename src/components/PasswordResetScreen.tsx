@@ -18,6 +18,7 @@ import AuthService from '../services/authService';
 import { PasswordResetForm } from '../types/user';
 import Header from './Header';
 import Button from './Button';
+import { useI18n } from '../contexts/I18nContext';
 
 interface PasswordResetScreenProps {
   onBack: () => void;
@@ -27,6 +28,7 @@ interface PasswordResetScreenProps {
 
 const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuccess, onPasswordResetFromLink }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [step, setStep] = useState<'email' | 'instructions'>('email');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -73,13 +75,13 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
       const email = await authService.verifyPasswordResetCode(code);
       onPasswordResetFromLink(code, email);
     } catch (error: any) {
-      Alert.alert('Invalid Link', error.message || 'This reset link is invalid or has expired.');
+      Alert.alert(t('passwordReset.invalidLink'), error.message || t('passwordReset.linkExpired'));
     }
   };
 
   const handleSendResetEmail = async () => {
     if (!resetForm.email) {
-      Alert.alert('Error', 'Please enter your email address');
+      Alert.alert(t('passwordReset.error'), t('passwordReset.enterEmailAddress'));
       return;
     }
 
@@ -89,7 +91,7 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
       setEmailSent(true);
       setStep('instructions');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to send reset email');
+      Alert.alert(t('passwordReset.error'), error.message || t('passwordReset.failedToSend'));
     } finally {
       setLoading(false);
     }
@@ -99,7 +101,7 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
   return (
     <SafeAreaView style={styles.container}>
       <Header 
-        title={step === 'email' ? 'Reset Password' : 'Check Your Email'} 
+        title={step === 'email' ? t('passwordReset.title') : t('passwordReset.checkEmail')} 
         onBack={onBack} 
       />
       <KeyboardAvoidingView 
@@ -112,14 +114,14 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
             {step === 'email' ? (
               <>
                 <Text style={styles.description}>
-                  Enter your email address and we'll send you a password reset link.
+                  {t('passwordReset.description')}
                 </Text>
                 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Email Address</Text>
+                  <Text style={styles.label}>{t('passwordReset.emailAddress')}</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter your email"
+                    placeholder={t('passwordReset.enterEmail')}
                     value={resetForm.email}
                     onChangeText={(text) => setResetForm({ ...resetForm, email: text })}
                     keyboardType="email-address"
@@ -129,7 +131,7 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
                 </View>
 
                 <Button
-                  title="Send Reset Link"
+                  title={t('passwordReset.sendResetLink')}
                   onPress={handleSendResetEmail}
                   loading={loading}
                   variant="primary"
@@ -141,9 +143,9 @@ const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({ onBack, onSuc
               <>
                 <View style={styles.successContainer}>
                   <Text style={styles.successIcon}>✉️</Text>
-                  <Text style={styles.successTitle}>Check Your Email</Text>
+                  <Text style={styles.successTitle}>{t('passwordReset.checkEmail')}</Text>
                   <Text style={styles.successDescription}>
-                    We've sent a password reset link to:
+                    {t('passwordReset.emailSent')}
                   </Text>
                   <Text style={styles.emailText}>{resetForm.email}</Text>
                 </View>

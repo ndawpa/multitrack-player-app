@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthService from '../services/authService';
 import Header from './Header';
 import Button from './Button';
+import { useI18n } from '../contexts/I18nContext';
 
 interface NewPasswordScreenProps {
   resetCode: string;
@@ -31,6 +32,7 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
   onSuccess 
 }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -42,17 +44,17 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
 
   const handleResetPassword = async () => {
     if (!newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('newPassword.fillAllFields'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(t('common.error'), t('newPassword.passwordsDoNotMatch'));
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('common.error'), t('newPassword.passwordMinLength'));
       return;
     }
 
@@ -60,12 +62,12 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
     try {
       await authService.confirmPasswordReset(resetCode, newPassword);
       Alert.alert(
-        'Password Reset Successful',
-        'Your password has been reset successfully. You can now sign in with your new password.',
-        [{ text: 'OK', onPress: onSuccess }]
+        t('newPassword.resetSuccessful'),
+        t('newPassword.resetSuccessfulMessage'),
+        [{ text: t('common.done'), onPress: onSuccess }]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to reset password');
+      Alert.alert(t('common.error'), error.message || t('newPassword.failedToReset'));
     } finally {
       setLoading(false);
     }
@@ -73,7 +75,7 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="Set New Password" onBack={onBack} />
+      <Header title={t('newPassword.title')} onBack={onBack} />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
@@ -83,19 +85,19 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
           <View style={styles.formContainer}>
             <View style={styles.successContainer}>
               <Text style={styles.successIcon}>🔐</Text>
-              <Text style={styles.successTitle}>Reset Link Verified</Text>
+              <Text style={styles.successTitle}>{t('newPassword.resetLinkVerified')}</Text>
               <Text style={styles.successDescription}>
-                You can now set a new password for:
+                {t('newPassword.description')}
               </Text>
               <Text style={styles.emailText}>{email}</Text>
             </View>
             
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>New Password</Text>
+              <Text style={styles.label}>{t('newPassword.newPassword')}</Text>
               <View style={styles.passwordContainer}>
                 <TextInput
                   style={styles.passwordInput}
-                  placeholder="Enter new password"
+                  placeholder={t('newPassword.enterNewPassword')}
                   value={newPassword}
                   onChangeText={setNewPassword}
                   secureTextEntry={!showPassword}
@@ -112,11 +114,11 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm New Password</Text>
+              <Text style={styles.label}>{t('newPassword.confirmNewPassword')}</Text>
               <View style={styles.passwordContainer}>
                 <TextInput
                   style={styles.passwordInput}
-                  placeholder="Confirm new password"
+                  placeholder={t('newPassword.confirmNewPasswordPlaceholder')}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
@@ -133,7 +135,7 @@ const NewPasswordScreen: React.FC<NewPasswordScreenProps> = ({
             </View>
 
             <Button
-              title="Reset Password"
+              title={t('newPassword.resetPassword')}
               onPress={handleResetPassword}
               loading={loading}
               variant="primary"
