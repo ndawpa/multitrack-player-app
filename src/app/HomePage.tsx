@@ -5342,23 +5342,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     return (
       <View style={styles.songView}>
         <View style={styles.viewToggleContainer}>
-          <TouchableOpacity 
-            style={[
-              styles.viewToggleButton,
-              activeView === 'tracks' && styles.viewToggleButtonActive
-            ]}
-            onPress={() => setActiveView('tracks')}
-          >
-            <Ionicons 
-              name="musical-notes" 
-              size={20} 
-              color={activeView === 'tracks' ? '#BB86FC' : '#BBBBBB'} 
-            />
-            <Text style={[
-              styles.viewToggleText,
-              activeView === 'tracks' && styles.viewToggleTextActive
-            ]}>Tracks</Text>
-          </TouchableOpacity>
           {selectedSong.lyrics && (
             <TouchableOpacity 
               style={[
@@ -5397,6 +5380,23 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               ]}>Scores</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity 
+            style={[
+              styles.viewToggleButton,
+              activeView === 'tracks' && styles.viewToggleButtonActive
+            ]}
+            onPress={() => setActiveView('tracks')}
+          >
+            <Ionicons 
+              name="musical-notes" 
+              size={20} 
+              color={activeView === 'tracks' ? '#BB86FC' : '#BBBBBB'} 
+            />
+            <Text style={[
+              styles.viewToggleText,
+              activeView === 'tracks' && styles.viewToggleTextActive
+            ]}>Tracks</Text>
+          </TouchableOpacity>
           {selectedSong.resources && selectedSong.resources.length > 0 && (
             <TouchableOpacity 
               style={[
@@ -8283,15 +8283,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
             {/* Add spacing between header and playback controls */}
             <View style={styles.headerSpacing} />
             
-            {/* Track Controls - show only when there are tracks */}
-            {selectedSong.tracks && selectedSong.tracks.length > 0 && (
+            {/* Track Controls - show only when in tracks tab and there are tracks */}
+            {activeView === 'tracks' && selectedSong.tracks && selectedSong.tracks.length > 0 && (
               <View style={styles.playbackControlsContainer}>
-                <Text style={styles.trackControlsTitle}>Track Controls</Text>
                 {renderPlaybackControls()}
               </View>
             )}
             
-            {selectedSong.tracks && selectedSong.tracks.length > 0 && (
+            {activeView === 'tracks' && selectedSong.tracks && selectedSong.tracks.length > 0 && (
                 <View style={styles.seekbarContainer}>
                   <Text style={styles.timeText}>
                     {formatTime(trackProgress[selectedSong.tracks[0]?.id] || 0)}
