@@ -6937,22 +6937,24 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         <View style={styles.fullScreenContainer}>
           <StatusBar hidden={true} />
           {showFullScreenControls && (
-            <TouchableOpacity
-              style={styles.fullScreenCloseButton}
-              onPress={() => {
-                setFullScreenImage(null);
-                setImageScale(1);
-                setImageTranslateX(0);
-                setImageTranslateY(0);
-                setFullScreenPageIndex(0);
-                imageScaleRef.current = 1;
-                imageTranslateXRef.current = 0;
-                imageTranslateYRef.current = 0;
-                imageScaleAnimated.setValue(1);
-              }}
-            >
-              <Ionicons name="close" size={30} color="#FFFFFF" />
-            </TouchableOpacity>
+            <View style={styles.fullScreenButtonContainer}>
+              <TouchableOpacity
+                style={styles.fullScreenCloseButton}
+                onPress={() => {
+                  setFullScreenImage(null);
+                  setImageScale(1);
+                  setImageTranslateX(0);
+                  setImageTranslateY(0);
+                  setFullScreenPageIndex(0);
+                  imageScaleRef.current = 1;
+                  imageTranslateXRef.current = 0;
+                  imageTranslateYRef.current = 0;
+                  imageScaleAnimated.setValue(1);
+                }}
+              >
+                <Ionicons name="close" size={30} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* Zoom Controls */}
