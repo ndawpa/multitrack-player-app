@@ -117,8 +117,162 @@ const Watermark: React.FC<WatermarkProps> = ({
           style={[
             styles.watermarkText,
             {
-              opacity: opacity * 0.1,
+              opacity: opacity * 0.5,
               fontSize: fontSize * 0.5,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      {/* Top middle watermark */}
+      <View style={styles.topMiddle}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.6,
+              fontSize: fontSize * 0.55,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      {/* Bottom middle watermark */}
+      <View style={styles.bottomMiddle}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.6,
+              fontSize: fontSize * 0.55,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      {/* Additional diagonal watermarks */}
+      <View style={styles.topCenterLeft}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.4,
+              fontSize: fontSize * 0.45,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      <View style={styles.topCenterRight}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.4,
+              fontSize: fontSize * 0.45,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      <View style={styles.bottomCenterLeft}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.4,
+              fontSize: fontSize * 0.45,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      <View style={styles.bottomCenterRight}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.4,
+              fontSize: fontSize * 0.45,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      {/* Additional edge watermarks */}
+      <View style={styles.leftTop}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.35,
+              fontSize: fontSize * 0.4,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      <View style={styles.rightTop}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.35,
+              fontSize: fontSize * 0.4,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      <View style={styles.leftBottom}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.35,
+              fontSize: fontSize * 0.4,
+              transform: [{ rotate: `${rotation}deg` }]
+            }
+          ]}
+        >
+          {watermarkText}
+        </Text>
+      </View>
+      
+      <View style={styles.rightBottom}>
+        <Text 
+          style={[
+            styles.watermarkText,
+            {
+              opacity: opacity * 0.35,
+              fontSize: fontSize * 0.4,
               transform: [{ rotate: `${rotation}deg` }]
             }
           ]}
@@ -199,6 +353,88 @@ const styles = StyleSheet.create({
     top: '45%',
     right: '5%',
     width: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topMiddle: {
+    position: 'absolute',
+    top: '5%',
+    left: '50%',
+    marginLeft: -120,
+    width: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomMiddle: {
+    position: 'absolute',
+    bottom: '5%',
+    left: '50%',
+    marginLeft: -120,
+    width: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topCenterLeft: {
+    position: 'absolute',
+    top: '25%',
+    left: '25%',
+    width: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topCenterRight: {
+    position: 'absolute',
+    top: '25%',
+    right: '25%',
+    width: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomCenterLeft: {
+    position: 'absolute',
+    bottom: '25%',
+    left: '25%',
+    width: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomCenterRight: {
+    position: 'absolute',
+    bottom: '25%',
+    right: '25%',
+    width: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leftTop: {
+    position: 'absolute',
+    top: '20%',
+    left: '2%',
+    width: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rightTop: {
+    position: 'absolute',
+    top: '20%',
+    right: '2%',
+    width: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leftBottom: {
+    position: 'absolute',
+    bottom: '20%',
+    left: '2%',
+    width: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rightBottom: {
+    position: 'absolute',
+    bottom: '20%',
+    right: '2%',
+    width: 90,
     alignItems: 'center',
     justifyContent: 'center',
   },

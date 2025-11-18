@@ -14,6 +14,7 @@ import { ref, onValue, set, serverTimestamp } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { database } from '../config/firebase';
 import AudioStorageService from '../services/audioStorage';
+import OfflineStorageService from '../services/offlineStorageService';
 import * as DocumentPicker from 'expo-document-picker';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system';
@@ -278,6 +279,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [trackStateService] = useState(() => TrackStateService.getInstance());
   const [persistedTrackStates, setPersistedTrackStates] = useState<SongTrackStates>({});
   const [isLoadingTrackStates, setIsLoadingTrackStates] = useState(false);
+  
+  // Offline storage
+  const [offlineStorageService] = useState(() => OfflineStorageService.getInstance());
+  const [offlineSongs, setOfflineSongs] = useState<Set<string>>(new Set());
+  const [isDownloadingOffline, setIsDownloadingOffline] = useState(false);
+  const [cachedScorePages, setCachedScorePages] = useState<{ [scoreId: string]: string[] }>({});
   
   // Track click detection state
   const [trackClickTimers, setTrackClickTimers] = useState<{ [key: string]: ReturnType<typeof setTimeout> | null }>({});
@@ -1106,11 +1113,32 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         );
 
         const audioStorage = AudioStorageService.getInstance();
+        const isOffline = offlineStorageService.isSongOffline(selectedSong.id);
+        
         const loadedPlayers = await Promise.all(
           (selectedSong.tracks || []).map(async (track) => {
             console.log(`Loading track: ${track.name}`);
             try {
-              const audioFile = await audioStorage.getAudioFile(track.path);
+              let audioFile;
+              
+              // Check if offline version exists
+              if (isOffline) {
+                const cachedUri = await offlineStorageService.getCachedTrackUri(track, selectedSong.id);
+                if (cachedUri) {
+                  audioFile = {
+                    id: track.path,
+                    name: track.name,
+                    url: track.path,
+                    localUri: cachedUri
+                  };
+                } else {
+                  // Fall back to regular loading if cache is missing
+                  audioFile = await audioStorage.getAudioFile(track.path);
+                }
+              } else {
+                audioFile = await audioStorage.getAudioFile(track.path);
+              }
+              
               const sound = await audioStorage.loadAudioFile(audioFile);
               
               setLoadingTracks(prev => ({
@@ -5247,6 +5275,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
   // Helper function to get pages from a score (backward compatible)
   const getScorePages = (score: Score): string[] => {
+    // Check if we have cached pages (from offline storage)
+    if (cachedScorePages[score.id]) {
+      return cachedScorePages[score.id];
+    }
+
+    // Fall back to regular pages/url
     if (score.pages && score.pages.length > 0) {
       return score.pages;
     }
@@ -5255,6 +5289,47 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     }
     return [];
   };
+
+  // Load offline songs list on mount
+  useEffect(() => {
+    const loadOfflineSongs = () => {
+      const offlineSongIds = offlineStorageService.getOfflineSongIds();
+      setOfflineSongs(new Set(offlineSongIds));
+    };
+
+    loadOfflineSongs();
+  }, []);
+
+  // Load cached score pages when song is selected
+  useEffect(() => {
+    const loadCachedScorePages = async () => {
+      if (!selectedSong) {
+        setCachedScorePages({});
+        return;
+      }
+
+      const isOffline = offlineStorageService.isSongOffline(selectedSong.id);
+      if (!isOffline) {
+        setCachedScorePages({});
+        return;
+      }
+
+      const cachedPages: { [scoreId: string]: string[] } = {};
+      
+      if (selectedSong.scores) {
+        for (const score of selectedSong.scores) {
+          const pages = await offlineStorageService.getCachedScorePages(score, selectedSong.id);
+          if (pages && pages.length > 0) {
+            cachedPages[score.id] = pages;
+          }
+        }
+      }
+
+      setCachedScorePages(cachedPages);
+    };
+
+    loadCachedScorePages();
+  }, [selectedSong?.id, offlineStorageService]);
 
   // Helper function to check if score is PDF
   const isScorePDF = (score: Score): boolean => {
@@ -6146,7 +6221,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                     resizeMode="contain"
                                   />
                                   <Watermark 
-                                    text="© Multitrack Player" 
+                                    text="© Ministério de Louvor" 
                                     opacity={0.1}
                                     fontSize={16}
                                   />
@@ -6329,7 +6404,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
                                 resizeMode="contain"
                               />
                               <Watermark 
-                                text="© Multitrack Player" 
+                                text="© Ministério de Louvor" 
                                 opacity={0.1}
                                 fontSize={16}
                               />
@@ -6978,7 +7053,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               resizeMode="contain"
             />
                     <Watermark 
-                      text="© Multitrack Player" 
+                      text="© Ministério de Louvor" 
                       opacity={0.12}
                       fontSize={28}
                     />
@@ -8530,32 +8605,126 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           onPress={() => setShowSongViewMenu(false)}
         >
           <View style={styles.songViewMenuContainer}>
-            {hasAdminAccess && (
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  setShowSongViewMenu(false);
-                  if (isAdminMode) {
-                    setIsAdminMode(false);
-                    onAdminModeChange?.(false);
-                  } else {
-                    setPendingSongOperation('admin');
-                    setShowSongPasswordDialog(true);
-                    setSongPassword('');
-                    setSongPasswordError('');
-                  }
-                }}
-              >
-                <Ionicons
-                  name={isAdminMode ? "lock-open-outline" : "lock-closed-outline"}
-                  size={20}
-                  color={isAdminMode ? "#4CAF50" : "#BB86FC"}
-                  style={{ marginRight: 12 }}
-                />
-                <Text style={[styles.menuItemText, isAdminMode && { color: '#4CAF50' }]}>
-                  {isAdminMode ? 'Disable Admin Mode' : 'Enable Admin Mode'}
-                </Text>
-              </TouchableOpacity>
+            {selectedSong && (
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={async () => {
+                    setShowSongViewMenu(false);
+                    if (!selectedSong) return;
+
+                    const isOffline = offlineSongs.has(selectedSong.id);
+                    
+                    if (isOffline) {
+                      // Remove offline data
+                      Alert.alert(
+                        'Remove Offline Access',
+                        'Are you sure you want to remove offline access for this song? This will delete all cached files.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Remove',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                await offlineStorageService.removeOfflineSong(selectedSong.id);
+                                setOfflineSongs(prev => {
+                                  const newSet = new Set(prev);
+                                  newSet.delete(selectedSong.id);
+                                  return newSet;
+                                });
+                                setCachedScorePages({});
+                                Alert.alert('Success', 'Offline access removed');
+                              } catch (error) {
+                                console.error('Error removing offline song:', error);
+                                Alert.alert('Error', 'Failed to remove offline access');
+                              }
+                            }
+                          }
+                        ]
+                      );
+                    } else {
+                      // Download for offline
+                      setIsDownloadingOffline(true);
+                      try {
+                        await offlineStorageService.downloadSongForOffline(selectedSong);
+                        setOfflineSongs(prev => new Set(prev).add(selectedSong.id));
+                        
+                        // Reload cached score pages
+                        const cachedPages: { [scoreId: string]: string[] } = {};
+                        if (selectedSong.scores) {
+                          for (const score of selectedSong.scores) {
+                            const pages = await offlineStorageService.getCachedScorePages(score, selectedSong.id);
+                            if (pages && pages.length > 0) {
+                              cachedPages[score.id] = pages;
+                            }
+                          }
+                        }
+                        setCachedScorePages(cachedPages);
+                        
+                        Alert.alert('Success', 'Song is now available offline');
+                      } catch (error) {
+                        console.error('Error downloading song for offline:', error);
+                        Alert.alert('Error', 'Failed to download song for offline use. Please check your internet connection.');
+                      } finally {
+                        setIsDownloadingOffline(false);
+                      }
+                    }
+                  }}
+                  disabled={isDownloadingOffline}
+                >
+                  {isDownloadingOffline ? (
+                    <ActivityIndicator size="small" color="#BB86FC" style={{ marginRight: 12 }} />
+                  ) : (
+                    <Ionicons
+                      name={offlineSongs.has(selectedSong.id) ? "cloud-done-outline" : "cloud-download-outline"}
+                      size={20}
+                      color={offlineSongs.has(selectedSong.id) ? "#4CAF50" : "#BB86FC"}
+                      style={{ marginRight: 12 }}
+                    />
+                  )}
+                  <Text style={[
+                    styles.menuItemText,
+                    offlineSongs.has(selectedSong.id) && { color: '#4CAF50' }
+                  ]}>
+                    {isDownloadingOffline
+                      ? 'Downloading...'
+                      : offlineSongs.has(selectedSong.id)
+                        ? 'Remove Offline Access'
+                        : 'Make Available Offline'}
+                  </Text>
+                </TouchableOpacity>
+                {hasAdminAccess && (
+                  <>
+                    <View style={styles.menuSeparator} />
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => {
+                        setShowSongViewMenu(false);
+                        if (isAdminMode) {
+                          setIsAdminMode(false);
+                          onAdminModeChange?.(false);
+                        } else {
+                          setPendingSongOperation('admin');
+                          setShowSongPasswordDialog(true);
+                          setSongPassword('');
+                          setSongPasswordError('');
+                        }
+                      }}
+                    >
+                      <Ionicons
+                        name={isAdminMode ? "lock-open-outline" : "lock-closed-outline"}
+                        size={20}
+                        color={isAdminMode ? "#4CAF50" : "#BB86FC"}
+                        style={{ marginRight: 12 }}
+                      />
+                      <Text style={[styles.menuItemText, isAdminMode && { color: '#4CAF50' }]}>
+                        {isAdminMode ? 'Disable Admin Mode' : 'Enable Admin Mode'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </>
             )}
           </View>
         </TouchableOpacity>
