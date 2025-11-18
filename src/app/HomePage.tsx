@@ -8171,114 +8171,99 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
         ) : (
           // Track Player View
           <>
-            {/* Header for playlist mode */}
-            {isPlaylistMode && currentPlaylist ? (
-              <Header 
-                title={currentPlaylist.name}
-                onBack={handleBackToPlaylists}
-                rightComponent={
+            {/* Header - unified for both playlist mode and regular song view */}
+            <View style={[styles.header, isLandscape && styles.headerLandscape]}>
+              <View style={[styles.headerTop, isLandscape && styles.headerTopLandscape]}>
+                <View style={styles.headerLeftContainer}>
                   <TouchableOpacity 
-                    onPress={() => setShowPlaylistControls(!showPlaylistControls)}
-                    style={{ padding: 8 }}
-                  >
-                    <Ionicons 
-                      name={showPlaylistControls ? "chevron-up" : "chevron-down"} 
-                      size={24} 
-                      color="#BB86FC" 
-                    />
-                  </TouchableOpacity>
-                }
-              />
-            ) : (
-              <View style={[styles.header, isLandscape && styles.headerLandscape]}>
-                <View style={[styles.headerTop, isLandscape && styles.headerTopLandscape]}>
-                  <View style={styles.headerLeftContainer}>
-                    <TouchableOpacity 
-                      style={styles.backButton}
-                      onPress={() => {
+                    style={styles.backButton}
+                    onPress={() => {
+                      if (isPlaylistMode && currentPlaylist) {
+                        handleBackToPlaylists();
+                      } else {
                         setSelectedSong(null);
                         setCurrentFilteredIndex(-1);
                         setShowNavigationControls(true);
                         setIsFilteredRepeating(false);
-                      }}
-                    >
-                      <Ionicons name="chevron-back" size={24} color="#BB86FC" />
-                    </TouchableOpacity>
-                  </View>
-                  
-                  <View style={styles.songHeaderText}>
-                    {/* Song counter with navigation arrows in header */}
-                    {((isPlaylistMode && currentPlaylist) || (filteredSongs.length > 0 && currentFilteredIndex >= 0)) && (
-                      <View style={styles.headerCounterContainer}>
-                        <TouchableOpacity
-                          style={styles.headerArrowButton}
-                          onPress={() => {
-                            if (isPlaylistMode && currentPlaylist) {
-                              handlePreviousSong();
-                            } else if (filteredSongs.length > 0 && currentFilteredIndex >= 0) {
-                              handlePreviousFilteredSong();
-                            }
-                          }}
-                        >
-                          <Ionicons name="chevron-back" size={20} color="#BB86FC" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => {
-                            if (isPlaylistMode && currentPlaylist) {
-                              setShowPlaylistSongsModal(true);
-                            } else {
-                              setShowFilteredSongsModal(true);
-                            }
-                          }}
-                        >
-                          <Text style={styles.headerSongCounter}>
-                            {isPlaylistMode && currentPlaylist 
-                              ? `${currentPlaylistIndex + 1} of ${playlistSongs.length}`
-                              : `${currentFilteredIndex + 1} of ${filteredSongs.length}`
-                            }
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.headerArrowButton}
-                          onPress={() => {
-                            if (isPlaylistMode && currentPlaylist) {
-                              handleNextSong();
-                            } else if (filteredSongs.length > 0 && currentFilteredIndex >= 0) {
-                              handleNextFilteredSong();
-                            }
-                          }}
-                        >
-                          <Ionicons name="chevron-forward" size={20} color="#BB86FC" />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                    <MarqueeText 
-                      text={selectedSong.title} 
-                      style={[styles.title, { textAlign: 'center' }]}
-                    />
+                      }
+                    }}
+                  >
+                    <Ionicons name="chevron-back" size={24} color="#BB86FC" />
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.songHeaderText}>
+                  {/* Song counter with navigation arrows in header */}
+                  {((isPlaylistMode && currentPlaylist) || (filteredSongs.length > 0 && currentFilteredIndex >= 0)) && (
+                    <View style={styles.headerCounterContainer}>
+                      <TouchableOpacity
+                        style={styles.headerArrowButton}
+                        onPress={() => {
+                          if (isPlaylistMode && currentPlaylist) {
+                            handlePreviousSong();
+                          } else if (filteredSongs.length > 0 && currentFilteredIndex >= 0) {
+                            handlePreviousFilteredSong();
+                          }
+                        }}
+                      >
+                        <Ionicons name="chevron-back" size={20} color="#BB86FC" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (isPlaylistMode && currentPlaylist) {
+                            setShowPlaylistSongsModal(true);
+                          } else {
+                            setShowFilteredSongsModal(true);
+                          }
+                        }}
+                      >
+                        <Text style={styles.headerSongCounter}>
+                          {isPlaylistMode && currentPlaylist 
+                            ? `${currentPlaylistIndex + 1} of ${playlistSongs.length}`
+                            : `${currentFilteredIndex + 1} of ${filteredSongs.length}`
+                          }
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.headerArrowButton}
+                        onPress={() => {
+                          if (isPlaylistMode && currentPlaylist) {
+                            handleNextSong();
+                          } else if (filteredSongs.length > 0 && currentFilteredIndex >= 0) {
+                            handleNextFilteredSong();
+                          }
+                        }}
+                      >
+                        <Ionicons name="chevron-forward" size={20} color="#BB86FC" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  <MarqueeText 
+                    text={selectedSong.title} 
+                    style={[styles.title, { textAlign: 'center' }]}
+                  />
+                  <RightToLeftMarqueeText 
+                    text={selectedSong.artist}
+                    style={[styles.artist, { textAlign: 'center' }]}
+                  />
+                  {selectedSong.album && (
                     <RightToLeftMarqueeText 
-                      text={selectedSong.artist}
-                      style={[styles.artist, { textAlign: 'center' }]}
+                      text={selectedSong.album}
+                      style={[styles.album, { textAlign: 'center' }]}
                     />
-                    {selectedSong.album && (
-                      <RightToLeftMarqueeText 
-                        text={selectedSong.album}
-                        style={[styles.album, { textAlign: 'center' }]}
-                      />
-                    )}
-                  </View>
-                  
-                  <View style={styles.headerRightContainer}>
-                    <TouchableOpacity 
-                      style={styles.iconButton}
-                      onPress={() => setShowSongViewMenu(!showSongViewMenu)}
-                    >
-                      <Ionicons name="ellipsis-vertical" size={24} color="#BB86FC" />
-                    </TouchableOpacity>
-                  </View>
+                  )}
+                </View>
+                
+                <View style={styles.headerRightContainer}>
+                  <TouchableOpacity 
+                    style={styles.iconButton}
+                    onPress={() => setShowSongViewMenu(!showSongViewMenu)}
+                  >
+                    <Ionicons name="ellipsis-vertical" size={24} color="#BB86FC" />
+                  </TouchableOpacity>
                 </View>
               </View>
-            )}
+            </View>
             
             {/* Add spacing between header and playback controls */}
             <View style={styles.headerSpacing} />
