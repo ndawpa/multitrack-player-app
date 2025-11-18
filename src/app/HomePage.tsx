@@ -6995,28 +6995,66 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
           </View>
           )}
           
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            ref={(ref) => {
-              fullScreenScrollRef.current = ref;
-              if (ref && hasMultiplePages) {
+          <View style={Platform.OS === 'web' ? {
+            width: Dimensions.get('window').width,
+            height: Dimensions.get('window').height,
+            overflow: 'hidden',
+          } : undefined}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              ref={(ref) => {
+                fullScreenScrollRef.current = ref;
+                if (ref && hasMultiplePages) {
+                  const pageWidth = Dimensions.get('window').width;
+                  ref.scrollTo({ x: fullScreenPageIndex * pageWidth, animated: false });
+                }
+              }}
+              onScroll={(event) => {
+                if (!hasMultiplePages) return;
+                const offsetX = event.nativeEvent.contentOffset.x;
                 const pageWidth = Dimensions.get('window').width;
-                ref.scrollTo({ x: fullScreenPageIndex * pageWidth, animated: false });
-              }
-            }}
-            onScroll={(event) => {
-              if (!hasMultiplePages) return;
-              const offsetX = event.nativeEvent.contentOffset.x;
-              const pageWidth = Dimensions.get('window').width;
-              const pageIndex = Math.round(offsetX / pageWidth);
-              if (pageIndex !== fullScreenPageIndex && pageIndex >= 0 && pageIndex < pages.length) {
-                setFullScreenPageIndex(pageIndex);
-              }
-            }}
-            scrollEventThrottle={16}
-            contentContainerStyle={styles.fullScreenPagesScrollContent}
+                const pageIndex = Math.round(offsetX / pageWidth);
+                if (pageIndex !== fullScreenPageIndex && pageIndex >= 0 && pageIndex < pages.length) {
+                  setFullScreenPageIndex(pageIndex);
+                }
+              }}
+              onMomentumScrollEnd={(event) => {
+                // Ensure proper page snapping on web
+                if (!hasMultiplePages || Platform.OS !== 'web') return;
+                const offsetX = event.nativeEvent.contentOffset.x;
+                const pageWidth = Dimensions.get('window').width;
+                const pageIndex = Math.round(offsetX / pageWidth);
+                if (pageIndex >= 0 && pageIndex < pages.length && fullScreenScrollRef.current) {
+                  fullScreenScrollRef.current.scrollTo({ 
+                    x: pageIndex * pageWidth, 
+                    animated: true 
+                  });
+                  setFullScreenPageIndex(pageIndex);
+                }
+              }}
+              onScrollEndDrag={(event) => {
+                // Additional snap handling for web
+                if (!hasMultiplePages || Platform.OS !== 'web') return;
+                const offsetX = event.nativeEvent.contentOffset.x;
+                const pageWidth = Dimensions.get('window').width;
+                const pageIndex = Math.round(offsetX / pageWidth);
+                if (pageIndex >= 0 && pageIndex < pages.length && fullScreenScrollRef.current) {
+                  fullScreenScrollRef.current.scrollTo({ 
+                    x: pageIndex * pageWidth, 
+                    animated: true 
+                  });
+                  setFullScreenPageIndex(pageIndex);
+                }
+              }}
+              scrollEventThrottle={16}
+              contentContainerStyle={[
+                styles.fullScreenPagesScrollContent,
+                Platform.OS === 'web' && hasMultiplePages && {
+                  width: Dimensions.get('window').width * pages.length,
+                }
+              ]}
             onTouchStart={(e) => {
               // Track touch start for tap detection
               tapStartTimeRef.current = Date.now();
@@ -7110,6 +7148,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               </View>
             ))}
           </ScrollView>
+          </View>
 
           {hasMultiplePages && showFullScreenControls && (
             <View style={[styles.fullScreenPageControls, { paddingBottom: insets.bottom + 15 }]}>
@@ -10394,6 +10433,10 @@ const styles = StyleSheet.create({
     height: Dimensions.get('window').height,
     justifyContent: 'center',
     alignItems: 'center',
+    ...(Platform.OS === 'web' && {
+      flexShrink: 0,
+      flexGrow: 0,
+    }),
   },
   scorePagesContainer: {
     width: '100%',
