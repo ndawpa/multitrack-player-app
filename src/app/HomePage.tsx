@@ -1268,8 +1268,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     } else if (selectedSong.resources && selectedSong.resources.length > 0) {
       setActiveView('resources');
     } else {
-      // Fallback to tracks if nothing else is available
-      setActiveView('tracks');
+      // Fallback to lyrics if nothing else is available
+      setActiveView('lyrics');
     }
   }, [selectedSong?.id, user?.preferences?.defaultTab]);
 
@@ -5522,23 +5522,25 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
               ]}>Partitura</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
-            style={[
-              styles.viewToggleButton,
-              activeView === 'tracks' && styles.viewToggleButtonActive
-            ]}
-            onPress={() => setActiveView('tracks')}
-          >
-            <Ionicons 
-              name="musical-notes" 
-              size={20} 
-              color={activeView === 'tracks' ? '#BB86FC' : '#BBBBBB'} 
-            />
-            <Text style={[
-              styles.viewToggleText,
-              activeView === 'tracks' && styles.viewToggleTextActive
-            ]}>Pistas</Text>
-          </TouchableOpacity>
+          {selectedSong.tracks && selectedSong.tracks.length > 0 && (
+            <TouchableOpacity 
+              style={[
+                styles.viewToggleButton,
+                activeView === 'tracks' && styles.viewToggleButtonActive
+              ]}
+              onPress={() => setActiveView('tracks')}
+            >
+              <Ionicons 
+                name="musical-notes" 
+                size={20} 
+                color={activeView === 'tracks' ? '#BB86FC' : '#BBBBBB'} 
+              />
+              <Text style={[
+                styles.viewToggleText,
+                activeView === 'tracks' && styles.viewToggleTextActive
+              ]}>Pistas</Text>
+            </TouchableOpacity>
+          )}
           {selectedSong.resources && selectedSong.resources.length > 0 && (
             <TouchableOpacity 
               style={[
