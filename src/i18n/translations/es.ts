@@ -52,6 +52,13 @@ export default {
     errorUpdatingProfile: 'Error al actualizar el perfil',
     failedToUpdateDisplayName: 'Error al actualizar el nombre para mostrar',
     invalidDisplayName: 'Formato de nombre para mostrar inválido.',
+    songView: 'Vista de Canción',
+    defaultTab: 'Pestaña Predeterminada',
+    defaultTabDescription: 'Selecciona qué pestaña debe mostrarse primero al abrir una canción',
+    tabLyrics: 'Letras',
+    tabScore: 'Partitura',
+    tabTracks: 'Pistas',
+    tabResources: 'Recursos',
   },
   
   // Home Page

@@ -52,6 +52,13 @@ export default {
     errorUpdatingProfile: 'Error updating profile',
     failedToUpdateDisplayName: 'Failed to update display name',
     invalidDisplayName: 'Invalid display name format.',
+    songView: 'Song View',
+    defaultTab: 'Default Tab',
+    defaultTabDescription: 'Select which tab should be shown first when opening a song',
+    tabLyrics: 'Lyrics',
+    tabScore: 'Score',
+    tabTracks: 'Tracks',
+    tabResources: 'Resources',
   },
   
   // Home Page

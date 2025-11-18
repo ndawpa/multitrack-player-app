@@ -27,6 +27,7 @@ export interface UserPreferences {
   defaultPlaybackSpeed: number;
   autoPlay: boolean;
   language: string;
+  defaultTab?: 'lyrics' | 'score' | 'tracks' | 'resources';
   filters: FilterState;
 }
 

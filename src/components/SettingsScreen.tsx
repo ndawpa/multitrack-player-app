@@ -385,6 +385,45 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           </View>
         </View>
 
+        {/* Song View Section */}
+        <View style={commonStyles.section}>
+          <View style={commonStyles.sectionHeader}>
+            <Ionicons name="musical-notes-outline" size={20} color="#BB86FC" />
+            <Text style={commonStyles.sectionTitle}>{t('settings.songView')}</Text>
+          </View>
+          
+          <View style={styles.settingItem}>
+            <Text style={styles.settingLabel}>{t('settings.defaultTab')}</Text>
+            <Text style={styles.settingDescription}>
+              {t('settings.defaultTabDescription')}
+            </Text>
+            <View style={styles.tabOptions}>
+              {[
+                { value: 'lyrics', label: t('settings.tabLyrics') },
+                { value: 'score', label: t('settings.tabScore') },
+                { value: 'tracks', label: t('settings.tabTracks') },
+                { value: 'resources', label: t('settings.tabResources') },
+              ].map((tab) => (
+                <TouchableOpacity
+                  key={tab.value}
+                  style={[
+                    styles.tabOption,
+                    preferences.defaultTab === tab.value && styles.tabOptionSelected
+                  ]}
+                  onPress={() => handlePreferenceChange('defaultTab', tab.value)}
+                >
+                  <Text style={[
+                    styles.tabOptionText,
+                    preferences.defaultTab === tab.value && styles.tabOptionTextSelected
+                  ]}>
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
         {/* Language Section */}
         <View style={commonStyles.section}>
           <View style={commonStyles.sectionHeader}>
@@ -583,6 +622,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   languageOptionTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  tabOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  tabOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#333333',
+  },
+  tabOptionSelected: {
+    backgroundColor: '#BB86FC',
+  },
+  tabOptionText: {
+    color: '#BBBBBB',
+    fontSize: 14,
+  },
+  tabOptionTextSelected: {
     color: '#FFFFFF',
     fontWeight: '600',
   },

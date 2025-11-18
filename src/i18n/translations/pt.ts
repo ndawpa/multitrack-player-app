@@ -105,6 +105,13 @@ export default {
     errorUpdatingProfile: 'Erro ao atualizar perfil',
     failedToUpdateDisplayName: 'Falha ao atualizar nome de exibição',
     invalidDisplayName: 'Formato de nome de exibição inválido.',
+    songView: 'Visualização da Música',
+    defaultTab: 'Aba Padrão',
+    defaultTabDescription: 'Selecione qual aba deve ser exibida primeiro ao abrir uma música',
+    tabLyrics: 'Letra',
+    tabScore: 'Partitura',
+    tabTracks: 'Pistas',
+    tabResources: 'Extras',
   },
   
   // Home Page

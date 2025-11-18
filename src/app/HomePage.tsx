@@ -461,7 +461,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
   const [songPasswordError, setSongPasswordError] = useState('');
   const [pendingSongOperation, setPendingSongOperation] = useState<'admin' | null>(null);
   const [isLyricsExpanded, setIsLyricsExpanded] = useState(false);
-  const [activeView, setActiveView] = useState<'tracks' | 'lyrics' | 'sheetMusic' | 'score' | 'resources'>('tracks');
+  const [activeView, setActiveView] = useState<'tracks' | 'lyrics' | 'sheetMusic' | 'score' | 'resources'>('lyrics');
   const [isLyricsEditing, setIsLyricsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState('');
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
@@ -1228,6 +1228,50 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     lyricsLastPanXRef.current = 0;
     lyricsLastPanYRef.current = 0;
   }, [selectedSong?.id]);
+
+  // Set default active view when song changes - use user preference if available, otherwise prioritize lyrics, then score, then tracks, then resources
+  useEffect(() => {
+    if (!selectedSong) return;
+    
+    // Check if user has a default tab preference
+    const userPreferredTab = user?.preferences?.defaultTab;
+    
+    // Helper function to check if a tab is available for the song
+    const isTabAvailable = (tab: 'lyrics' | 'score' | 'tracks' | 'resources'): boolean => {
+      switch (tab) {
+        case 'lyrics':
+          return !!(selectedSong.lyrics && selectedSong.lyrics.trim().length > 0);
+        case 'score':
+          return !!(selectedSong.scores && selectedSong.scores.length > 0);
+        case 'tracks':
+          return !!(selectedSong.tracks && selectedSong.tracks.length > 0);
+        case 'resources':
+          return !!(selectedSong.resources && selectedSong.resources.length > 0);
+        default:
+          return false;
+      }
+    };
+    
+    // If user has a preference and that tab is available, use it
+    if (userPreferredTab && isTabAvailable(userPreferredTab)) {
+      setActiveView(userPreferredTab);
+      return;
+    }
+    
+    // Otherwise, use priority order: lyrics -> score -> tracks -> resources
+    if (selectedSong.lyrics && selectedSong.lyrics.trim().length > 0) {
+      setActiveView('lyrics');
+    } else if (selectedSong.scores && selectedSong.scores.length > 0) {
+      setActiveView('score');
+    } else if (selectedSong.tracks && selectedSong.tracks.length > 0) {
+      setActiveView('tracks');
+    } else if (selectedSong.resources && selectedSong.resources.length > 0) {
+      setActiveView('resources');
+    } else {
+      // Fallback to tracks if nothing else is available
+      setActiveView('tracks');
+    }
+  }, [selectedSong?.id, user?.preferences?.defaultTab]);
 
   // Scroll to score input when editing starts
   useEffect(() => {
