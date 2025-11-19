@@ -8,6 +8,7 @@ import SongAccessService from './songAccessService';
 import AIAssistantAccessService from './aiAssistantAccessService';
 import PlaylistService from './playlistService';
 import GroupService from './groupService';
+import MCPClientService, { MCPToolCall } from './mcpClientService';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -20,6 +21,7 @@ interface AIConfig {
   model?: string;
   baseURL?: string;
   provider?: 'openai' | 'anthropic' | 'google';
+  enableMCP?: boolean; // Enable MCP (Model Context Protocol) tools
 }
 
 class AIAssistantService {
@@ -29,9 +31,11 @@ class AIAssistantService {
   private accessService: AIAssistantAccessService;
   private playlistService: PlaylistService;
   private groupService: GroupService;
+  private mcpClient: MCPClientService;
   private config: AIConfig = {
     provider: 'google',
     model: 'gemini-2.5-flash-lite', // Using Google Gemini
+    enableMCP: true, // Enable MCP by default
   };
 
   private constructor() {
@@ -40,6 +44,7 @@ class AIAssistantService {
     this.accessService = AIAssistantAccessService.getInstance();
     this.playlistService = PlaylistService.getInstance();
     this.groupService = GroupService.getInstance();
+    this.mcpClient = MCPClientService.getInstance();
   }
 
   public static getInstance(): AIAssistantService {
@@ -243,6 +248,106 @@ class AIAssistantService {
       console.error('Error fetching user groups:', error);
       return [];
     }
+  }
+
+  /**
+   * Format lightweight summary context for AI (MCP-enabled mode)
+   * Provides statistics and overview, not full data
+   */
+  private formatSummaryContext(
+    songs: Song[],
+    playlists: Playlist[],
+    groups: UserGroup[],
+    enableMCP: boolean
+  ): string {
+    let summary = '';
+
+    // Songs summary
+    summary += `SONGS:\n`;
+    summary += `- Total songs: ${songs.length}\n`;
+    
+    if (songs.length > 0) {
+      // Count songs with lyrics
+      const songsWithLyrics = songs.filter(s => s.lyrics && s.lyrics.trim().length > 0).length;
+      summary += `- Songs with lyrics: ${songsWithLyrics}\n`;
+      
+      // Count songs with tracks
+      const songsWithTracks = songs.filter(s => s.tracks && s.tracks.length > 0).length;
+      summary += `- Songs with audio tracks: ${songsWithTracks}\n`;
+      
+      // Count songs with scores
+      const songsWithScores = songs.filter(s => s.scores && s.scores.length > 0).length;
+      summary += `- Songs with scores/PDFs: ${songsWithScores}\n`;
+      
+      // Get unique artists
+      const artists = new Set(songs.map(s => s.artist).filter(Boolean));
+      summary += `- Unique artists: ${artists.size}\n`;
+      
+      // Get unique albums
+      const albums = new Set(songs.map(s => s.album).filter(Boolean));
+      summary += `- Unique albums: ${albums.size}\n`;
+      
+      // Show sample of songs (first 30 titles and artists only)
+      const sampleSize = Math.min(30, songs.length);
+      summary += `\nSample of songs (${sampleSize} of ${songs.length}):\n`;
+      songs.slice(0, sampleSize).forEach((song, index) => {
+        summary += `${index + 1}. "${song.title}" by ${song.artist || 'Unknown'}`;
+        if (song.album) summary += ` (Album: ${song.album})`;
+        summary += ` [ID: ${song.id}]\n`;
+      });
+      
+      if (songs.length > sampleSize) {
+        summary += `... and ${songs.length - sampleSize} more songs. Use MCP tools to search for specific songs.\n`;
+      }
+    } else {
+      summary += `- No songs available.\n`;
+    }
+
+    // Playlists summary
+    summary += `\nPLAYLISTS:\n`;
+    summary += `- Total playlists: ${playlists.length}\n`;
+    
+    if (playlists.length > 0) {
+      const totalPlaylistSongs = playlists.reduce((sum, p) => sum + (p.songs?.length || 0), 0);
+      summary += `- Total songs across all playlists: ${totalPlaylistSongs}\n`;
+      
+      // Show playlist names only (first 20)
+      const sampleSize = Math.min(20, playlists.length);
+      summary += `\nPlaylist names (${sampleSize} of ${playlists.length}):\n`;
+      playlists.slice(0, sampleSize).forEach((playlist, index) => {
+        summary += `${index + 1}. "${playlist.name}" (${playlist.songs?.length || 0} songs) [ID: ${playlist.id}]\n`;
+      });
+      
+      if (playlists.length > sampleSize) {
+        summary += `... and ${playlists.length - sampleSize} more playlists. Use MCP tools to get detailed playlist information.\n`;
+      }
+    } else {
+      summary += `- No playlists available.\n`;
+    }
+
+    // Groups summary
+    summary += `\nUSER GROUPS:\n`;
+    summary += `- Total groups: ${groups.length}\n`;
+    
+    if (groups.length > 0) {
+      const sampleSize = Math.min(20, groups.length);
+      summary += `\nGroup names (${sampleSize} of ${groups.length}):\n`;
+      groups.slice(0, sampleSize).forEach((group, index) => {
+        summary += `${index + 1}. "${group.name}" (${group.members?.length || 0} members) [ID: ${group.id}]\n`;
+      });
+      
+      if (groups.length > sampleSize) {
+        summary += `... and ${groups.length - sampleSize} more groups. Use MCP tools to get detailed group information.\n`;
+      }
+    } else {
+      summary += `- User is not a member of any groups.\n`;
+    }
+
+    if (enableMCP) {
+      summary += `\n\nNOTE: This is a summary only. For detailed information about specific songs, playlists, or groups, use the MCP tools (search_songs, get_song_details, get_playlists, get_user_groups, etc.).`;
+    }
+
+    return summary;
   }
 
   /**
@@ -628,34 +733,35 @@ class AIAssistantService {
     });
 
     try {
-      // Get ALL accessible songs (no filtering for full context)
-      console.log('Fetching all accessible songs for full context...');
+      // With MCP enabled, we use a lightweight summary approach
+      // The AI can use MCP tools to query detailed information when needed
+      const enableMCP = this.config.enableMCP !== false;
+      
+      // Get data
+      console.log('Fetching library data...');
       const allSongs = await this.getAccessibleSongs();
-      console.log(`Found ${allSongs.length} accessible songs`);
-      
-      // Get all playlists for the user
-      console.log('Fetching user playlists...');
       const playlists = await this.getUserPlaylists();
-      console.log(`Found ${playlists.length} playlists`);
-      
-      // Get all user groups
-      console.log('Fetching user groups...');
       const userGroups = await this.getUserGroups();
-      console.log(`Found ${userGroups.length} user groups`);
       
-      // Format all context data
-      const songsContext = this.formatSongsForContext(allSongs);
-      const playlistsContext = this.formatPlaylistsForContext(playlists);
-      const groupsContext = this.formatUserGroupsForContext(userGroups);
+      console.log(`Found ${allSongs.length} accessible songs, ${playlists.length} playlists, ${userGroups.length} groups`);
       
-      const totalContextLength = songsContext.length + playlistsContext.length + groupsContext.length;
-      console.log(`Total context length: ${totalContextLength} characters`);
-      console.log(`- Songs: ${songsContext.length} characters`);
-      console.log(`- Playlists: ${playlistsContext.length} characters`);
-      console.log(`- Groups: ${groupsContext.length} characters`);
+      // Format context based on MCP mode
+      let contextData: string;
+      if (enableMCP) {
+        // Use lightweight summary when MCP is enabled
+        contextData = this.formatSummaryContext(allSongs, playlists, userGroups, enableMCP);
+        console.log(`Using MCP-enabled mode: summary context (${contextData.length} characters)`);
+      } else {
+        // Use full context when MCP is disabled (legacy mode)
+        const songsContext = this.formatSongsForContext(allSongs);
+        const playlistsContext = this.formatPlaylistsForContext(playlists);
+        const groupsContext = this.formatUserGroupsForContext(userGroups);
+        contextData = `SONGS (${allSongs.length} total songs):\n${songsContext}\n\nPLAYLISTS:\n${playlistsContext}\n\nUSER GROUPS:\n${groupsContext}`;
+        console.log(`Using full context mode: ${contextData.length} characters`);
+      }
 
-      // Build comprehensive system prompt with full database context
-      const systemPrompt = `You are a specialized AI assistant for a music multitrack player app. Your purpose is to help users with questions about their complete music library, including songs, playlists, and groups.
+      // Build system prompt with summary context (MCP tools handle detailed queries)
+      let systemPrompt = `You are a specialized AI assistant for a music multitrack player app. Your purpose is to help users with questions about their complete music library, including songs, playlists, and groups.
 
 STRICT SCOPE LIMITATIONS:
 - You MUST ONLY answer questions about the user's music library, playlists, and groups
@@ -676,27 +782,22 @@ Your role includes:
 9. Suggest playlist organization or song groupings based on themes
 
 IMPORTANT RULES: 
-- You have access to COMPLETE information from the user's database including ALL songs, playlists, and groups
-- ONLY reference songs, playlists, or groups that are in the provided context below
-- You have access to complete song information including tracks, scores, and resources
-- Audio files and PDFs are stored in the cloud - you can reference their names and paths, but cannot access the actual binary content
-- If a song, playlist, or group is not in the provided context, politely let the user know it's not available
-- If asked about anything outside the scope of their music library, politely decline and redirect to their library
+- You have COMPLETE access to ALL data in the project through MCP tools including: songs, playlists, groups, user data, access controls, song states, track states, favorites, statistics, and more
+- Use MCP tools to query ANY information when needed - there are tools for every type of data in the system
+- You CAN access and provide URLs/paths for: audio tracks (path field), PDF scores (url or pages array), and external resources (url field)
+- When users ask for download links, file locations, or URLs, use get_song_details, get_song_by_title, or get_song_resources tools
+- All tools return full URLs/paths that can be shared with users to access files
+- You can access user profile data, preferences, stats, playlists, groups, song access controls, playback states, track states - EVERYTHING
+- Use "get_all_user_data" to get comprehensive information about the user's entire account
+- If asked about anything outside the scope of their music library, politely decline and redirect to their library`;
 
-=== COMPLETE DATABASE CONTEXT ===
+      // Add MCP tools information (always show when MCP is enabled)
+      if (enableMCP) {
+        const mcpToolsDescription = this.mcpClient.getToolsDescription();
+        systemPrompt += `\n\n=== MCP (MODEL CONTEXT PROTOCOL) TOOLS ===\n\nYou have COMPLETE access to ALL data in the project through these MCP tools. USE THESE TOOLS to access ANY information:\n\n${mcpToolsDescription}\n\nIMPORTANT WORKFLOW FOR GETTING SONG LYRICS:\nWhen users ask for lyrics of a song, follow this workflow:\n1. If user provides song title (and optionally artist), use "get_song_by_title" tool - THIS IS THE BEST TOOL FOR LYRICS\n2. If you only have song ID, use "get_song_details" tool\n3. If you need to search first, use "search_songs" then use "get_song_details" with the song ID\n\nWHEN TO USE EACH TOOL (COMPREHENSIVE GUIDE):\n\nSONG TOOLS:\n- "get_song_by_title": BEST CHOICE when users ask for lyrics by song name. Returns full lyrics immediately.\n- "search_songs": Use to find songs when user provides partial information or keywords\n- "search_songs_advanced": Use when users want filtered results (e.g., "songs with lyrics", "my favorites", "songs with audio tracks")\n- "get_songs_by_artist": Use when users ask for all songs by a specific artist\n- "get_songs_by_album": Use when users ask for all songs from a specific album\n- "get_song_details": Use when you have a song ID. Returns COMPLETE song data including lyrics, tracks, scores, resources with URLs\n- "get_song_resources": Use to get tracks, scores, and links. Returns FULL URLs and paths for all resources\n- "get_song_access_control": Use when users ask about song permissions, access control, or who can access a song\n- "get_song_state": Use when users ask about playback state, active tracks, or track volumes for a song\n- "find_similar_songs": Use when users want songs similar to a specific song\n- "search_songs_by_theme": Use to find songs matching a theme or topic in lyrics\n- "search_with_suggestions": Use when search returns no results - provides helpful suggestions\n\nPLAYLIST TOOLS:\n- "get_playlists": Use to get all playlists for the user (summary list)\n- "get_playlist_details": Use to get detailed information about a specific playlist including all songs with positions and notes\n\nGROUP TOOLS:\n- "get_user_groups": Use to get all groups the user belongs to (summary list)\n- "get_group_details": Use to get detailed information about a specific group including all members\n\nUSER TOOLS:\n- "get_user_info": Use when users ask about their profile, stats, preferences, or activity\n- "get_favorite_songs": Use when users ask for their favorite songs\n- "get_all_user_data": Use when users want comprehensive information about everything - returns profile, stats, favorites, playlists, groups, library stats, and song/track states\n\nTRACK TOOLS:\n- "get_track_states": Use when users ask about individual track states (solo, mute, volume) for tracks in a song\n\nANALYTICS TOOLS:\n- "get_library_statistics": Use when users ask about library stats, counts, or want to see what's available\n\nCRITICAL: When users ask "show me lyrics of [song name]" or "what are the lyrics of [song]", you MUST use "get_song_by_title" tool with the song title. Do not try to answer from memory or summary - always use the tool to get the actual lyrics.\n\nREMEMBER: You have access to EVERYTHING in the project. If a user asks about any data, there is a tool to access it. Use the appropriate tool to get the information.\n\nEMBEDDING MEDIA IN RESPONSES:\nWhen you provide information about songs that includes scores (PDFs) or tracks (audio files), you can embed them directly in your response so they render in the chat interface.\n\nTo embed media, include a JSON code block with the score/track data:\n\nFor scores:\n\`\`\`json\n{\n  "scores": [\n    {\n      "url": "https://...",\n      "name": "Score Name",\n      "pages": ["url1", "url2"] // optional, for multi-page PDFs\n    }\n  ]\n}\n\`\`\`\n\nFor tracks:\n\`\`\`json\n{\n  "tracks": [\n    {\n      "path": "audio/path/to/file.mp3",\n      "name": "Track Name"\n    }\n  ]\n}\n\`\`\`\n\nFor resources (videos, links, downloads, etc.):\n\`\`\`json\n{\n  "resources": [\n    {\n      "url": "https://...",\n      "name": "Resource Name",\n      "type": "youtube", // or "audio", "download", "link", "pdf"\n      "description": "Optional description"\n    }\n  ]\n}\n\`\`\`\n\nYou can include scores, tracks, and resources in the same JSON block. The chat interface will automatically render:\n- PDF viewers for scores\n- Audio players for tracks\n- YouTube video players for youtube resources\n- PDF viewers for pdf resources\n- Audio players for audio resources\n- Clickable links for download and link resources\n\nExample: When a user asks "show me the score for [song name]" or "show me the video for [song name]", use get_song_details or get_song_by_title, then include the score/resource data in a JSON code block in your response.\n\nThe summary below provides an overview, but for detailed queries, always use the MCP tools.\n\n=== END OF MCP TOOLS ===\n\n`;
+      }
 
-SONGS (${allSongs.length} total songs):
-${songsContext}
-
-PLAYLISTS:
-${playlistsContext}
-
-USER GROUPS:
-${groupsContext}
-
-=== END OF DATABASE CONTEXT ===
-
-Remember: You have access to the complete database context above. Use this full information to answer the user's questions accurately and comprehensively.`;
+      systemPrompt += `\n=== ${enableMCP ? 'LIBRARY SUMMARY' : 'COMPLETE DATABASE CONTEXT'} ===\n\n${contextData}\n\n=== END OF ${enableMCP ? 'SUMMARY' : 'DATABASE CONTEXT'} ===\n\n${enableMCP ? 'Remember: Use MCP tools to query detailed information when users ask specific questions. The summary above is just an overview.' : 'Remember: You have access to the complete database context above. Use this full information to answer the user\'s questions accurately and comprehensively.'}`;
 
       // Build messages array
       const messages: Array<{ role: string; content: string }> = [
@@ -720,9 +821,9 @@ Remember: You have access to the complete database context above. Use this full 
 
       console.log(`Sending request to ${this.config.provider} with ${messages.length} messages`);
 
-      // Call AI API based on provider
-      const response = await this.callAIAPI(messages);
-      console.log('AI response received, length:', response.length);
+      // Call AI API based on provider (with MCP tool support if enabled)
+      const response = await this.callAIAPIWithMCP(messages);
+      console.log('AI response received, length:', typeof response === 'string' ? response.length : 'N/A');
       return response;
     } catch (error: any) {
       console.error('Error asking AI question:', {
@@ -735,40 +836,148 @@ Remember: You have access to the complete database context above. Use this full 
   }
 
   /**
-   * Call AI API based on configured provider
+   * Call AI API with MCP tool support (handles function calling)
    */
-  private async callAIAPI(messages: Array<{ role: string; content: string }>): Promise<string> {
-    const { provider, apiKey, model, baseURL } = this.config;
+  private async callAIAPIWithMCP(messages: Array<{ role: string; content: string }>): Promise<string> {
+    const enableMCP = this.config.enableMCP !== false;
+    const maxToolCalls = 5; // Limit tool calls to prevent infinite loops
+    let toolCallCount = 0;
 
-    switch (provider) {
-      case 'openai':
-        return this.callOpenAI(messages, apiKey!, model!, baseURL);
-      case 'anthropic':
-        return this.callAnthropic(messages, apiKey!, model!);
-      case 'google':
-        return this.callGoogle(messages, apiKey!, model!);
-      default:
-        throw new Error(`Unsupported AI provider: ${provider}`);
+    while (toolCallCount < maxToolCalls) {
+      const { provider, apiKey, model, baseURL } = this.config;
+      let response: any;
+
+      switch (provider) {
+        case 'openai':
+          response = await this.callOpenAI(messages, apiKey!, model!, baseURL, enableMCP);
+          break;
+        case 'anthropic':
+          response = await this.callAnthropic(messages, apiKey!, model!, enableMCP);
+          break;
+        case 'google':
+          response = await this.callGoogle(messages, apiKey!, model!, enableMCP);
+          break;
+        default:
+          throw new Error(`Unsupported AI provider: ${provider}`);
+      }
+
+      // Check if response contains tool calls
+      if (response.toolCalls && response.toolCalls.length > 0 && enableMCP) {
+        toolCallCount++;
+        console.log(`Executing ${response.toolCalls.length} MCP tool call(s)...`);
+
+        // Execute all tool calls
+        const toolResults = await Promise.all(
+          response.toolCalls.map(async (toolCall: any) => {
+            try {
+              // Parse arguments - handle both string and object formats
+              let args: any = {};
+              if (toolCall.function?.arguments) {
+                args = typeof toolCall.function.arguments === 'string' 
+                  ? JSON.parse(toolCall.function.arguments) 
+                  : toolCall.function.arguments;
+              } else if (toolCall.arguments) {
+                args = typeof toolCall.arguments === 'string' 
+                  ? JSON.parse(toolCall.arguments) 
+                  : toolCall.arguments;
+              }
+
+              const mcpToolCall: MCPToolCall = {
+                name: toolCall.function?.name || toolCall.name,
+                arguments: args
+              };
+              const result = await this.mcpClient.callTool(mcpToolCall);
+              return {
+                tool_call_id: toolCall.id || toolCall.tool_call_id,
+                role: 'tool' as const,
+                name: mcpToolCall.name,
+                content: result.content[0]?.text || JSON.stringify(result.content)
+              };
+            } catch (error: any) {
+              return {
+                tool_call_id: toolCall.id || toolCall.tool_call_id,
+                role: 'tool' as const,
+                name: toolCall.function?.name || toolCall.name,
+                content: `Error: ${error.message}`
+              };
+            }
+          })
+        );
+
+        // Add assistant message with tool calls (if any) and tool results
+        // For Anthropic, we need to preserve tool_use blocks in the assistant message
+        const assistantMessage: any = {
+          role: 'assistant',
+          content: response.content || response.text || ''
+        };
+        
+        // Store tool call IDs for reference (needed for Anthropic)
+        if (response.toolCalls && response.toolCalls.length > 0) {
+          assistantMessage.toolCalls = response.toolCalls;
+          // Store Anthropic content if available (includes tool_use blocks)
+          if (response.anthropicContent) {
+            assistantMessage.anthropicContent = response.anthropicContent;
+          }
+        }
+        
+        messages.push(assistantMessage);
+        toolResults.forEach(result => {
+          messages.push(result);
+        });
+
+        // Continue the conversation with tool results
+        continue;
+      }
+
+      // No tool calls, return the final response
+      return response.content || response.text || response;
     }
+
+    // If we've made too many tool calls, return the last response
+    console.warn(`Reached maximum tool call limit (${maxToolCalls}), returning last response`);
+    return messages[messages.length - 1]?.content || 'Maximum tool call limit reached';
   }
 
   /**
-   * Call OpenAI API
+   * Call AI API based on configured provider (legacy method, kept for compatibility)
+   */
+  private async callAIAPI(messages: Array<{ role: string; content: string }>): Promise<string> {
+    return this.callAIAPIWithMCP(messages);
+  }
+
+  /**
+   * Call OpenAI API with optional MCP tool support
    */
   private async callOpenAI(
     messages: Array<{ role: string; content: string }>,
     apiKey: string,
     model: string,
-    baseURL?: string
-  ): Promise<string> {
+    baseURL?: string,
+    enableMCP: boolean = false
+  ): Promise<any> {
     const url = baseURL || 'https://api.openai.com/v1/chat/completions';
     
-    const requestBody = {
+    // Get MCP tools if enabled
+    const tools = enableMCP ? this.mcpClient.getTools().map(tool => ({
+      type: 'function' as const,
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema
+      }
+    })) : undefined;
+
+    const requestBody: any = {
       model: model,
       messages: messages,
       temperature: 0.7,
       max_tokens: 1000
     };
+
+    if (tools && tools.length > 0) {
+      requestBody.tools = tools;
+      requestBody.tool_choice = 'auto';
+    }
 
     console.log('OpenAI API Request:', {
       url,
@@ -805,9 +1014,28 @@ Remember: You have access to the complete database context above. Use this full 
       const data = await response.json();
       console.log('OpenAI API Success Response:', {
         hasChoices: !!data.choices,
-        choiceCount: data.choices?.length || 0
+        choiceCount: data.choices?.length || 0,
+        hasToolCalls: !!data.choices[0]?.message?.tool_calls
       });
-      return data.choices[0]?.message?.content || 'No response from AI';
+
+      const message = data.choices[0]?.message;
+      if (message.tool_calls && message.tool_calls.length > 0) {
+        return {
+          content: message.content || '',
+          toolCalls: message.tool_calls.map((tc: any) => ({
+            id: tc.id,
+            function: {
+              name: tc.function.name,
+              arguments: tc.function.arguments
+            }
+          }))
+        };
+      }
+
+      return {
+        content: message?.content || 'No response from AI',
+        text: message?.content || 'No response from AI'
+      };
     } catch (error: any) {
       console.error('OpenAI API Fetch Error:', {
         message: error.message,
@@ -825,22 +1053,69 @@ Remember: You have access to the complete database context above. Use this full 
   }
 
   /**
-   * Call Anthropic Claude API
+   * Call Anthropic Claude API with optional MCP tool support
    */
   private async callAnthropic(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: string; tool_call_id?: string; name?: string }>,
     apiKey: string,
-    model: string
-  ): Promise<string> {
+    model: string,
+    enableMCP: boolean = false
+  ): Promise<any> {
     // Filter out system message and convert format for Anthropic
+    // Handle tool messages (role: 'tool') specially
     const anthropicMessages = messages
       .filter(msg => msg.role !== 'system')
-      .map(msg => ({
-        role: msg.role === 'assistant' ? 'assistant' : 'user',
-        content: [{ type: 'text', text: msg.content }]
-      }));
+      .map(msg => {
+        if (msg.role === 'tool') {
+          // Tool result message
+          return {
+            role: 'user' as const,
+            content: [{
+              type: 'tool_result' as const,
+              tool_use_id: (msg as any).tool_call_id,
+              content: msg.content
+            }]
+          };
+        } else if (msg.role === 'assistant') {
+          // Check if assistant message has tool calls embedded (from previous Anthropic response)
+          if ((msg as any).anthropicContent) {
+            // Use the full content including tool_use blocks
+            return {
+              role: 'assistant' as const,
+              content: (msg as any).anthropicContent
+            };
+          }
+          return {
+            role: 'assistant' as const,
+            content: [{ type: 'text', text: msg.content }]
+          };
+        } else {
+          return {
+            role: msg.role === 'assistant' ? 'assistant' : 'user',
+            content: [{ type: 'text', text: msg.content }]
+          };
+        }
+      });
 
     const systemMessage = messages.find(msg => msg.role === 'system')?.content || '';
+
+    // Get MCP tools if enabled
+    const tools = enableMCP ? this.mcpClient.getTools().map(tool => ({
+      name: tool.name,
+      description: tool.description,
+      input_schema: tool.inputSchema
+    })) : undefined;
+
+    const requestBody: any = {
+      model: model || 'claude-3-haiku-20240307',
+      max_tokens: 1000,
+      system: systemMessage,
+      messages: anthropicMessages
+    };
+
+    if (tools && tools.length > 0) {
+      requestBody.tools = tools;
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -849,12 +1124,7 @@ Remember: You have access to the complete database context above. Use this full 
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify({
-        model: model || 'claude-3-haiku-20240307',
-        max_tokens: 1000,
-        system: systemMessage,
-        messages: anthropicMessages
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
@@ -863,17 +1133,39 @@ Remember: You have access to the complete database context above. Use this full 
     }
 
     const data = await response.json();
-    return data.content[0]?.text || 'No response from AI';
+    
+    // Check for tool use
+    const toolUseBlocks = data.content.filter((block: any) => block.type === 'tool_use');
+    if (toolUseBlocks.length > 0) {
+      // For Anthropic, we need to preserve the full content including tool_use blocks
+      return {
+        content: data.content.find((block: any) => block.type === 'text')?.text || '',
+        text: data.content.find((block: any) => block.type === 'text')?.text || '',
+        toolCalls: toolUseBlocks.map((block: any) => ({
+          id: block.id,
+          name: block.name,
+          arguments: JSON.stringify(block.input)
+        })),
+        // Store full content for Anthropic (includes tool_use blocks)
+        anthropicContent: data.content
+      };
+    }
+
+    return {
+      content: data.content[0]?.text || 'No response from AI',
+      text: data.content[0]?.text || 'No response from AI'
+    };
   }
 
   /**
-   * Call Google Gemini API
+   * Call Google Gemini API with optional MCP tool support
    */
   private async callGoogle(
     messages: Array<{ role: string; content: string }>,
     apiKey: string,
-    model: string
-  ): Promise<string> {
+    model: string,
+    enableMCP: boolean = false
+  ): Promise<any> {
     // Convert messages to Gemini format
     const contents = messages
       .filter(msg => msg.role !== 'system')
@@ -884,6 +1176,30 @@ Remember: You have access to the complete database context above. Use this full 
 
     const systemInstruction = messages.find(msg => msg.role === 'system')?.content || '';
 
+    // Get MCP tools if enabled (Gemini uses FunctionDeclaration format)
+    const tools = enableMCP ? [{
+      functionDeclarations: this.mcpClient.getTools().map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: {
+          type: tool.inputSchema.type,
+          properties: tool.inputSchema.properties,
+          required: tool.inputSchema.required || []
+        }
+      }))
+    }] : undefined;
+
+    const requestBody: any = {
+      contents: contents,
+      systemInstruction: {
+        parts: [{ text: systemInstruction }]
+      }
+    };
+
+    if (tools && tools.length > 0) {
+      requestBody.tools = tools;
+    }
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-pro'}:generateContent?key=${apiKey}`,
       {
@@ -891,12 +1207,7 @@ Remember: You have access to the complete database context above. Use this full 
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          contents: contents,
-          systemInstruction: {
-            parts: [{ text: systemInstruction }]
-          }
-        })
+        body: JSON.stringify(requestBody)
       }
     );
 
@@ -906,7 +1217,25 @@ Remember: You have access to the complete database context above. Use this full 
     }
 
     const data = await response.json();
-    return data.candidates[0]?.content?.parts[0]?.text || 'No response from AI';
+    const candidate = data.candidates?.[0];
+    
+    // Check for function calls
+    const functionCalls = candidate?.content?.parts?.filter((part: any) => part.functionCall);
+    if (functionCalls && functionCalls.length > 0) {
+      return {
+        content: candidate.content.parts.find((part: any) => part.text)?.text || '',
+        toolCalls: functionCalls.map((part: any) => ({
+          id: part.functionCall.name,
+          name: part.functionCall.name,
+          arguments: JSON.stringify(part.functionCall.args || {})
+        }))
+      };
+    }
+
+    return {
+      content: candidate?.content?.parts?.[0]?.text || 'No response from AI',
+      text: candidate?.content?.parts?.[0]?.text || 'No response from AI'
+    };
   }
 
   /**

@@ -18,6 +18,10 @@ import AIAssistantAccessService from '../services/aiAssistantAccessService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types/user';
 import { useToast } from '../contexts/ToastContext';
+import ChatScoreViewer from './ChatScoreViewer';
+import ChatAudioPlayer from './ChatAudioPlayer';
+import ChatResourceViewer from './ChatResourceViewer';
+import { parseChatMessage, EmbeddedMedia } from '../utils/chatMediaParser';
 
 interface AIAssistantScreenProps {
   onBack: () => void;
@@ -378,28 +382,85 @@ const AIAssistantScreen: React.FC<AIAssistantScreenProps> = ({ onBack, user, isA
             </View>
           )}
 
-          {messages.map((message, index) => (
-            <View
-              key={index}
-              style={[
-                styles.messageContainer,
-                message.role === 'user' ? styles.userMessage : styles.assistantMessage
-              ]}
-            >
-              <Text style={[styles.messageRole, message.role === 'user' && styles.userMessageRole]}>
-                {message.role === 'user' ? 'You' : 'Assistant'}
-              </Text>
-              {message.role === 'user' ? (
-                <Text style={styles.userMessageText}>
-                  {message.content}
+          {messages.map((message, index) => {
+            if (message.role === 'user') {
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.messageContainer,
+                    styles.userMessage
+                  ]}
+                >
+                  <Text style={[styles.messageRole, styles.userMessageRole]}>
+                    You
+                  </Text>
+                  <Text style={styles.userMessageText}>
+                    {message.content}
+                  </Text>
+                </View>
+              );
+            }
+
+            // Parse assistant message for embedded media
+            const parsed = parseChatMessage(message.content);
+            
+            return (
+              <View
+                key={index}
+                style={[
+                  styles.messageContainer,
+                  styles.assistantMessage
+                ]}
+              >
+                <Text style={styles.messageRole}>
+                  Assistant
                 </Text>
-              ) : (
-                <Markdown style={markdownStyles}>
-                  {message.content}
-                </Markdown>
-              )}
-            </View>
-          ))}
+                
+                {/* Render text parts with markdown */}
+                {parsed.textParts.map((textPart, textIndex) => (
+                  <View key={`text-${textIndex}`}>
+                    <Markdown style={markdownStyles}>
+                      {textPart}
+                    </Markdown>
+                  </View>
+                ))}
+                
+                {/* Render embedded media */}
+                {parsed.media.map((media, mediaIndex) => {
+                  if (media.type === 'score') {
+                    return (
+                      <ChatScoreViewer
+                        key={`score-${mediaIndex}`}
+                        url={media.url}
+                        name={media.name}
+                        pages={media.pages}
+                      />
+                    );
+                  } else if (media.type === 'track') {
+                    return (
+                      <ChatAudioPlayer
+                        key={`track-${mediaIndex}`}
+                        path={media.path}
+                        name={media.name}
+                      />
+                    );
+                  } else if (media.type === 'resource') {
+                    return (
+                      <ChatResourceViewer
+                        key={`resource-${mediaIndex}`}
+                        url={media.url}
+                        name={media.name}
+                        type={media.resourceType}
+                        description={media.description}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+              </View>
+            );
+          })}
 
           {isLoading && (
             <View style={[styles.messageContainer, styles.assistantMessage]}>
