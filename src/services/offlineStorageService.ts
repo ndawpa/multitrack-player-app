@@ -165,7 +165,7 @@ class OfflineStorageService {
    */
   public async removeOfflineSong(songId: string): Promise<void> {
     try {
-      const songCacheDir = `${this.cacheDirectory}${song.id}/`;
+      const songCacheDir = `${this.cacheDirectory}${songId}/`;
       await FileSystem.deleteAsync(songCacheDir, { idempotent: true });
       await AsyncStorage.removeItem(`offline_song_${songId}`);
 
