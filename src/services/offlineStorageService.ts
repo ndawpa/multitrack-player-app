@@ -13,17 +13,20 @@ interface OfflineSongData {
 
 class OfflineStorageService {
   private static instance: OfflineStorageService;
-  private cacheDirectory = `${FileSystem.cacheDirectory}offline/`;
+  // documentDirectory is persistent app data. cacheDirectory may be purged by
+  // iOS/Android and therefore cannot guarantee that a download remains offline.
+  private storageDirectory = `${FileSystem.documentDirectory || FileSystem.cacheDirectory}offline/`;
   private offlineSongsKey = 'offline_songs';
   private offlineSongs: Set<string> = new Set();
+  private initialization: Promise<void>;
 
   private constructor() {
-    // Initialize cache directory
-    FileSystem.makeDirectoryAsync(this.cacheDirectory, { intermediates: true })
+    this.initialization = FileSystem.makeDirectoryAsync(this.storageDirectory, { intermediates: true })
       .catch(error => console.log('Offline cache directory already exists:', error));
-    
-    // Load offline songs list
-    this.loadOfflineSongsList();
+    this.initialization = Promise.all([
+      this.initialization,
+      this.loadOfflineSongsList()
+    ]).then(() => undefined);
   }
 
   public static getInstance(): OfflineStorageService {
@@ -60,6 +63,11 @@ class OfflineStorageService {
     return this.offlineSongs.has(songId);
   }
 
+  /** Wait until the persisted offline index has been restored. */
+  public async ready(): Promise<void> {
+    await this.initialization;
+  }
+
   /**
    * Get all offline song IDs
    */
@@ -72,7 +80,8 @@ class OfflineStorageService {
    */
   public async downloadSongForOffline(song: Song): Promise<void> {
     try {
-      const songCacheDir = `${this.cacheDirectory}${song.id}/`;
+      await this.ready();
+      const songCacheDir = `${this.storageDirectory}${song.id}/`;
       await FileSystem.makeDirectoryAsync(songCacheDir, { intermediates: true });
 
       const offlineData: OfflineSongData = {
@@ -165,7 +174,8 @@ class OfflineStorageService {
    */
   public async removeOfflineSong(songId: string): Promise<void> {
     try {
-      const songCacheDir = `${this.cacheDirectory}${songId}/`;
+      await this.ready();
+      const songCacheDir = `${this.storageDirectory}${songId}/`;
       await FileSystem.deleteAsync(songCacheDir, { idempotent: true });
       await AsyncStorage.removeItem(`offline_song_${songId}`);
 
@@ -185,6 +195,7 @@ class OfflineStorageService {
    */
   public async getCachedTrackUri(track: Track, songId: string): Promise<string | null> {
     try {
+      await this.ready();
       if (!this.isSongOffline(songId)) {
         return null;
       }
@@ -217,6 +228,7 @@ class OfflineStorageService {
    */
   public async getCachedScorePages(score: Score, songId: string): Promise<string[] | null> {
     try {
+      await this.ready();
       if (!this.isSongOffline(songId)) {
         return null;
       }
@@ -260,6 +272,7 @@ class OfflineStorageService {
    */
   public async getOfflineSongData(songId: string): Promise<OfflineSongData | null> {
     try {
+      await this.ready();
       const data = await AsyncStorage.getItem(`offline_song_${songId}`);
       if (data) {
         return JSON.parse(data);
@@ -276,8 +289,9 @@ class OfflineStorageService {
    */
   public async clearAllOfflineData(): Promise<void> {
     try {
-      await FileSystem.deleteAsync(this.cacheDirectory, { idempotent: true });
-      await FileSystem.makeDirectoryAsync(this.cacheDirectory, { intermediates: true });
+      await this.ready();
+      await FileSystem.deleteAsync(this.storageDirectory, { idempotent: true });
+      await FileSystem.makeDirectoryAsync(this.storageDirectory, { intermediates: true });
 
       // Remove all offline song data from AsyncStorage
       const songIds = Array.from(this.offlineSongs);
@@ -297,4 +311,3 @@ class OfflineStorageService {
 }
 
 export default OfflineStorageService;
-

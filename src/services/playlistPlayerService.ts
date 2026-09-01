@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { AudioPlayer } from 'expo-audio';
 import { Playlist } from '../types/playlist';
 import { Song } from '../types/song';
 import PlaylistService from './playlistService';
@@ -27,7 +27,8 @@ class PlaylistPlayerService {
   private currentState: PlaylistPlayerState;
   private callbacks: PlaylistPlayerCallbacks = {};
   private playlistService: PlaylistService;
-  private currentPlayers: Audio.Sound[] = [];
+  private currentPlayers: AudioPlayer[] = [];
+  private subscriptions: { remove: () => void }[] = [];
   private isInitialized = false;
 
   private constructor() {
@@ -105,9 +106,7 @@ class PlaylistPlayerService {
       }
 
       // Play all active tracks
-      await Promise.all(
-        this.currentPlayers.map(player => player.playAsync())
-      );
+      this.currentPlayers.forEach(player => player.play());
 
       this.currentState.isPlaying = true;
       this.notifyStateChange();
@@ -123,9 +122,7 @@ class PlaylistPlayerService {
    */
   public async pause(): Promise<void> {
     try {
-      await Promise.all(
-        this.currentPlayers.map(player => player.pauseAsync())
-      );
+      this.currentPlayers.forEach(player => player.pause());
 
       this.currentState.isPlaying = false;
       this.notifyStateChange();
@@ -141,10 +138,6 @@ class PlaylistPlayerService {
    */
   public async stop(): Promise<void> {
     try {
-      await Promise.all(
-        this.currentPlayers.map(player => player.stopAsync())
-      );
-
       await this.unloadCurrentSong();
 
       this.currentState = {
@@ -247,9 +240,8 @@ class PlaylistPlayerService {
    */
   public async seekTo(position: number): Promise<void> {
     try {
-      const positionMs = position * 1000; // Convert to milliseconds
       await Promise.all(
-        this.currentPlayers.map(player => player.setPositionAsync(positionMs))
+        this.currentPlayers.map(player => player.seekTo(position))
       );
 
       this.currentState.progress = position;
@@ -315,18 +307,18 @@ class PlaylistPlayerService {
             const sound = await audioStorage.loadAudioFile(audioFile);
             
             // Set up playback status listener
-            sound.setOnPlaybackStatusUpdate((status) => {
+            const subscription = sound.addListener('playbackStatusUpdate', (status) => {
               if (status.isLoaded) {
-                this.currentState.progress = (status.positionMillis || 0) / 1000;
-                this.currentState.duration = (status.durationMillis || 0) / 1000;
+                this.currentState.progress = status.currentTime;
+                this.currentState.duration = status.duration;
                 this.notifyStateChange();
 
-                // Check if song finished
                 if (status.didJustFinish) {
                   this.handleSongFinished();
                 }
               }
             });
+            this.subscriptions.push(subscription);
 
             return sound;
           } catch (error) {
@@ -338,9 +330,9 @@ class PlaylistPlayerService {
 
       // Get duration from first track
       if (this.currentPlayers.length > 0) {
-        const status = await this.currentPlayers[0].getStatusAsync();
-        if (status.isLoaded) {
-          this.currentState.duration = (status.durationMillis || 0) / 1000;
+        const player = this.currentPlayers[0];
+        if (player.isLoaded) {
+          this.currentState.duration = player.duration;
         }
       }
 

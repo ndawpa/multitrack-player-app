@@ -15,6 +15,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObjec
 import { database } from '../config/firebase';
 import AudioStorageService from '../services/audioStorage';
 import OfflineStorageService from '../services/offlineStorageService';
+import SongCatalogCacheService from '../services/songCatalogCacheService';
 import * as DocumentPicker from 'expo-document-picker';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system';
@@ -574,27 +575,48 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
     return () => subscription?.remove();
   }, []);
 
-  // Load songs from Firebase
+  // Show the last available catalog immediately, then refresh it from Firebase.
+  // The cache is scoped by user so data never leaks between accounts on a
+  // shared device.
   useEffect(() => {
-    const songsRef = ref(database, 'songs');
-    const unsubscribe = onValue(songsRef, (snapshot) => {
-      const data = snapshot.val();
-      console.log('Firebase songs data:', data);
-      if (data) {
-        const songsList = Object.entries(data).map(([id, songData]: [string, any]) => ({
-          id,
-          ...songData
-        }));
-        console.log('Processed songs list:', songsList);
-        setSongs(songsList);
-      } else {
-        console.log('No songs data in Firebase');
-        setSongs([]);
+    if (!user?.id) {
+      setSongs([]);
+      return;
+    }
+
+    let active = true;
+    let remoteCatalogReceived = false;
+    SongCatalogCacheService.load(user.id).then(cachedSongs => {
+      if (active && !remoteCatalogReceived && cachedSongs.length > 0) {
+        setSongs(cachedSongs);
       }
     });
 
-    return () => unsubscribe();
-  }, []);
+    const songsRef = ref(database, 'songs');
+    const unsubscribe = onValue(songsRef, (snapshot) => {
+      remoteCatalogReceived = true;
+      const data = snapshot.val();
+      if (data) {
+        const songsList: Song[] = Object.entries(data).map(([id, songData]: [string, any]) => ({
+          id,
+          ...songData
+        }));
+        setSongs(songsList);
+        void SongCatalogCacheService.save(user.id, songsList);
+      } else {
+        setSongs([]);
+        void SongCatalogCacheService.save(user.id, []);
+      }
+    }, (error) => {
+      // Keep rendering the cached catalog when the device is offline.
+      console.warn('Could not refresh songs; using cached catalog:', error);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [user?.id]);
 
   // Load user's favorite songs with real-time sync
   useEffect(() => {
@@ -5336,13 +5358,14 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigateToProfile, onNavigateToPl
 
   // Load offline songs list on mount
   useEffect(() => {
-    const loadOfflineSongs = () => {
+    const loadOfflineSongs = async () => {
+      await offlineStorageService.ready();
       const offlineSongIds = offlineStorageService.getOfflineSongIds();
       setOfflineSongs(new Set(offlineSongIds));
     };
 
-    loadOfflineSongs();
-  }, []);
+    void loadOfflineSongs();
+  }, [offlineStorageService]);
 
   // Load cached score pages when song is selected
   useEffect(() => {

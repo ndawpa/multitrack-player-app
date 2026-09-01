@@ -1,5 +1,5 @@
 import { ref, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
@@ -136,13 +136,10 @@ class AudioStorageService {
     }
   }
 
-  async loadAudioFile(audioFile: AudioFile): Promise<Audio.Sound> {
+  async loadAudioFile(audioFile: AudioFile): Promise<AudioPlayer> {
     try {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioFile.localUri || audioFile.url },
-        { shouldPlay: false }
-      );
-      return sound;
+      const player = createAudioPlayer({ uri: audioFile.localUri || audioFile.url });
+      return player;
     } catch (error) {
       console.error('Error loading audio file:', error);
       throw error;
